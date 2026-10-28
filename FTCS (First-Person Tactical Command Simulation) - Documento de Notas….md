@@ -78,3 +78,22 @@ FTCS (First-Person Tactical Command Simulation) - Documento de Notas y Diseño d
         1. **Team 1:** Elemento de Mando y Comunicaciones Directas.  
         2. **Team 2:** Elemento de Liderazgo, Estafetas/Mensajeros y Apoyo Sanitario.  
         3. **Team 3:** Elemento opcional ampliable para soporte logístico o especializado según la doctrina.  
+* **Arquitectura del Motor Genérico de Spawn Doctrinal (Data-Driven Architecture & Enfusion Portability):**  
+    * **Filosofía de Diseño (Desacoplamiento Código/Datos):** Para garantizar compatibilidad total con Enforce Script (Arma 4/Enfusion) y evitar la duplicación de código procedural (violación DRY), **no se crean funciones SQF separadas por cada doctrina**. En su lugar, el sistema implementa un único componente motor genérico (`FTCS_fnc_spawnDoctrine`) que consume plantillas de datos puros (`HashMap` / `Struct`).  
+    * **Pipeline de Creación y Conversión de Doctrinas:**  
+        1. *Diseño Visual:* El diseñador compone libremente la fuerza en el 3DEN Editor de Arma 3 (infantería, armas estáticas, morteros, transportes, blindados) y asigna las variables estándar (`SQUAD_X_Y`, `PLT_X_LEADER`, `HQ_CO_CAPTAIN`, etc.).  
+        2. *Exportación Nativa:* Se guarda como Custom Composition en el editor (`composition.sqe`).  
+        3. *Traducción a Datos Puros:* Un script o convertidor extrae los `addons[]` y entidades del `.sqe` a un archivo de datos estructurado (ej. `Doctrines/Data/US_Airborne.sqf`).  
+    * **Estructura de Datos de una Doctrina (Doctrinal Data Template):**  
+        Cada archivo doctrinal devuelve un `HashMap` con la siguiente especificación:  
+        * `"doctrineID"`: [String] Clave identificadora (ej. `"US_AIRBORNE"`).  
+        * `"companyLetter"`: [String] Letra de compañía (ej. `"E"`).  
+        * `"requiredMods"`: [Array de Strings] Clases de `CfgPatches` requeridas (ej. `["WW2_Core", "WW2_Assets"]`).  
+        * `"entities"`: [Array de Arrays] Lista de entidades a spawnear con la tupla:  
+          `[className, [offsetX, offsetY, offsetZ], relativeDir, varName, squadRole, rank, isVehicle, initialCrewRoles]`  
+    * **Lógica de Ejecución del Motor Genérico (`FTCS_fnc_spawnDoctrine`):**  
+        * **Paso 1 (Verificación de Compatibilidad de Mods):** Itera sobre `"requiredMods"` comprobando `isClass (configFile >> "CfgPatches" >> _x)`. Si falta alguno, interrumpe el despliegue con alerta visual detallando los addons ausentes.  
+        * **Paso 2 (Transformación Geométrica Espacial):** Recibe la posición de anclaje (Assembly Area / coordenada seleccionada en mapa) y el vector de avance (`FTCS_Platoon_Advance_Direction`). Aplica rotación trigonométrica en 2D a los offsets relativos para orientar a todo el contingente en la dirección táctica sin deformar la formación original de la composición.  
+        * **Paso 3 (Instanciación y Asignación de Roles):** Spawnea soldados y vehículos (`createUnit` / `createVehicle`), ejecuta `setVehicleVarName` y registra los objetos en `missionNamespace`.  
+        * **Paso 4 (Auto-enlace con el Backend):** Dispara en cadena la secuencia de inicialización del core:  
+          `FTCS_fnc_applyDoctrine` -> `FTCS_fnc_parseEditorGroups` -> `FTCS_fnc_initCompanyCommand` -> `FTCS_fnc_syncGroupNames` -> `FTCS_fnc_registryInit` -> `FTCS_fnc_initUnitInteractions`.  

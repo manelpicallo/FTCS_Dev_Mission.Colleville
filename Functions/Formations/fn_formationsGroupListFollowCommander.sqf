@@ -15,7 +15,11 @@ if (_mode == "FOLLOWING_COMMANDER_ABS") then
 {
     {
         private _relPos = [ groupId _x, "relPosition" ] call FTCS_fnc_registryGet;
-        private _group_leader = _relPos getOrDefault [2, FTCS_Group_Commander];
+        private _group_leader = if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos > 2}) then {
+            _relPos select 2
+        } else {
+            FTCS_Group_Commander
+        };
 
         if ((_list find _group_leader) == -1) then 
         {
@@ -33,7 +37,12 @@ if (_mode == "FOLLOWING_COMMANDER_REL") then
 {
     {
         private _relPos = [ groupId _x, "relPosition" ] call FTCS_fnc_registryGet;
-        private _leader_formation = leader (_relPos getOrDefault [2, FTCS_Group_Commander]);
+        private _refGroup = if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos > 2}) then {
+            _relPos select 2
+        } else {
+            FTCS_Group_Commander
+        };
+        private _leader_formation = leader _refGroup;
         
         // Lanza la función de seguimiento individual para cada grupo
         [_x, _mode, _leader_formation] spawn FTCS_fnc_formationsGroupDoFollowCommander;

@@ -64,6 +64,12 @@ FTCS_Groups_Registry_Table = createHashMap;
 // Vehicle and miscellaneous auxiliary mapping tables
 Groups_Vehicle_Names_Table = createHashMap;
 
+// Selection state lists (used by unit/group/vehicle selection actions)
+Type_Selected = "INFANTRY";
+Selected_list = [];
+Selected_Units_list = [];
+Selected_Vehicle_list = [];
+
 // 2. Safe Execution Block: Wait until CfgFunctions are fully compiled by the engine
 [
     { !isNil "FTCS_fnc_configDoctrines" },
@@ -80,11 +86,12 @@ Groups_Vehicle_Names_Table = createHashMap;
         // 4.1. Initialize Company Command (Isolate Captain)
         call FTCS_fnc_initCompanyCommand;
 
-        // 4.2. Initialize the Master Encapsulated Group Registry (states, geometry & slots)
-        call FTCS_fnc_registryInit;
-
-        // 5. Synchronize visual group names in the game engine (Arma 3 setGroupId abstraction)
+        // 4.2. Synchronize visual group names in the game engine (Arma 3 setGroupId abstraction)
+        // Executed BEFORE registryInit so groupId keys in FTCS_Groups_Registry_Table match final group IDs
         call FTCS_fnc_syncGroupNames;
+
+        // 5. Initialize the Master Encapsulated Group Registry (states, geometry & slots)
+        call FTCS_fnc_registryInit;
 
         // 6. Initialize Context-Sensitive Flat Menus & Interactions
         call FTCS_fnc_initUnitInteractions;

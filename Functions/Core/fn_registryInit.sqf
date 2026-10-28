@@ -92,7 +92,15 @@ private _registeredCount = 0;
     private _pltHqSquadId = format ["SQD_%1_0", parseNumber ((_pltKey splitString "_") select 1)];
     private _pltHqGroup = grpNull;
     if (_parsedSquads get _pltHqSquadId isEqualType createHashMap) then {
-        _pltHqGroup = (_parsedSquads get _pltHqSquadId) getOrDefault ["group", grpNull];
+        private _pltHqSquadData = _parsedSquads get _pltHqSquadId;
+        _pltHqGroup = _pltHqSquadData getOrDefault ["group", grpNull];
+        if (isNull _pltHqGroup) then {
+            private _teams = _pltHqSquadData getOrDefault ["tacticalTeams", createHashMap];
+            {
+                private _grp = _y getOrDefault ["group", grpNull];
+                if (!isNull _grp) exitWith { _pltHqGroup = _grp; };
+            } forEach _teams;
+        };
     };
     private _leaderRef = if (isNull _pltHqGroup) then { FTCS_Group_Commander } else { _pltHqGroup };
 

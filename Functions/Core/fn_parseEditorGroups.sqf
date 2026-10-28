@@ -135,13 +135,42 @@ private _playerSide = side group player;
 
                 // Special case handling for Company HQ (SQUAD_0_0)
                 if (_pltIndex == 0 && _sqdIndex == "0") then {
-                    FTCS_Company_Data set ["companyHQ", createHashMapFromArray [
+                    private _companyHQData = FTCS_Company_Data getOrDefault ["companyHQ", createHashMapFromArray [
                         ["group", _group],
                         ["name", _doctrinalName],
                         ["units", units _group],
                         ["leader", leader _group],
+                        ["tacticalTeams", createHashMap],
                         ["assignedRoles", _hqRolesMap]
                     ]];
+
+                    if (_teamSuffix == "team" && count _tokens >= 5) then {
+                        private _teamNum = _tokens select 4;
+                        private _upperTeamSuffix = format ["TEAM_%1", _teamNum];
+                        private _tacticalTeams = _companyHQData getOrDefault ["tacticalTeams", createHashMap];
+                        private _teamId = format ["TEAM_0_0_%1", _upperTeamSuffix];
+
+                        _tacticalTeams set [_teamId, createHashMapFromArray [
+                            ["teamId", _teamId],
+                            ["type", _upperTeamSuffix],
+                            ["group", _group],
+                            ["units", units _group],
+                            ["leader", leader _group]
+                        ]];
+                        _companyHQData set ["tacticalTeams", _tacticalTeams];
+
+                        if (_upperTeamSuffix == "TEAM_1") then {
+                            _companyHQData set ["group", _group];
+                            _companyHQData set ["leader", leader _group];
+                        };
+                    } else {
+                        _companyHQData set ["group", _group];
+                        _companyHQData set ["name", _doctrinalName];
+                        _companyHQData set ["units", units _group];
+                        _companyHQData set ["leader", leader _group];
+                    };
+
+                    FTCS_Company_Data set ["companyHQ", _companyHQData];
                 } else {
                     // Match squad to the corresponding platoon
                     if (_platoonsMap get _pltKey isEqualType createHashMap) then {
@@ -158,8 +187,12 @@ private _playerSide = side group player;
 
                         // Check if it is a Platoon HQ slot (SQD_X_0)
                         if (_sqdIndex == "0") then {
-                            if (_teamSuffix in ["team_1", "team_2", "team_3", "command", "support"]) then {
-                                private _upperTeamSuffix = toUpper _teamSuffix;
+                            if ((_teamSuffix == "team" && count _tokens >= 5) || (_teamSuffix in ["team_1", "team_2", "team_3", "command", "support"])) then {
+                                private _upperTeamSuffix = if (_teamSuffix == "team" && count _tokens >= 5) then {
+                                    format ["TEAM_%1", _tokens select 4]
+                                } else {
+                                    toUpper _teamSuffix
+                                };
                                 private _tacticalTeams = _squadData getOrDefault ["tacticalTeams", createHashMap];
                                 private _teamId = format ["TEAM_%1_0_%2", _pltIndex, _upperTeamSuffix];
                                 
@@ -171,6 +204,12 @@ private _playerSide = side group player;
                                     ["leader", leader _group]
                                 ]];
                                 _squadData set ["tacticalTeams", _tacticalTeams];
+
+                                // Set main Platoon HQ group and leader reference to Team 1 by default
+                                if (_upperTeamSuffix in ["TEAM_1", "COMMAND"] || !("leader" in _squadData)) then {
+                                    _squadData set ["group", _group];
+                                    _squadData set ["leader", leader _group];
+                                };
                             } else {
                                 // Fallback unified Platoon HQ group
                                 _squadData set ["group", _group];

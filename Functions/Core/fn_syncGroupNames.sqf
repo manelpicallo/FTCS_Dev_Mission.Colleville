@@ -20,7 +20,17 @@ FTCS_fnc_setEngineGroupName = {
     if (count _companyHQData > 0) then {
         private _hqGroup = _companyHQData getOrDefault ["group", grpNull];
         private _companyLetter = FTCS_Config getOrDefault ["companyLetter", "E"];
-        [ _hqGroup, format ["Company HQ (%1)", _companyLetter] ] call FTCS_fnc_setEngineGroupName;
+        private _coTacticalTeams = _companyHQData getOrDefault ["tacticalTeams", createHashMap];
+        if (count _coTacticalTeams > 0) then {
+            {
+                private _teamData = _y;
+                private _teamType = _teamData getOrDefault ["type", "TEAM"];
+                private _teamGroup = _teamData getOrDefault ["group", grpNull];
+                [ _teamGroup, format ["Company HQ (%1) - %2", _companyLetter, _teamType] ] call FTCS_fnc_setEngineGroupName;
+            } forEach _coTacticalTeams;
+        } else {
+            [ _hqGroup, format ["Company HQ (%1)", _companyLetter] ] call FTCS_fnc_setEngineGroupName;
+        };
     };
 
     private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
@@ -39,8 +49,18 @@ FTCS_fnc_setEngineGroupName = {
 
             // Handle Platoon HQ / Leadership Slot (SQD_X_0)
             if (_sqdId find "_0" >= 0) then {
-                private _pltHqGroup = _sqdData getOrDefault ["group", grpNull];
-                [ _pltHqGroup, format ["HQ - %1", _pltName] ] call FTCS_fnc_setEngineGroupName;
+                private _tacticalTeams = _sqdData getOrDefault ["tacticalTeams", createHashMap];
+                if (count _tacticalTeams > 0) then {
+                    {
+                        private _teamData = _y;
+                        private _teamType = _teamData getOrDefault ["type", "TEAM"];
+                        private _teamGroup = _teamData getOrDefault ["group", grpNull];
+                        [ _teamGroup, format ["HQ - %1 (%2)", _pltName, _teamType] ] call FTCS_fnc_setEngineGroupName;
+                    } forEach _tacticalTeams;
+                } else {
+                    private _pltHqGroup = _sqdData getOrDefault ["group", grpNull];
+                    [ _pltHqGroup, format ["HQ - %1", _pltName] ] call FTCS_fnc_setEngineGroupName;
+                };
             } else {
                 if (_isUnified) then {
                     // Unified squads (e.g. Mortar Section)

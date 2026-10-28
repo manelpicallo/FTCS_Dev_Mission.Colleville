@@ -41,12 +41,18 @@ class CfgFunctions
             class formationsTypeSquadSet {};
             class formationsGroupDoFollowCommander {};
             class formationsGroupListFollowCommander {};
+            class formationsSetAdvanceDirection {};
         };
 
         class Interactions
         {
             class addEngineAction {};
             class initUnitInteractions {};
+        };
+
+        class Spawning
+        {
+            class spawnDoctrine {};
         };
     };
 };

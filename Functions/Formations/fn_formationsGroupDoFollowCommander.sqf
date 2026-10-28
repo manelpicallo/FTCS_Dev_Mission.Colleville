@@ -87,5 +87,6 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == "FOLLOWING_COM
     else 
     {
         { _x limitSpeed _last_spd; } foreach units _group;
+        sleep 0.5;
     };
 };

@@ -25,7 +25,13 @@ switch (_playerRole) do {
             if (!isNull _captain && {_captain == player}) then {
                 // If the player is in a mixed group with other units, isolate them into an independent group
                 if (count (units group player) > 1) then {
+                    private _oldGroup = group player;
                     [player] joinSilent grpNull;
+                    // Refresh old group's remaining units/leader if stored in companyHQ
+                    if ((_companyHQData getOrDefault ["group", grpNull]) == _oldGroup) then {
+                        _companyHQData set ["units", units _oldGroup];
+                        _companyHQData set ["leader", leader _oldGroup];
+                    };
                     diag_log "FTCS: Company Commander isolated from mixed group into an independent group.";
                 } else {
                     diag_log "FTCS: Company Commander verified as local player (already independent).";
@@ -52,7 +58,13 @@ switch (_playerRole) do {
                 if (!isNull _leaderObj && {_leaderObj == player}) then {
                     // If the Platoon Leader is in a mixed group, isolate them into an independent group
                     if (count (units group player) > 1) then {
+                        private _oldGroup = group player;
                         [player] joinSilent grpNull;
+                        // Refresh old group's remaining units/leader in SQD_X_0
+                        if ((_sqdData getOrDefault ["group", grpNull]) == _oldGroup) then {
+                            _sqdData set ["units", units _oldGroup];
+                            _sqdData set ["leader", leader _oldGroup];
+                        };
                         diag_log format ["FTCS: Platoon Commander (Platoon %1) isolated from mixed group into an independent group.", _platoonID];
                     } else {
                         diag_log format ["FTCS: Platoon Commander (Platoon %1) verified as local player (already independent).", _platoonID];

@@ -365,7 +365,7 @@ if (count _assignedRoles > 0) then {
                         [_staffUnit, _roleLabel],
                         1.5,
                         15.0,
-                        format ["(isNull cursorTarget || {cursorTarget distance player > 15.0} || {side cursorTarget != _playerSide}) && {_this distance (%1) < 15} && {alive (%1)}", _staffUnit]
+                        format ["(isNull cursorTarget || {cursorTarget distance player > 15.0} || {side cursorTarget != side group player}) && {_this distance (missionNamespace getVariable ['%1', objNull]) < 15} && {alive (missionNamespace getVariable ['%1', objNull])}", _roleKey]
                     ] call FTCS_fnc_addEngineAction;
 
                     if (_actionId > -1) then {

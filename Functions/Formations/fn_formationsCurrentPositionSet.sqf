@@ -35,7 +35,12 @@ switch (_formation_type) do {
 
                 // Gets the leader to which this group is attached (from master registry)
                 private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
-                private _leader_formation = leader ((_relPos getOrDefault [2, FTCS_Group_Commander]));
+                private _refGroup = if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos > 2}) then {
+                    _relPos select 2
+                } else {
+                    FTCS_Group_Commander
+                };
+                private _leader_formation = leader _refGroup;
 
                 // Update encapsulated registry entry: absolute distance & direction
                 private _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
