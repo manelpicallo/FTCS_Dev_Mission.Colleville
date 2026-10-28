@@ -1,0 +1,52 @@
+/*
+    ================================================================================
+    FTCS (FIRST-PERSON TACTICAL COMMAND) - DESCRIPTION.EXT
+    Compatibility: Arma 3 (SQF) | Designed for Enfusion Engine (Arma 4)
+    ================================================================================
+*/
+
+class Header
+{
+    gameType = COOP; // O Tactical / Sandbox según el tipo de misión
+    minPlayers = 1;
+    maxPlayers = 32;
+};
+
+// Parámetros estándar de reaparición y mecánicas
+respawn = 3;
+respawnDelay = 5;
+respawnDialog = 0;
+disableChannels[] = {0, 1, 2}; // Opcional: restringe canales globales para mayor inmersión táctica
+
+
+class CfgFunctions
+{
+    class FTCS
+    {
+        class Core
+        {
+            class applyDoctrine {};
+            class configDoctrines {};
+            class parseEditorGroups {};
+            class initCompanyCommand {};
+            class syncGroupNames {};
+            class registryInit {};
+        };
+
+       class Formations
+        {
+            class formationsCurrentPositionSet {};
+            class formationsPaceSquadGet {};
+            class formationsTypePlatoonSet {};
+            class formationsTypeSquadSet {};
+            class formationsGroupDoFollowCommander {};
+            class formationsGroupListFollowCommander {};
+        };
+
+        class Interactions
+        {
+            class addEngineAction {};
+            class initUnitInteractions {};
+        };
+    };
+};

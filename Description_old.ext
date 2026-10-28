@@ -1,0 +1,889 @@
+#include "\a3\ui_f\hpp\defineCommonGrids.inc"
+#include "UI\BaseControls.hpp"
+#include "\a3\ui_f\hpp\definedikcodes.inc"
+
+#include "UI\RscDisplayTest.hpp"
+
+//#include "Menus\CommandingMenus.sqf"
+
+class RscTitles
+
+	{
+		#include "UI\RscMainTitle.hpp"
+		#include "UI\RscMoveMode.hpp"
+
+		class Default 
+			{
+				idd = -1;
+				fadein = 0;
+				fadeout = 0;
+				duration = 0;
+			};
+
+	};
+
+
+class CfgFunctions
+
+	{
+
+		class MPG
+
+		{
+	
+				class Ctrl_HUD
+
+				{
+
+					class HUDShowSelected {};
+					class HUDShowSelectedVehicle {};
+					class HUDShowSelectedUnit {};
+					class HUDShowMoveMode {};
+				
+				};
+				
+				class Ctrl_menus
+
+				{
+
+					class Main {};
+					class menuShowMain {};
+					class menuShowMove {};
+					class menuShowDistancesWith {};
+					class menuShowAdjustPositiosVehicle {};
+					class menuShowTAB {};
+					class menuShowOptionSelectVehicles {};
+					class menuShowAwareVehicles {};
+					class menuInitUnits {};
+					class menuInitVehicles {};
+					class menuShowUnits {};
+					class menuShowGroupOrders {};
+					class menuShowVehiclesSelection {};
+					class menuShowInfantrySelection {};
+					class menuShowMoveAdvance {};
+					class menuShowMoveRetreat {};
+					class menuStartMain {};
+					class menuShowGroupAdvanceMode {};
+
+					class menuShowDisplayTest {};
+					
+
+				};
+				
+
+				class Ctrl_Group
+
+				{
+
+					class groupSetStance {};
+					class groupSetROE {};
+					class groupSetAwareMode {};
+					
+
+					class groupDoStop {};
+					class groupDoFollowCommander {};
+
+					class groupDoSupressFire {};
+
+					class groupDoMove {};
+					class groupDoWatch {};
+
+					class groupDoAttackTarget {};
+
+					class groupSetFireMode {};
+					class groupDoMoveWithVehicle {};
+					class groupSetFormations {};
+					class groupDeleteAllWaypoints {};
+					class groupSetSpeed {};
+					class groupSetVehicle {};
+
+					class groupSetAdvanceMode {};
+					class groupInit {};
+					class groupDoMoveWithCommander {};
+					
+				};
+
+				class Ctrl_Unit
+
+				{
+
+					class unitSetStance {};
+					class unitsDoMove {};
+					class unitDoAttackTarget {};
+					class unitInit {};
+					class unitSendMessage {};
+				
+					
+				};
+
+				class Ctrl_List
+
+				{
+
+					class listSetStance {};
+					class listDoFollowCommander {};
+					class listDoStop {};
+					class listSetAwareMode {};
+					class listSetROE {};
+					class listSetFireMode {};
+					class listDoMove {};
+					class listDoFire {};
+					class listDowatch {};
+					class listDoSupressFire {};
+					class listSetFormation {};
+					class listSetSpeed {};
+					class listDoAttackTarget {};
+					class listSetVehicle {};
+					class listDoMoveInFormation {};
+					class listSetAdvanceMode {};
+					class listSetDistance {};
+					class listInit {};
+					class listSelect {};
+					
+					
+				};
+
+				class Ctrl_Formations
+
+				{
+
+					class formationsTypePlatoonSet {};
+					class formationsTypeSquadSet {};
+					class formationsPaceSquadGet {};
+					class formationsCurrentPositionSet {};
+					class formationsSetAdvanceDirection {};
+					
+					
+				};
+
+				
+				class Ctrl_Map
+
+				{
+
+					class mapCreateWaypoints {};
+					class mapDeleteWaypointMarkers {};
+					class mapCreateWaypointsMarkers {};
+					class mapCreateDirectionMarker {};
+					class mapDeleteDirectionMarker {};
+					
+					
+				};
+
+				class Ctrl_Vehicles
+
+				{
+
+					class vehicleDoMove {};
+					class vehicleDoFire {};
+					class vehicleGunnerDoWatch {};
+					class vehicleDoSupressFire {};
+					class vehicleSetROE {};
+					class vehicleDoStop {};
+					class vehicleSetAwareMode {};
+					class vehicleSetFormation {};
+					class vehicleDoMoveInFormation {};
+					class VehicleInit {};
+					
+					
+				};
+
+				class Ctrl_Column
+
+				{
+
+					class columnMoveCtrl {};
+
+				};
+
+		}; 
+
+	};
+
+
+
+
+
+
+/**********************************test ORBAT*/
+
+
+
+
+	
+class CfgORBAT
+
+{
+	class 1company
+	{
+		id = 1;								// Unit ID
+		idType = 2;							// Unit ID type
+		side = "West";						// Unit side from CfgChainOfCommand >> Sides
+		size = "company";	
+		texturesize = 0.9;
+		color[] = { 1, 1, 1, 1 };								
+		type = "infantry";										
+		commander = "Armstrong";			// Name of unit commander. Can be either direct name, or class from CfgWorlds >> GenericNames (random name from the list is then selected)
+		commanderRank = "captain";			// Rank of unit commander (by default selected based on unit size)
+		text = "%1 Infantry %3";			// Custom text and short text, can still use some arguments when defined:
+		// %1 - ID (e.g. "7th")
+		// %2 - Type (e.g. "Infantry")
+		// %3 - Size (e.g. "Division")
+		description = "Infantry Company A";		// A brief description of the group or unit.
+
+		class 1platoon
+
+		{
+			id = 1;
+			idType = 0;			
+			type = "Infantry";
+			size = "Platoon";
+			side = "West";
+			commander = "kelly";							// Name of unit commander. Can be either direct name, or class from CfgWorlds >> GenericNames (random name from the list is then selected)
+			commanderRank = "Lieutenant";
+			description = "First Rifle Platoon";
+			text = "%1 Infantry %3";
+			texturesize = 0.75;	
+			color[] = { 1, 1, 1, 1 };	
+	
+			class 1squad
+
+				{
+					id = 1;
+					idType = 0;			
+					type = "Infantry";
+					size = "Squad";
+					side = "West";
+					commander = "Harris";							
+					commanderRank = "Sergeant";
+					texturesize = 0.75;	
+					color[] = { 1, 1, 1, 1 };
+					textShort = "%1 Rifle %3";
+					text = "%1 Rifle %3";
+
+					class 11team
+
+						{
+							id = 1;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Paul";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "1Sq_Scouts";
+							text = "1Sq_Scouts";	
+				
+						};
+
+					class 12team
+
+						{
+							id = 2;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "John";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "1Sq_%3";
+							text = "1Sq_%3";	
+				
+						};
+
+					class 13team
+
+						{
+							id = 3;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Peter";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "1Sq_BAR1";
+							text = "1Sq_BAR1";	
+				
+						};
+
+					class 14team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "1Sq_BAR2";
+							text = "1Sq_BAR2";		
+				
+						};
+
+					class 15team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "1Sq_BAR3";
+							text = "1Sq_BAR3";		
+				
+						};				
+		
+				};
+
+
+			class 2squad
+
+				{
+					id = 2;
+					idType = 0;			
+					type = "Infantry";
+					size = "Squad";
+					side = "West";
+					commander = "Forrester";							
+					commanderRank = "Sergeant";
+					texturesize = 0.75;	
+					color[] = { 1, 1, 1, 1 };
+					textShort = "%1 Rifle %3";
+					text = "%1 Rifle %3";
+
+
+					class 21team
+
+						{
+							id = 1;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Paul";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "2Sq_Scouts";
+							text = "2Sq_Scouts";		
+				
+						};
+
+					class 22team
+
+						{
+							id = 2;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "John";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "2Sq_%3";
+							text = "2Sq_%3";
+				
+						};
+
+					class 23team
+
+						{
+							id = 3;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Peter";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "2Sq_BAR1";
+							text = "2Sq_BAR1";	
+				
+						};
+
+					class 24team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "2Sq_BAR2";
+							text = "2Sq_BAR2";	
+				
+						};
+
+
+					class 25team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "2Sq_BAR3";
+							text = "2Sq_BAR3";		
+				
+						};	
+
+				};
+		
+			class 3squad
+
+				{
+					id = 3;
+					idType = 0;			
+					type = "Infantry";
+					size = "Squad";
+					side = "West";
+					commander = "Walker";							
+					commanderRank = "Sergeant";
+					texturesize = 0.75;	
+					color[] = { 1, 1, 1, 1 };
+					textShort = "%1 Rifle %3";
+					text = "%1 Rifle %3";
+
+					class 31team
+
+						{
+							id = 1;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Paul";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "3Sq_Scouts";
+							text = "3Sq_Scouts";			
+				
+						};
+
+					class 32team
+
+						{
+							id = 2;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "John";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "3Sq_%3";
+							text = "3Sq_%3";	
+				
+						};
+
+					class 33team
+
+						{
+							id = 3;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Peter";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "3Sq_BAR1";
+							text = "3Sq_BAR1";		
+				
+						};
+
+					class 34team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "3Sq_BAR2";
+							text = "3Sq_BAR2";		
+				
+						};
+
+
+					class 35team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "3Sq_BAR3";
+							text = "3Sq_BAR3";		
+				
+						};			
+		
+				};
+
+			class 4squad
+
+				{
+					id = 4;
+					idType = 0;			
+					type = "Infantry";
+					size = "Squad";
+					side = "West";
+					commander = "Norris";							
+					commanderRank = "Sergeant";
+					texturesize = 0.75;	
+					color[] = { 1, 1, 1, 1 };
+					textShort = "HQ %3";
+					text = "HQ %3";	
+
+
+					class 41team
+
+						{
+							id = 1;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Paul";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "HQ_Scouts";
+							text = "HQ_Scouts";			
+				
+						};
+
+					class 42team
+
+						{
+							id = 2;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "John";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "HQ_%3";
+							text = "HQ_%3";		
+				
+						};
+
+					class 43team
+
+						{
+							id = 3;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Peter";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "HQ_Med";
+							text = "HQ_Med";		
+				
+						};
+
+					class 44team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "HQ_Messengers";
+							text = "HQ_Messengers";		
+				
+						};
+
+					class 45team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "HQ_BAR3";
+							text = "HQ_BAR3";		
+				
+						};	
+		
+				};
+
+				class 5squad
+
+				{
+					id = 5;
+					idType = 0;			
+					type = "Infantry";
+					size = "Squad";
+					side = "West";
+					commander = "Rogers";							
+					commanderRank = "Sergeant";
+					texturesize = 0.75;	
+					color[] = { 1, 1, 1, 1 };
+					textShort = "WP %3";
+					text = "WP %3";	
+
+					class 51team
+
+						{
+							id = 1;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Paul";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "WP_Scouts";
+							text = "WP_Scouts";		
+				
+						};
+
+					class 52team
+
+						{
+							id = 2;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "John";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "WP_%3";
+							text = "WP_%3";	
+				
+						};
+
+					class 53team
+
+						{
+							id = 3;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Peter";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "WP_BAR1";
+							text = "WP_BAR1";	
+				
+						};
+
+					class 54team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "WP_BAR2";
+							text = "WP_BAR2";	
+				
+						};
+
+
+					class 55team
+
+						{
+							id = 4;
+							idType = 0;			
+							type = "Infantry";
+							size = "FireTeam";
+							side = "West";
+							commander = "Bill";							
+							commanderRank = "Sergeant";
+							texturesize = 0.75;	
+							color[] = { 1, 1, 1, 1 };
+							textShort = "WP_BAR3";
+							text = "WP_BAR3";		
+				
+						};	
+		
+				};
+
+
+
+
+
+
+
+
+
+
+
+				class vhsquad
+
+				{
+					id = 6;
+					idType = 0;			
+					type = "MotorizedInfantry";
+					size = "Squad";
+					side = "West";
+					commander = "Hollower";							
+					commanderRank = "Sergeant";
+					texturesize = 0.75;	
+					color[] = { 1, 1, 1, 1 };
+					textShort = "Vehicle %3";
+					text = "Vehicle %3";	
+
+
+					class 1vehicle
+
+					{
+						id = 1;
+						idType = 0;			
+						type = "MotorizedInfantry";
+						size = "FireTeam";
+						side = "West";
+						commander = "Hollower";							
+						commanderRank = "Sergeant";
+						texturesize = 1;	
+						color[] = { 1, 1, 1, 1 };
+
+						textShort = "M48 / 200";
+						text = "M48 / 200";	
+
+						//Own parameter to be used in the future module for EDEN
+
+						maingun = 1;
+		
+					};
+
+					class 2vehicle
+
+					{
+						id = 2;
+						idType = 0;			
+						type = "MotorizedInfantry";
+						size = "FireTeam";
+						side = "West";
+						commander = "Hollower";							
+						commanderRank = "Sergeant";
+						texturesize = 1;	
+						color[] = { 1, 1, 1, 1 };
+
+						textShort = "M48 / 201";
+						text = "M48 / 201";	
+
+						//Own parameter to be used in the future module for EDEN
+
+						maingun = 1;
+		
+					};
+
+					class 3vehicle
+
+					{
+						id = 3;
+						idType = 0;			
+						type = "MotorizedInfantry";
+						size = "FireTeam";
+						side = "West";
+						commander = "Hollower";							
+						commanderRank = "Sergeant";
+						texturesize = 1;	
+						color[] = { 1, 1, 1, 1 };
+
+						textShort = "M48 / 202";
+						text = "M48 / 202";	
+
+						//Own parameter to be used in the future module for EDEN
+
+						maingun = 1;
+		
+					};
+
+					
+					class 4vehicle
+
+					{
+						id = 4;
+						idType = 0;			
+						type = "MotorizedInfantry";
+						size = "FireTeam";
+						side = "West";
+						commander = "Hollower";							
+						commanderRank = "Sergeant";
+						texturesize = 1;	
+						color[] = { 1, 1, 1, 1 };
+
+						textShort = "M48 / 203";
+						text = "M48 / 203";	
+
+						//Own parameter to be used in the future module for EDEN
+
+						maingun = 1;
+		
+					};
+		
+				};
+		
+		
+		};
+
+
+	};
+
+};
+
