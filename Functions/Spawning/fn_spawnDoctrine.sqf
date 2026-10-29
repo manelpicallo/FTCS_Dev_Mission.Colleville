@@ -15,7 +15,11 @@
 params [
     ["_doctrineData", createHashMap],
     ["_spawnAnchorPos", [0, 0, 0]],
-    ["_advanceDir", 0]
+    ["_advanceDir", 0],
+    ["_commandEchelon", "COMPANY"],
+    ["_playerUnit", if (hasInterface) then { player } else { objNull }],
+    ["_customCompanyHQPos", []],
+    ["_customCompanyHQDir", -1]
 ];
 
 // -----------------------------------------------------------------------------
@@ -87,62 +91,132 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
         "_isVehicle"
     ];
 
-    _offsetXYZ params ["_offX", "_offY", "_offZ"];
-
-    // Rotate offset [offX, offY] around advance direction (trigonometric rotation in 2D)
-    // In Arma: 0 = North (+Y), 90 = East (+X).
-    // Cartesian X_rot = X * cos(dir) + Y * sin(dir), Y_rot = -X * sin(dir) + Y * cos(dir)
-    private _rad = _advanceDir;
-    private _sinA = sin _rad;
-    private _cosA = cos _rad;
-
-    private _rotX = (_offX * _cosA) + (_offY * _sinA);
-    private _rotY = ((-_offX * _sinA) + (_offY * _cosA));
-
-    private _finalPos = [
-        _spawnX + _rotX, 
-        _spawnY + _rotY, 
-        _spawnZ + _offZ
-    ];
-
-    private _finalDir = (_advanceDir + _relDir) % 360;
-
-    if (_isVehicle) then {
-        // Vehicle Spawning
-        private _veh = createVehicle [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
-        _veh setDir _finalDir;
-        _veh setPosATL _finalPos;
-
-        if (_varName != "") then {
-            _veh setVehicleVarName _varName;
-            missionNamespace setVariable [_varName, _veh, true];
+    // Filter entities when Platoon echelon is selected: deploy only Company HQ and 1st Platoon
+    private _skipEntity = false;
+    if (_commandEchelon == "PLATOON") then {
+        private _isCompanyHQ = (_groupVar == "SQUAD_0_0") || ((toUpper _varName) find "HQ_" == 0);
+        private _isPlatoon1  = (_groupVar find "SQUAD_1_" == 0) || ((toUpper _varName) find "PLT_1_" == 0);
+        if (!_isCompanyHQ && !_isPlatoon1) then {
+            _skipEntity = true;
         };
-    } else {
-        // Soldier Spawning
-        // Locate or create the group mapped to this groupVar
-        private _group = grpNull;
-        if (_groupVar != "" && {_groupVar in _spawnedGroups}) then {
-            _group = _spawnedGroups get _groupVar;
-        } else {
-            _group = createGroup [_factionSide, true];
-            if (_groupVar != "") then {
-                _spawnedGroups set [_groupVar, _group];
-                _group setGroupIdGlobal [_groupVar];
-                missionNamespace setVariable [_groupVar, _group, true];
+    };
+
+    if (!_skipEntity) then {
+        _offsetXYZ params ["_offX", "_offY", "_offZ"];
+
+        // Determine if this entity belongs to the Company HQ
+        private _isEntityCompanyHQ = (_groupVar == "SQUAD_0_0") || ((toUpper _varName) find "HQ_" == 0);
+
+        // Calculate dynamic anchor position and direction for this entity
+        private _curAnchorX = _spawnX;
+        private _curAnchorY = _spawnY;
+        private _curAnchorZ = _spawnZ;
+        private _curAdvanceDir = _advanceDir;
+
+        // If a custom Company HQ position was provided and this entity belongs to Company HQ, relocate anchor
+        if (_isEntityCompanyHQ && {count _customCompanyHQPos >= 2}) then {
+            _curAnchorX = _customCompanyHQPos select 0;
+            _curAnchorY = _customCompanyHQPos select 1;
+            _curAnchorZ = if (count _customCompanyHQPos > 2) then { _customCompanyHQPos select 2 } else { 0 };
+            if (_customCompanyHQDir >= 0) then {
+                _curAdvanceDir = _customCompanyHQDir;
             };
         };
 
-        private _unit = _group createUnit [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
-        _unit setDir _finalDir;
-        _unit setPosATL _finalPos;
+        // Rotate offset [offX, offY] around advance direction (trigonometric rotation in 2D)
+        // In Arma: 0 = North (+Y), 90 = East (+X).
+        // Cartesian X_rot = X * cos(dir) + Y * sin(dir), Y_rot = -X * sin(dir) + Y * cos(dir)
+        private _rad = _curAdvanceDir;
+        private _sinA = sin _rad;
+        private _cosA = cos _rad;
 
-        if (_rank != "") then {
-            _unit setRank _rank;
+        private _rotX = (_offX * _cosA) + (_offY * _sinA);
+        private _rotY = ((-_offX * _sinA) + (_offY * _cosA));
+
+        private _finalPos = [
+            _curAnchorX + _rotX, 
+            _curAnchorY + _rotY, 
+            _curAnchorZ + _offZ
+        ];
+
+        private _finalDir = (_curAdvanceDir + _relDir) % 360;
+
+        // Intelligent groupVar fallback if missing
+        if (_groupVar == "") then {
+            private _upVar = toUpper _varName;
+            if (_upVar find "HQ_" == 0) then { _groupVar = "SQUAD_0_0"; };
+            if (_upVar find "PLT_1_" == 0) then { _groupVar = "SQUAD_1_0"; };
+            if (_upVar find "PLT_2_" == 0) then { _groupVar = "SQUAD_2_0"; };
+            if (_upVar find "PLT_3_" == 0) then { _groupVar = "SQUAD_3_0"; };
+            if (_groupVar == "") then { _groupVar = "SQUAD_1_1"; };
         };
 
-        if (_varName != "") then {
-            _unit setVehicleVarName _varName;
-            missionNamespace setVariable [_varName, _unit, true];
+        if (_isVehicle) then {
+            // Vehicle Spawning
+            private _veh = createVehicle [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
+            _veh setDir _finalDir;
+            _veh setPosATL _finalPos;
+
+            if (_varName != "") then {
+                _veh setVehicleVarName _varName;
+                missionNamespace setVariable [_varName, _veh, true];
+            };
+        } else {
+            // Soldier Spawning
+            // Locate or create the group mapped to this groupVar
+            private _group = grpNull;
+            if (_groupVar != "" && {_groupVar in _spawnedGroups}) then {
+                _group = _spawnedGroups get _groupVar;
+            } else {
+                _group = createGroup [_factionSide, true];
+                if (_groupVar != "") then {
+                    _spawnedGroups set [_groupVar, _group];
+                    _group setGroupIdGlobal [_groupVar];
+                    missionNamespace setVariable [_groupVar, _group, true];
+                };
+            };
+
+            // Check if this slot represents the player's chosen command role
+            private _isPlayerSlot = false;
+            if (!isNull _playerUnit && {alive _playerUnit}) then {
+                if (_commandEchelon == "COMPANY" && {_varName == "HQ_CO_CAPTAIN"}) then {
+                    _isPlayerSlot = true;
+                };
+                if (_commandEchelon == "PLATOON" && {_varName == "PLT_1_LEADER"}) then {
+                    _isPlayerSlot = true;
+                };
+            };
+
+            if (_isPlayerSlot) then {
+                // Position player directly into their designated commander slot
+                _playerUnit setPosATL _finalPos;
+                _playerUnit setDir _finalDir;
+                [_playerUnit] joinSilent _group;
+
+                if (_rank != "") then {
+                    _playerUnit setRank _rank;
+                };
+
+                if (_varName != "") then {
+                    _playerUnit setVehicleVarName _varName;
+                    missionNamespace setVariable [_varName, _playerUnit, true];
+                };
+
+                _group selectLeader _playerUnit;
+            } else {
+                private _unit = _group createUnit [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
+                _unit setDir _finalDir;
+                _unit setPosATL _finalPos;
+
+                if (_rank != "") then {
+                    _unit setRank _rank;
+                };
+
+                if (_varName != "") then {
+                    _unit setVehicleVarName _varName;
+                    missionNamespace setVariable [_varName, _unit, true];
+                };
+            };
         };
     };
 
@@ -151,7 +225,11 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
 // -----------------------------------------------------------------------------
 // 5. Automatic Full FTCS Core Pipeline Registration
 // -----------------------------------------------------------------------------
-diag_log format ["FTCS: Doctrine '%1' spawned at %2 with direction %3. Triggering registration pipeline...", _doctrineId, _spawnAnchorPos, _advanceDir];
+diag_log format ["FTCS: Doctrine '%1' spawned at %2 with direction %3 (Echelon: %4). Triggering registration pipeline...", _doctrineId, _spawnAnchorPos, _advanceDir, _commandEchelon];
+
+// Set global advance direction
+missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", _advanceDir];
+missionNamespace setVariable ["FTCS_Last_Commander_Dir", _advanceDir];
 
 // 5.1. Apply military doctrine structure
 [_doctrineId, _companyLetter] call FTCS_fnc_applyDoctrine;

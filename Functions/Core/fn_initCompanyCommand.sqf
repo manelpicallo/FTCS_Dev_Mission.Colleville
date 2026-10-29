@@ -11,7 +11,11 @@
 
 params [];
 
-private _commandScope = missionNamespace getOrDefault ["FTCS_Player_Command_Scope", createHashMap];
+private _commandScope = if (!isNil "FTCS_Player_Command_Scope" && {FTCS_Player_Command_Scope isEqualType createHashMap}) then {
+    FTCS_Player_Command_Scope
+} else {
+    missionNamespace getVariable ["FTCS_Player_Command_Scope", createHashMap]
+};
 private _playerRole = _commandScope getOrDefault ["role", "SOLDIER"];
 private _platoonID = _commandScope getOrDefault ["platoonID", 0];
 

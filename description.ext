@@ -18,6 +18,13 @@ respawnDelay = 5;
 respawnDialog = 0;
 disableChannels[] = {0, 1, 2}; // Opcional: restringe canales globales para mayor inmersión táctica
 
+// Inclusión de definiciones base de interfaz gráfica
+#include "\a3\ui_f\hpp\defineCommonGrids.inc"
+#include "UI\BaseControls.hpp"
+
+// Inclusión de interfaces gráficas tácticas (UI)
+#include "UI\FTCS_DeployDialog.hpp"
+
 
 class CfgFunctions
 {
@@ -53,6 +60,10 @@ class CfgFunctions
         class Spawning
         {
             class spawnDoctrine {};
+            class openDeployMenu {};
+            class initDeployMenu {};
+            class executeDeployment {};
+            class spawnSupportUnit {};
         };
     };
 };
