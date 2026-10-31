@@ -132,65 +132,80 @@ function Convert-SQEToDoctrineData {
     $detectedEntities = [System.Collections.ArrayList]::new()
     $detectedMods = [System.Collections.Generic.HashSet[string]]::new()
     $detectedGroups = [System.Collections.Generic.HashSet[string]]::new()
+    $detectedSide = "WEST"
 
-    # Estado del parser
-    $currentGroup = ""
-    $inEntity = $false
-    $currentDataType = ""
-    $currentType = ""
-    $currentPos = @(0.0, 0.0, 0.0)
-    $currentAngles = @(0.0, 0.0, 0.0)
-    $currentName = ""
-    $currentRank = "PRIVATE"
-    $isVehicle = $false
+    # Parser estructural con soporte de herencia jerárquica de grupos.
+    # En el formato composition.sqe del 3DEN Editor, los soldados son entidades hijas
+    # (nodos Object) contenidas dentro de un bloque 'class Entities' de un nodo padre
+    # con dataType="Group". Las variables de grupo (name=...) se declaran en el propio
+    # nodo Group o dentro de su sub-bloque 'class Attributes'. Este parser construye
+    # el árbol de clases del SQE y propaga automáticamente el groupVar a todas las
+    # unidades hijas del grupo, resolviendo el problema de las entidades anónimas.
+    class SqNode {
+        [string]$Class = ""
+        [string]$DataType = ""
+        [string]$Name = ""
+        [string]$Type = ""
+        [string]$Rank = "PRIVATE"
+        [double[]]$Pos = @(0.0, 0.0, 0.0)
+        [double[]]$Angles = @(0.0, 0.0, 0.0)
+        [SqNode]$Parent = $null
+        [System.Collections.Generic.List[SqNode]]$Children = [System.Collections.Generic.List[SqNode]]::new()
+    }
+
+    $root = [SqNode]::new()
+    $root.Class = "Root"
+    $current = $root
 
     for ($i = 0; $i -lt $rawLines.Count; $i++) {
         $line = $rawLines[$i].Trim()
 
-        if ($line -match 'class\s+CustomAttributes') {
-            # Saltar bloques de CustomAttributes dentro de las entidades
-            $inCustomAttributes = $true
-            continue
-        }
-
-        if ($line -match 'class\s+Item\d+') {
-            $inEntity = $true
-            $currentDataType = ""
-            $currentType = ""
-            $currentPos = @(0.0, 0.0, 0.0)
-            $currentAngles = @(0.0, 0.0, 0.0)
-            $currentName = ""
-            $currentRank = "PRIVATE"
-            $isVehicle = $false
-            continue
-        }
-
-        if ($line -match 'dataType="([^"]+)";') {
-            $currentDataType = $matches[1]
-            if ($currentDataType -eq "Group") {
-                # Se abre un nuevo grupo
+        # Omitir CustomAttributes (no contienen entidades ni nombres relevantes)
+        if ($line -match '^class\s+CustomAttributes') {
+            # Saltar el bloque CustomAttributes buscando su cierre balanceado
+            $depth = 1
+            for ($k = $i + 1; $k -lt $rawLines.Count; $k++) {
+                $subLine = $rawLines[$k].Trim()
+                if ($subLine -match '^class\s+') { $depth++ }
+                if ($subLine -eq '};') {
+                    $depth--
+                    if ($depth -eq 0) { $i = $k; break }
+                }
             }
             continue
         }
 
-        if ($line -match 'name="([^"]+)";') {
-            $var = $matches[1]
-            if ($currentDataType -eq "Group") {
-                $currentGroup = $var
-                [void]$detectedGroups.Add($var)
-            } else {
-                $currentName = $var
+        if ($line -match '^class\s+([A-Za-z0-9_]+)') {
+            $newNode = [SqNode]::new()
+            $newNode.Class = $matches[1]
+            $newNode.Parent = $current
+            $current.Children.Add($newNode)
+            $current = $newNode
+            continue
+        }
+
+        if ($line -eq '};') {
+            if ($current.Parent) {
+                $current = $current.Parent
             }
+            continue
+        }
+
+        if ($line -match '^dataType="([^"]+)";') {
+            $current.DataType = $matches[1]
+            continue
+        }
+
+        if ($line -match '^name="([^"]+)";') {
+            $current.Name = $matches[1]
             continue
         }
 
         if ($line -match '^\s*type="([^"]+)";') {
             $val = $matches[1]
-            # Ignorar tipos internos de atributos como STRING, SCALAR
             if ($val -notmatch '^(STRING|SCALAR|BOOLEAN|ARRAY)$') {
-                $currentType = $val
-                # Detectar prefijo del mod a partir de la clase (ej: SPE_, LIB_, IFA3_)
-                if ($currentType -match '^([A-Za-z0-9]+)_') {
+                $current.Type = $val
+                if ($val -match '^([A-Za-z0-9]+)_') {
                     $prefix = $matches[1]
                     if ($prefix -in @("SPE", "LIB", "WW2", "IFA3", "fow")) {
                         [void]$detectedMods.Add($prefix)
@@ -200,65 +215,155 @@ function Convert-SQEToDoctrineData {
             continue
         }
 
-        if ($line -match 'rank="([^"]+)";') {
-            $currentRank = $matches[1]
+        if ($line -match '^rank="([^"]+)";') {
+            $current.Rank = $matches[1]
             continue
         }
 
-        if ($line -match 'position\[\]=\{([^}]+)\};') {
+        if ($line -match '^side="([^"]+)";') {
+            $sideVal = $matches[1].ToUpper()
+            if ($sideVal -in @("WEST", "EAST", "GUER", "RESISTANCE", "IND", "INDEPENDENT")) {
+                $detectedSide = switch ($sideVal) {
+                    "GUER"        { "RESISTANCE" }
+                    "IND"         { "RESISTANCE" }
+                    "INDEPENDENT" { "RESISTANCE" }
+                    default       { $sideVal }
+                }
+            }
+            continue
+        }
+
+        if ($line -match '^position\[\]=\{([^}]+)\};') {
             $coords = $matches[1].Split(',') | ForEach-Object { [double]$_.Trim() }
             if ($coords.Count -ge 3) {
-                $currentPos = @($coords[0], $coords[2], $coords[1]) # [X, Y, Z] (En Arma Z es elevación, Y es norte en 2D)
+                $current.Pos = @($coords[0], $coords[2], $coords[1]) # [X, Y, Z]
             }
             continue
         }
 
-        if ($line -match 'angles\[\]=\{([^}]+)\};') {
-            $angles = $matches[1].Split(',') | ForEach-Object { [double]$_.Trim() }
-            if ($angles.Count -ge 2) {
-                $currentAngles = $angles
+        if ($line -match '^angles\[\]=\{([^}]+)\};') {
+            $coords = $matches[1].Split(',') | ForEach-Object { [double]$_.Trim() }
+            if ($coords.Count -ge 2) {
+                $current.Angles = $coords
             }
             continue
-        }
-
-        # Cuando encontramos el cierre de la entidad o atributos
-        if ($line -eq '};' -and $currentType -ne "") {
-            $relDir = 0.0
-            if ($currentAngles.Count -ge 2) {
-                $relDir = [Math]::Round(($currentAngles[1] * (180.0 / [Math]::PI)), 1)
-                if ($relDir -lt 0) { $relDir += 360.0 }
-            }
-
-            $isVeh = ($currentDataType -eq "Object" -and ($currentType -match "Car|Truck|Tank|Wheeled|APC|Armored|Jeep|Willys|Kübel|Kubel|Sdkfz|Halftrack"))
-
-            $entityEntry = @{
-                Type       = $currentType
-                Offset     = $currentPos
-                RelDir     = $relDir
-                VarName    = $currentName
-                GroupVar   = $currentGroup
-                Rank       = $currentRank
-                IsVehicle  = $isVeh
-            }
-            [void]$detectedEntities.Add($entityEntry)
-            $currentType = ""
         }
     }
 
-    Write-Host (" -> Total entidades leídas: {0} (Grupos: {1})" -f $detectedEntities.Count, $detectedGroups.Count) -ForegroundColor Green
-
-    # Normalizar offsets relativos respecto al centro (primer líder / capitán o promedio)
+    # Normalizar offsets relativos respecto al primer líder / capitán encontrado en el árbol
     $anchorX = 0.0
     $anchorY = 0.0
     $anchorZ = 0.0
 
-    # Buscar capitán o líder como punto de anclaje
-    $anchorObj = $detectedEntities | Where-Object { $_.VarName -match "CAPTAIN|LEADER|HQ" } | Select-Object -First 1
-    if ($anchorObj) {
-        $anchorX = $anchorObj.Offset[0]
-        $anchorY = $anchorObj.Offset[1]
-        $anchorZ = $anchorObj.Offset[2]
-    } elseif ($detectedEntities.Count -gt 0) {
+    function Find-Anchor([SqNode]$node) {
+        if ($node.DataType -eq "Object" -and $node.Type -ne "") {
+            $uName = $node.Name
+            if ($uName -eq "") {
+                $attr = $node.Children | Where-Object { $_.Class -eq "Attributes" } | Select-Object -First 1
+                if ($attr -and $attr.Name -ne "") { $uName = $attr.Name }
+            }
+            if ($uName -match "CAPTAIN|LEADER|HQ") {
+                if ($node.Pos.Count -ge 3 -and ($node.Pos[0] -ne 0.0 -or $node.Pos[1] -ne 0.0 -or $node.Pos[2] -ne 0.0)) {
+                    return $node.Pos
+                }
+                $posChild = $node.Children | Where-Object { $_.Class -eq "PositionInfo" -and ($_.Pos[0] -ne 0.0 -or $_.Pos[1] -ne 0.0 -or $_.Pos[2] -ne 0.0) } | Select-Object -First 1
+                if ($posChild) { return $posChild.Pos }
+            }
+        }
+        foreach ($child in $node.Children) {
+            $res = Find-Anchor $child
+            if ($res) { return $res }
+        }
+        return $null
+    }
+
+    $anchorPos = Find-Anchor $root
+    if ($anchorPos) {
+        $anchorX = $anchorPos[0]
+        $anchorY = $anchorPos[1]
+        $anchorZ = $anchorPos[2]
+    }
+
+    # Recorrido recursivo del árbol: propaga el GroupVar desde el Group padre a las unidades
+    function Walk-Tree([SqNode]$node, [string]$currentGroupVar) {
+        $effGroupVar = $currentGroupVar
+
+        if ($node.DataType -eq "Group") {
+            # El nombre del grupo puede estar en el propio nodo o en su hijo 'Attributes'
+            $gName = $node.Name
+            if ($gName -eq "") {
+                $attr = $node.Children | Where-Object { $_.Class -eq "Attributes" } | Select-Object -First 1
+                if ($attr -and $attr.Name -ne "") {
+                    $gName = $attr.Name
+                }
+            }
+            if ($gName -ne "") {
+                $effGroupVar = $gName
+                [void]$detectedGroups.Add($gName)
+            }
+        }
+
+        # Si es un objeto (soldado o vehículo) con tipo de clase válido
+        if ($node.DataType -eq "Object" -and $node.Type -ne "") {
+            # El nombre de la unidad puede estar en el propio nodo o en su hijo 'Attributes'
+            $uName = $node.Name
+            if ($uName -eq "") {
+                $attr = $node.Children | Where-Object { $_.Class -eq "Attributes" } | Select-Object -First 1
+                if ($attr -and $attr.Name -ne "") {
+                    $uName = $attr.Name
+                }
+            }
+
+            # Filtrar artefactos del 3DEN: no confundir nombres de clase de items/mochilas con varNames
+            if ($uName -match '^B_SPE_|^SPE_|^LIB_|^WW2_') {
+                $uName = ""
+            }
+
+            # Si este nodo no tiene Pos directamente, buscar en sus hijos (ej: class PositionInfo)
+            $effPos = $node.Pos
+            if ($effPos[0] -eq 0.0 -and $effPos[1] -eq 0.0 -and $effPos[2] -eq 0.0) {
+                $posChild = $node.Children | Where-Object { $_.Class -eq "PositionInfo" -and ($_.Pos[0] -ne 0.0 -or $_.Pos[1] -ne 0.0 -or $_.Pos[2] -ne 0.0) } | Select-Object -First 1
+                if ($posChild) { $effPos = $posChild.Pos }
+            }
+
+            # Si este nodo no tiene Angles directamente, buscar en sus hijos (ej: class PositionInfo)
+            $effAngles = $node.Angles
+            if ($effAngles.Count -lt 2 -or ($effAngles[0] -eq 0.0 -and $effAngles[1] -eq 0.0)) {
+                $posChild = $node.Children | Where-Object { $_.Class -eq "PositionInfo" -and $_.Angles.Count -ge 2 } | Select-Object -First 1
+                if ($posChild) { $effAngles = $posChild.Angles }
+            }
+
+            $relDir = 0.0
+            if ($effAngles.Count -ge 2) {
+                $relDir = [Math]::Round(($effAngles[1] * (180.0 / [Math]::PI)), 1)
+                if ($relDir -lt 0) { $relDir += 360.0 }
+            }
+
+            $isVeh = ($node.Type -match "Car|Truck|Tank|Wheeled|APC|Armored|Jeep|Willys|Kübel|Kubel|Sdkfz|Halftrack")
+
+            $entityEntry = @{
+                Type       = $node.Type
+                Offset     = $effPos
+                RelDir     = $relDir
+                VarName    = $uName
+                GroupVar   = $effGroupVar
+                Rank       = $node.Rank
+                IsVehicle  = $isVeh
+            }
+            [void]$detectedEntities.Add($entityEntry)
+        }
+
+        foreach ($child in $node.Children) {
+            Walk-Tree $child $effGroupVar
+        }
+    }
+
+    Walk-Tree $root ""
+
+    Write-Host (" -> Total entidades leídas: {0} (Grupos: {1})" -f $detectedEntities.Count, $detectedGroups.Count) -ForegroundColor Green
+
+    # Si no se encontró líder/capitán como ancla, usar la primera entidad leída
+    if (-not $anchorPos -and $detectedEntities.Count -gt 0) {
         $anchorX = $detectedEntities[0].Offset[0]
         $anchorY = $detectedEntities[0].Offset[1]
         $anchorZ = $detectedEntities[0].Offset[2]
@@ -277,12 +382,34 @@ function Convert-SQEToDoctrineData {
     [void]$sqfBuilder.AppendLine("createHashMapFromArray [")
     [void]$sqfBuilder.AppendLine("    [`"doctrineID`", `"$doctrineId`"],")
     [void]$sqfBuilder.AppendLine("    [`"companyLetter`", `"$companyLetter`"],")
+    $sideStr = $detectedSide.ToLower()
+    [void]$sqfBuilder.AppendLine("    [`"side`", $sideStr],")
     
     # Required mods
     $modsArray = @()
     foreach ($m in $detectedMods) { $modsArray += "`"$m`"" }
     $modsStr = $modsArray -join ", "
     [void]$sqfBuilder.AppendLine("    [`"requiredMods`", [$modsStr]],")
+    [void]$sqfBuilder.AppendLine("")
+    [void]$sqfBuilder.AppendLine('    // === SELF-CONTAINED ORGANIZATIONAL STRUCTURE (designer-reviewed) ===')
+    [void]$sqfBuilder.AppendLine('    // The composition encodes hierarchy (SQD_X_Y_TEAM_N group variables) and')
+    [void]$sqfBuilder.AppendLine('    // unit roles. Semantic identity of squads/platoons/teams is declared here:')
+    [void]$sqfBuilder.AppendLine('    // edit these values after conversion; they feed FTCS_fnc_applyDoctrine directly.')
+    [void]$sqfBuilder.AppendLine('    ["platoonNames", ["Company HQ", "1st Platoon", "2nd Platoon", "3rd Platoon"]],')
+    [void]$sqfBuilder.AppendLine('    ["squadsPerPlatoon", 4],')
+    [void]$sqfBuilder.AppendLine('    ["isMechanized", false],')
+    [void]$sqfBuilder.AppendLine('    ["transportAsset", ""],')
+    [void]$sqfBuilder.AppendLine('    ["companyHQRoles", ["CO_CAPTAIN", "XO_LIEUTENANT", "FIRST_SERGEANT", "COMM_SERGEANT", "RADIO_OPERATOR", "MESSENGER_1", "MESSENGER_2", "COMPANY_MEDIC"]],')
+    [void]$sqfBuilder.AppendLine('    ["platoonHQRoles", ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC"]],')
+    [void]$sqfBuilder.AppendLine('    ["platoonHQTeamStructure", [["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]], ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]]]],')
+    [void]$sqfBuilder.AppendLine('    ["squadDesignations", createHashMapFromArray [')
+    [void]$sqfBuilder.AppendLine('        ["SQD_1_1", "1st Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_1_2", "2nd Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_1_3", "3rd Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_1_4", "Mortar Section"]')
+    [void]$sqfBuilder.AppendLine('    ]],')
+    [void]$sqfBuilder.AppendLine('    ["teamStructure", ["Scout Team", "Rifle Team A", "Rifle Team B", "BAR Support Team"]],')
+    [void]$sqfBuilder.AppendLine('    ["teamRoles", ["ASSAULT", "ASSAULT", "ASSAULT", "SUPPORT"]],')
     [void]$sqfBuilder.AppendLine("    [`"entities`", [")
 
     for ($j = 0; $j -lt $detectedEntities.Count; $j++) {

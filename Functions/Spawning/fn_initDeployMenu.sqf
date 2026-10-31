@@ -32,7 +32,8 @@ if (isNull _display) exitWith {
     false;
 };
 
-FTCS_Deploy_Display = _display;
+// UI Display handles are non-serializable objects in Arma 3 and must not be stored
+// in persistent mission-level global variables (causes "Cannot serialize object" engine errors).
 
 // IDCs
 private _idcMap          = 88001;
@@ -179,24 +180,27 @@ FTCS_fnc_onDeployFixedCheckChanged = {
 };
 
 // -----------------------------------------------------------------------------
-// 2. Populate Doctrine Options
+// 2. Populate Doctrine Options (Dynamic: built from Doctrines\Data\ registry)
+//    Every doctrine registered in Doctrines_Registry.sqf appears in the dropdown,
+//    so the selection always adapts to the actual available doctrines instead of
+//    a hardcoded list. Each entry stores its doctrineID as lbData, which the
+//    deployment executor resolves back into a data HashMap via the loader.
 // -----------------------------------------------------------------------------
 lbClear _ctrlDoctrine;
 
-private _doctrinesList = [
-    ["101st Airborne (US Parachute Company)", "101_US_PARA_COMPANY"],
-    ["US Army Infantry (29th Infantry Division)", "US_ARMY"],
-    ["2nd Ranger Battalion (US Rangers)", "US_RANGERS_WW2"],
-    ["Panzergrenadier-Kompanie (Wehrmacht)", "GERMAN_PANZER_GRENADIER"],
-    ["Wehrmacht Infanterie-Kompanie", "GERMAN_WW2"],
-    ["British Parachute Company", "BRITISH_AIRBORNE"]
-];
+private _doctrinesList = ["LIST"] call FTCS_fnc_loadDoctrineData;
 
-{
-    _x params ["_label", "_dataId"];
-    private _idx = _ctrlDoctrine lbAdd _label;
-    _ctrlDoctrine lbSetData [_idx, _dataId];
-} forEach _doctrinesList;
+if (count _doctrinesList == 0) then {
+    diag_log "FTCS InitDeployMenu Warning: No doctrines available in the registry.";
+    private _idx = _ctrlDoctrine lbAdd "NO DOCTRINES AVAILABLE";
+    _ctrlDoctrine lbSetData [_idx, ""];
+} else {
+    {
+        _x params ["_label", "_dataId"];
+        private _idx = _ctrlDoctrine lbAdd _label;
+        _ctrlDoctrine lbSetData [_idx, _dataId];
+    } forEach _doctrinesList;
+};
 
 _ctrlDoctrine lbSetCurSel 0;
 [_ctrlDoctrine, 0] call FTCS_fnc_onDeployDoctrineChanged;

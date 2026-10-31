@@ -161,9 +161,19 @@ Para que el pelotón y las IAs sepan qué hacer, el mapa táctico permite regist
 
     - `"doctrineID"`: [String] Clave identificadora (ej. `"US_AIRBORNE"`).
     - `"companyLetter"`: [String] Letra de compañía (ej. `"E"`).
+    - `"side"`: [Side] Bando militar de la fuerza (`west`, `east`, `resistance`/`independent`). Detectado automáticamente por el conversor desde la composición.
     - `"requiredMods"`: [Array de Strings] Clases de `CfgPatches` requeridas (ej. `["WW2_Core", "WW2_Assets"]`).
-    - `"entities"`: [Array de Arrays] Lista de entidades a spawnear con la tupla:
-      `[className, [offsetX, offsetY, offsetZ], relativeDir, varName, squadRole, rank, isVehicle, initialCrewRoles]`
+    - `"platoonNames"`: [Array de Strings] Nombres de los pelotones, empezando por `"Company HQ"`.
+    - `"squadsPerPlatoon"`: [Number] Escuadras de combate por pelotón (1–4).
+    - `"squadDesignations"`: [HashMap] Identidad semántica de cada escuadra (`"SQD_X_Y"` → nombre, ej. `"Mortar Section"`). Los squads mono-team (morteros/apoyo) se detectan por su nombre.
+    - `"teamStructure"` / `"teamRoles"`: [Arrays] Nombres y roles tácticos (ASSAULT/SUPPORT) de los teams por escuadra (máx. 4).
+    - `"companyHQRoles"` / `"platoonHQRoles"` / `"platoonHQTeamStructure"`: Roles y sub-teams de los HQs.
+    - `"isMechanized"` / `"transportAsset"`: Transporte orgánico de la doctrina.
+    > **Autonomía estructural:** las doctrinas por composición (Método 2) son **autocontenidas**: toda la estructura organizativa embebe en el fichero y `FTCS_fnc_applyDoctrine` la consume directamente. El registro embebido `FTCS_Doctrines` (`fn_configDoctrines.sqf`, sistema antiguo) solo aplica al Método 1 (unidades pre-colocadas con variables del editor).
+    - `"entities"`: [Array de Arrays] Lista de entidades a spawnear con la tupla de 7 campos:
+      `[className, [offsetX, offsetY, offsetZ], relativeDir, varName, groupVar, rank, isVehicle]`
+      - `groupVar` (5º campo): nombre estándar del grupo contenedor (`SQUAD_X_Y`, `PLT_X_...`, `HQ_...`). Las entidades del mismo `groupVar` se ensamblan en el mismo grupo de Arma.
+      > Decisión de diseño (Opción A confirmada): la tupla se mantiene en 7 campos. No existe campo separado de `squadRole` ni `initialCrewRoles`; el rol dentro de la escuadra se deriva del `varName` y el `rank`.
   - **Lógica de Ejecución del Motor Genérico (`FTCS_fnc_spawnDoctrine`):**
 
     - **Paso 1 (Verificación de Compatibilidad de Mods):** Itera sobre `"requiredMods"` comprobando `isClass (configFile >> "CfgPatches" >> _x)`. Si falta alguno, interrumpe el despliegue con alerta visual detallando los addons ausentes.

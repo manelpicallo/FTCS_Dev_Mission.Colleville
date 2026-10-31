@@ -73,9 +73,35 @@ private _spawnZ = if (count _spawnAnchorPos > 2) then { _spawnAnchorPos select 2
 // Cache of spawned groups by their groupVar name in the composition
 private _spawnedGroups = createHashMap;
 
-// Default side for player faction
-private _factionSide = side group player;
-if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide = west; };
+// Default side for doctrine force: determined by the doctrine template itself
+// (or derived from the first combat unit's config side), supporting WEST (BLUFOR),
+// EAST (OPFOR), and RESISTANCE/INDEPENDENT (los aliados / independientes).
+// The local player is dynamically switched into this side's group during deployment.
+private _factionSide = _doctrineData getOrDefault ["side", sideUnknown];
+if !(_factionSide in [west, east, resistance, independent]) then {
+    // Attempt auto-detection from the first soldier class in entities
+    if (count _entities > 0) then {
+        private _firstClass = (_entities select 0) select 0;
+        private _sideNum = getNumber (configFile >> "CfgVehicles" >> _firstClass >> "side");
+        _factionSide = switch (_sideNum) do {
+            case 0: { east };
+            case 1: { west };
+            case 2: { resistance }; // independent
+            default { sideUnknown };
+        };
+    };
+};
+if !(_factionSide in [west, east, resistance, independent]) then {
+    _factionSide = side group player;
+};
+if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide = resistance; };
+
+// Ensure internal side cohesion: in Arma 3, RESISTANCE/INDEPENDENT factions must
+// explicitly be marked friendly to themselves at mission level so disparate
+// independent groups never treat each other as hostiles under default map diplomacy.
+if (_factionSide == resistance) then {
+    resistance setFriend [resistance, 1];
+};
 
 // -----------------------------------------------------------------------------
 // 4. Instantiate Entities
@@ -94,8 +120,10 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
     // Filter entities when Platoon echelon is selected: deploy only Company HQ and 1st Platoon
     private _skipEntity = false;
     if (_commandEchelon == "PLATOON") then {
-        private _isCompanyHQ = (_groupVar == "SQUAD_0_0") || ((toUpper _varName) find "HQ_" == 0);
-        private _isPlatoon1  = (_groupVar find "SQUAD_1_" == 0) || ((toUpper _varName) find "PLT_1_" == 0);
+        private _upGroup = toUpper _groupVar;
+        private _upVar   = toUpper _varName;
+        private _isCompanyHQ = (_upGroup == "SQUAD_0_0" || _upGroup find "SQUAD_0_0_" == 0 || _upGroup find "SQD_0_0_" == 0) || (_upVar find "HQ_" == 0);
+        private _isPlatoon1  = (_upGroup find "SQUAD_1_" == 0 || _upGroup find "SQD_1_" == 0) || (_upVar find "PLT_1_" == 0 || _upVar find "SQD_1_" == 0);
         if (!_isCompanyHQ && !_isPlatoon1) then {
             _skipEntity = true;
         };
@@ -133,21 +161,42 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
         private _rotX = (_offX * _cosA) + (_offY * _sinA);
         private _rotY = ((-_offX * _sinA) + (_offY * _cosA));
 
-        private _finalPos = [
-            _curAnchorX + _rotX, 
-            _curAnchorY + _rotY, 
-            _curAnchorZ + _offZ
-        ];
+        // Horizontal world coordinates for this entity
+        private _worldX = _curAnchorX + _rotX;
+        private _worldY = _curAnchorY + _rotY;
 
+        // Vertical positioning:
+        // - Vehicles: respect explicit positive Z offset (for platforms/ramps), else snap to terrain
+        // - Infantry: ALWAYS clamp directly to the local terrain surface (ATL Z = 0) so units
+        //   spawned on sloping or elevated maps (e.g., Colleville hills) never spawn in mid-air
+        //   and suffer falling damage upon instantiation.
+        private _finalZ = if (_isVehicle) then {
+            if (_offZ > 0.5) then { _offZ } else { 0 };
+        } else {
+            0
+        };
+
+        private _finalPos = [_worldX, _worldY, _finalZ];
         private _finalDir = (_curAdvanceDir + _relDir) % 360;
 
         // Intelligent groupVar fallback if missing
+        // Infers the parent group from encoded slot names (varName) to preserve
+        // the original composition hierarchy instead of collapsing everything.
         if (_groupVar == "") then {
             private _upVar = toUpper _varName;
             if (_upVar find "HQ_" == 0) then { _groupVar = "SQUAD_0_0"; };
-            if (_upVar find "PLT_1_" == 0) then { _groupVar = "SQUAD_1_0"; };
-            if (_upVar find "PLT_2_" == 0) then { _groupVar = "SQUAD_2_0"; };
-            if (_upVar find "PLT_3_" == 0) then { _groupVar = "SQUAD_3_0"; };
+            // SQD_<platoon>_<squad>_... naming maps 1:1 to SQUAD_<platoon>_<squad>
+            if (_upVar find "SQD_" == 0) then {
+                private _parts = (_upVar select [4]) splitString "_";
+                if (count _parts >= 2) then {
+                    _groupVar = format ["SQUAD_%1_%2", _parts select 0, _parts select 1];
+                };
+            };
+            if (_groupVar == "") then {
+                if (_upVar find "PLT_1_" == 0) then { _groupVar = "SQUAD_1_0"; };
+                if (_upVar find "PLT_2_" == 0) then { _groupVar = "SQUAD_2_0"; };
+                if (_upVar find "PLT_3_" == 0) then { _groupVar = "SQUAD_3_0"; };
+            };
             if (_groupVar == "") then { _groupVar = "SQUAD_1_1"; };
         };
 
@@ -188,8 +237,9 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
             };
 
             if (_isPlayerSlot) then {
-                // Position player directly into their designated commander slot
+                // Position player directly into their designated commander slot (flush with terrain)
                 _playerUnit setPosATL _finalPos;
+                _playerUnit setVelocity [0, 0, 0];
                 _playerUnit setDir _finalDir;
                 [_playerUnit] joinSilent _group;
 
@@ -207,6 +257,7 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
                 private _unit = _group createUnit [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
                 _unit setDir _finalDir;
                 _unit setPosATL _finalPos;
+                _unit setVelocity [0, 0, 0];
 
                 if (_rank != "") then {
                     _unit setRank _rank;
@@ -231,8 +282,12 @@ diag_log format ["FTCS: Doctrine '%1' spawned at %2 with direction %3 (Echelon: 
 missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", _advanceDir];
 missionNamespace setVariable ["FTCS_Last_Commander_Dir", _advanceDir];
 
-// 5.1. Apply military doctrine structure
-[_doctrineId, _companyLetter] call FTCS_fnc_applyDoctrine;
+// 5.1. Apply military doctrine structure. The doctrine data file is passed as a
+//      self-contained HashMap: all organizational structure (platoon names, squad
+//      designations, team structure, HQ roles) is embedded in the file generated
+//      by the composition conversion tool. Legacy string keys still resolve via
+//      FTCS_Doctrines for Method 1 compatibility.
+[_doctrineData, _companyLetter] call FTCS_fnc_applyDoctrine;
 
 // 5.2. Scan spawned groups, vehicles, and assigned unit roles
 call FTCS_fnc_parseEditorGroups;

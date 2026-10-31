@@ -25,9 +25,9 @@
           │     ├── "isMechanized"   -> false
           │     ├── "transportAsset" -> ""
           │     └── "teams"          -> HashMap (Team ID -> Team Data HashMap):
-          │           ├── "TEAM_0_0_TEAM_1" -> [name: "Command Element", assignedRoles: [CO_CAPTAIN, XO_LIEUTENANT, FIRST_SERGEANT]]
-          │           ├── "TEAM_0_0_TEAM_2" -> [name: "Signals & Liaison", assignedRoles: [COMM_SERGEANT, RADIO_OPERATOR, MESSENGER_1, MESSENGER_2]]
-          │           └── "TEAM_0_0_TEAM_3" -> [name: "Medical & Support", assignedRoles: [COMPANY_MEDIC, VEHICLE_MECHANIC]]
+          │           ├── "SQD_0_0_TEAM_1" -> [name: "Command Element", assignedRoles: [CO_CAPTAIN, XO_LIEUTENANT, FIRST_SERGEANT]]
+          │           ├── "SQD_0_0_TEAM_2" -> [name: "Signals & Liaison", assignedRoles: [COMM_SERGEANT, RADIO_OPERATOR, MESSENGER_1, MESSENGER_2]]
+          │           └── "SQD_0_0_TEAM_3" -> [name: "Medical & Support", assignedRoles: [COMPANY_MEDIC, VEHICLE_MECHANIC]]
           │
           └── "PLT_1" (Example: 1st Platoon)
                 ├── "name"           -> "1st Airborne Platoon"
@@ -43,10 +43,10 @@
                       │     ├── "name"        -> "1st Rifle Squad"
                       │     ├── "platoonID"   -> "PLT_1"
                       │     └── "teams"       -> HashMap (Team ID -> Team Data HashMap):
-                      │           ├── "TEAM_1_1_TEAM_1" -> [name: "Scout Team", parentSquad: "SQD_1_1", type: "TEAM_1", tacticalRole: "ASSAULT", members: []]
-                      │           ├── "TEAM_1_1_TEAM_2" -> [name: "Rifle Team A", parentSquad: "SQD_1_1", type: "TEAM_2", tacticalRole: "ASSAULT", members: []]
-                      │           ├── "TEAM_1_1_TEAM_3" -> [name: "Rifle Team B", parentSquad: "SQD_1_1", type: "TEAM_3", tacticalRole: "ASSAULT", members: []]
-                      │           └── "TEAM_1_1_TEAM_4" -> [name: "BAR Support Team", parentSquad: "SQD_1_1", type: "TEAM_4", tacticalRole: "SUPPORT", members: []]
+                      │           ├── "SQD_1_1_TEAM_1" -> [name: "Scout Team", parentSquad: "SQD_1_1", type: "TEAM_1", tacticalRole: "ASSAULT", members: []]
+                      │           ├── "SQD_1_1_TEAM_2" -> [name: "Rifle Team A", parentSquad: "SQD_1_1", type: "TEAM_2", tacticalRole: "ASSAULT", members: []]
+                      │           ├── "SQD_1_1_TEAM_3" -> [name: "Rifle Team B", parentSquad: "SQD_1_1", type: "TEAM_3", tacticalRole: "ASSAULT", members: []]
+                      │           └── "SQD_1_1_TEAM_4" -> [name: "BAR Support Team", parentSquad: "SQD_1_1", type: "TEAM_4", tacticalRole: "SUPPORT", members: []]
                       │
                       └── "SQD_1_4" (Mortar Section - Unified Group without sub-teams)
                             ├── "name"        -> "60mm Mortar Squad"
@@ -55,15 +55,28 @@
     ========================================================================
 */
 
-params [["_doctrineKey", "US_ARMY"], ["_companyLetter", "A"]];
+params ["_doctrineInput", ["_companyLetter", "A"]];
+
+// Resolve the doctrine template. Two input modes (data-driven + legacy):
+// - HashMap: a self-contained doctrine data file (Doctrines\Data\*.sqf) loaded
+//   by the composition conversion tool. All organizational structure is embedded
+//   in the file itself; no lookup in FTCS_Doctrines is performed.
+// - String: a legacy doctrine key resolved against the old hardcoded registry
+//   FTCS_Doctrines (Method 1: predefined editor-variable units). Kept for
+//   backwards compatibility only.
+private _doctrine = _doctrineInput;
+private _doctrineKey = "";
+if (_doctrineInput isEqualType "") then {
+    _doctrineKey = _doctrineInput;
+    _doctrine = FTCS_Doctrines get _doctrineKey;
+    if (isNil "_doctrine") exitWith { diag_log "FTCS Error: Invalid doctrine selected."; };
+} else {
+    _doctrineKey = _doctrine getOrDefault ["doctrineID", "UNKNOWN"];
+};
 
 // 1. Save choices to global configuration
 FTCS_Config set ["activeDoctrine", _doctrineKey];
 FTCS_Config set ["companyLetter", _companyLetter];
-
-// Retrieve doctrine template
-private _doctrine = FTCS_Doctrines get _doctrineKey;
-if (isNil "_doctrine") exitWith { diag_log "FTCS Error: Invalid doctrine selected."; };
 
 // Robust retrieval supporting both key formats across different doctrines
 private _platoonNames = _doctrine getOrDefault ["platoons", _doctrine getOrDefault ["platoonNames", []]];
@@ -73,6 +86,10 @@ private _transportAsset = _doctrine getOrDefault ["transportAsset", ""];
 
 // Fallback for squad names/types, HQ roles, and flexible team structures across doctrines
 private _squadNamesPool = _doctrine getOrDefault ["squadNames", _doctrine getOrDefault ["squadTypes", ["Squad 1", "Squad 2", "Squad 3", "Squad 4"]]];
+// Per-squad semantic designations embedded in self-contained doctrine data files
+// (composition Method 2): "SQD_X_Y" -> "1st Rifle Squad", "Mortar Section", etc.
+// Takes precedence over the generic squadTypes pool; missing entries fall back to it.
+private _squadDesignations = _doctrine getOrDefault ["squadDesignations", createHashMap];
 private _companyHQRoles = _doctrine getOrDefault ["companyHQRoles", []];
 private _teamStructureNames = _doctrine getOrDefault ["teamStructure", ["Assault Team", "Support Team"]];
 private _teamRoles = _doctrine getOrDefault ["teamRoles", []];
@@ -136,7 +153,7 @@ private _tacticalPlatoonIndex = 1;
             private _teamName = _teamPair select 0;
             private _rolesList = _teamPair select 1;
             private _teamSuffix = format ["TEAM_%1", _forEachIndex + 1];
-            private _teamId = format ["TEAM_%1_0_%2", _tacticalPlatoonIndex, _teamSuffix];
+            private _teamId = format ["SQD_%1_0_%2", _tacticalPlatoonIndex, _teamSuffix];
 
             _pltHqTeamsMap set [_teamId, createHashMapFromArray [
                 ["name", _teamName],
@@ -157,13 +174,20 @@ private _tacticalPlatoonIndex = 1;
 
         // Generate exact number of combat/support squads for this platoon
         for "_s" from 1 to _squadsCount do {
-            private _squadId = format ["SQD_%1_%2", _tacticalPlatoonIndex, _s];
             
             // Pick doctrine specific squad name if available
-            private _doctrinalSquadName = if (_s - 1 < count _squadNamesPool) then {
-                _squadNamesPool select (_s - 1)
+            // Priority: explicit per-squad designation from the doctrine file
+            // (squadDesignations HashMap, Method 2), then the generic pool
+            // (squadTypes/names, Method 1), then positional default.
+            private _squadId = format ["SQD_%1_%2", _tacticalPlatoonIndex, _s];
+            private _doctrinalSquadName = if (count _squadDesignations > 0 && {_squadId in _squadDesignations}) then {
+                _squadDesignations get _squadId
             } else {
-                format ["Squad %1", _s]
+                if (_s - 1 < count _squadNamesPool) then {
+                    _squadNamesPool select (_s - 1)
+                } else {
+                    format ["Squad %1", _s]
+                }
             };
 
             // Detect if this squad is a mortar or heavy support section (unified group handling)
@@ -194,7 +218,7 @@ private _tacticalPlatoonIndex = 1;
                 {
                     private _teamName = _x;
                     private _teamSuffix = format ["TEAM_%1", _forEachIndex + 1];
-                    private _teamId = format ["TEAM_%1_%2_%3", _tacticalPlatoonIndex, _s, _teamSuffix];
+                    private _teamId = format ["SQD_%1_%2_%3", _tacticalPlatoonIndex, _s, _teamSuffix];
 
                     // Resolve tactical role from doctrine or assign fallback based on position
                     private _tacticalRole = if (_forEachIndex < count _teamRoles) then {

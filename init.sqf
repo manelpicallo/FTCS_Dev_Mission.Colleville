@@ -9,6 +9,11 @@
 // Prevent duplicate initialization on clients or re-entries
 if (!isNil "FTCS_Initialized") exitWith {};
 
+// Ensure internal side cohesion: in Arma 3, RESISTANCE/INDEPENDENT factions must
+// explicitly be marked friendly to themselves at mission level so disparate
+// independent groups never treat each other as hostiles under default map diplomacy.
+resistance setFriend [resistance, 1];
+
 // 1. Initialize Global Backend Data HashMaps
 FTCS_Config = createHashMap;
 FTCS_Doctrines = createHashMap;

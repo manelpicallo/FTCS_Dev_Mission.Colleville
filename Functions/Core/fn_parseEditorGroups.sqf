@@ -148,7 +148,7 @@ private _playerSide = side group player;
                         private _teamNum = _tokens select 4;
                         private _upperTeamSuffix = format ["TEAM_%1", _teamNum];
                         private _tacticalTeams = _companyHQData getOrDefault ["tacticalTeams", createHashMap];
-                        private _teamId = format ["TEAM_0_0_%1", _upperTeamSuffix];
+                        private _teamId = format ["SQD_0_0_%1", _upperTeamSuffix];
 
                         _tacticalTeams set [_teamId, createHashMapFromArray [
                             ["teamId", _teamId],
@@ -194,7 +194,7 @@ private _playerSide = side group player;
                                     toUpper _teamSuffix
                                 };
                                 private _tacticalTeams = _squadData getOrDefault ["tacticalTeams", createHashMap];
-                                private _teamId = format ["TEAM_%1_0_%2", _pltIndex, _upperTeamSuffix];
+                                private _teamId = format ["SQD_%1_0_%2", _pltIndex, _upperTeamSuffix];
                                 
                                 _tacticalTeams set [_teamId, createHashMapFromArray [
                                     ["teamId", _teamId],
@@ -223,7 +223,7 @@ private _playerSide = side group player;
                                 private _teamNum = _tokens select 4;
                                 private _upperTeamSuffix = format ["TEAM_%1", _teamNum];
                                 private _tacticalTeams = _squadData getOrDefault ["tacticalTeams", createHashMap];
-                                private _teamId = format ["TEAM_%1_%2_%3", _pltIndex, _sqdIndex, _upperTeamSuffix];
+                                private _teamId = format ["SQD_%1_%2_%3", _pltIndex, _sqdIndex, _upperTeamSuffix];
                                 
                                 _tacticalTeams set [_teamId, createHashMapFromArray [
                                     ["teamId", _teamId],

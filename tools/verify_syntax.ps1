@@ -2,12 +2,14 @@ $files = @(
     "description.ext",
     "init.sqf",
     "UI\FTCS_DeployDialog.hpp",
+    "Functions\Core\fn_loadDoctrineData.sqf",
     "Functions\Spawning\fn_spawnDoctrine.sqf",
     "Functions\Spawning\fn_openDeployMenu.sqf",
     "Functions\Spawning\fn_initDeployMenu.sqf",
     "Functions\Spawning\fn_executeDeployment.sqf",
     "Functions\Spawning\fn_spawnSupportUnit.sqf",
-    "Doctrines\Data\101_US_Para_Company.sqf",
+    "Doctrines\Data\101_US_Para_Company_V2_1.sqf",
+    "Doctrines\Data\Doctrines_Registry.sqf",
     "Doctrines\Data\Support_Artillery.sqf",
     "Doctrines\Data\Support_Armor.sqf"
 )

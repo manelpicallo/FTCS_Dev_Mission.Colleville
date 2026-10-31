@@ -33,7 +33,8 @@ class FTCS_DeployDialog
             onMouseButtonClick = "_this call FTCS_fnc_onDeployMapClick;";
         };
 
-        // Tactical Command Panel Background
+        // Tactical Command Panel Background - Glassmorphic Cyber-Tactical Theme
+        // Uses semi-transparent dark tinted glass (#00111a at 72% opacity) matching the HUD hint style
         class FTCS_Panel_Background: RscText
         {
             idc = -1;
@@ -41,7 +42,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.03 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.94 * safeZoneH";
-            colorBackground[] = {0.05, 0.08, 0.12, 0.92};
+            colorBackground[] = {0.0, 0.06, 0.10, 0.72};
         };
 
         class FTCS_Panel_Border: RscText
@@ -51,7 +52,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.03 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.003 * safeZoneH";
-            colorBackground[] = {0.0, 0.8, 0.9, 0.9};
+            colorBackground[] = {0.0, 1.0, 0.8, 0.95};
         };
 
         class FTCS_Header_Background: RscText
@@ -61,7 +62,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.033 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.055 * safeZoneH";
-            colorBackground[] = {0.08, 0.14, 0.20, 0.85};
+            colorBackground[] = {0.0, 0.12, 0.18, 0.65};
         };
     };
 
@@ -73,7 +74,7 @@ class FTCS_DeployDialog
             text = "FTCS - DESPLIEGUE OPERACIONAL";
             font = "PuristaBold";
             sizeEx = "0.035 * safeZoneH";
-            colorText[] = {0.0, 0.9, 1.0, 1.0};
+            colorText[] = {0.0, 1.0, 0.8, 1.0};
             x = "safeZoneX + 0.025 * safeZoneW";
             y = "safeZoneY + 0.036 * safeZoneH";
             w = "0.31 * safeZoneW";
@@ -86,7 +87,7 @@ class FTCS_DeployDialog
             text = "Mando Táctico, Doctrina Militar y Fuerzas Acopladas";
             font = "PuristaMedium";
             sizeEx = "0.018 * safeZoneH";
-            colorText[] = {0.7, 0.8, 0.85, 0.9};
+            colorText[] = {0.6, 0.75, 0.8, 0.85};
             x = "safeZoneX + 0.025 * safeZoneW";
             y = "safeZoneY + 0.065 * safeZoneH";
             w = "0.31 * safeZoneW";
@@ -102,7 +103,7 @@ class FTCS_DeployDialog
             text = "1. DOCTRINA MILITAR:";
             font = "PuristaBold";
             sizeEx = "0.020 * safeZoneH";
-            colorText[] = {0.9, 0.8, 0.2, 1.0};
+            colorText[] = {0.0, 0.85, 1.0, 1.0};
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.105 * safeZoneH";
             w = "0.30 * safeZoneW";
@@ -116,7 +117,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.130 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {0.0, 0.6, 0.8, 0.7};
+            colorSelectBackground[] = {0.0, 0.7, 0.8, 0.6};
             onLBSelChanged = "_this call FTCS_fnc_onDeployDoctrineChanged;";
         };
 
@@ -127,7 +128,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.168 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.055 * safeZoneH";
-            colorBackground[] = {0.04, 0.07, 0.10, 0.60};
+            colorBackground[] = {0.0, 0.08, 0.12, 0.45};
         };
 
         // ---------------------------------------------------------------------
@@ -139,7 +140,7 @@ class FTCS_DeployDialog
             text = "2. ESCALÓN DE MANDO A COMANDAR:";
             font = "PuristaBold";
             sizeEx = "0.020 * safeZoneH";
-            colorText[] = {0.9, 0.8, 0.2, 1.0};
+            colorText[] = {0.0, 0.85, 1.0, 1.0};
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.235 * safeZoneH";
             w = "0.30 * safeZoneW";
@@ -153,7 +154,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.260 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {0.0, 0.6, 0.8, 0.7};
+            colorSelectBackground[] = {0.0, 0.7, 0.8, 0.6};
             onLBSelChanged = "_this call FTCS_fnc_onDeployEchelonChanged;";
         };
 
@@ -164,7 +165,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.298 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.060 * safeZoneH";
-            colorBackground[] = {0.04, 0.07, 0.10, 0.60};
+            colorBackground[] = {0.0, 0.08, 0.12, 0.45};
         };
 
         // ---------------------------------------------------------------------
@@ -176,7 +177,7 @@ class FTCS_DeployDialog
             text = "3. ÁREA DE DESPLIEGUE EN EL MAPA:";
             font = "PuristaBold";
             sizeEx = "0.020 * safeZoneH";
-            colorText[] = {0.9, 0.8, 0.2, 1.0};
+            colorText[] = {0.0, 0.85, 1.0, 1.0};
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.370 * safeZoneH";
             w = "0.30 * safeZoneW";
@@ -190,7 +191,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.395 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {0.0, 0.6, 0.8, 0.7};
+            colorSelectBackground[] = {0.0, 0.7, 0.8, 0.6};
             onLBSelChanged = "_this call FTCS_fnc_onDeployAreaChanged;";
         };
 
@@ -201,7 +202,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.433 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.070 * safeZoneH";
-            colorBackground[] = {0.04, 0.07, 0.10, 0.60};
+            colorBackground[] = {0.0, 0.08, 0.12, 0.45};
         };
 
         // ---------------------------------------------------------------------
@@ -213,7 +214,7 @@ class FTCS_DeployDialog
             text = "4. UNIDADES ACOPLADAS DE APOYO:";
             font = "PuristaBold";
             sizeEx = "0.020 * safeZoneH";
-            colorText[] = {0.9, 0.8, 0.2, 1.0};
+            colorText[] = {0.0, 0.85, 1.0, 1.0};
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.515 * safeZoneH";
             w = "0.30 * safeZoneW";
@@ -296,9 +297,9 @@ class FTCS_DeployDialog
             text = "[ CONFIRMAR Y DESPLEGAR FUERZA ]";
             font = "PuristaBold";
             sizeEx = "0.020 * safeZoneH";
-            colorBackground[] = {0.0, 0.5, 0.35, 0.95};
-            colorBackground2[] = {0.0, 0.7, 0.45, 1.0};
-            colorFocused[] = {0.0, 0.6, 0.4, 1.0};
+            colorBackground[] = {0.0, 0.45, 0.40, 0.85};
+            colorBackground2[] = {0.0, 0.70, 0.55, 0.95};
+            colorFocused[] = {0.0, 0.60, 0.50, 0.90};
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.850 * safeZoneH";
             w = "0.304 * safeZoneW";
@@ -313,8 +314,8 @@ class FTCS_DeployDialog
             text = "[ CANCELAR ]";
             font = "PuristaMedium";
             sizeEx = "0.018 * safeZoneH";
-            colorBackground[] = {0.4, 0.1, 0.1, 0.85};
-            colorBackground2[] = {0.6, 0.15, 0.15, 1.0};
+            colorBackground[] = {0.25, 0.08, 0.08, 0.70};
+            colorBackground2[] = {0.50, 0.12, 0.12, 0.85};
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.910 * safeZoneH";
             w = "0.304 * safeZoneW";

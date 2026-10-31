@@ -45,23 +45,12 @@ titleText [
     true
 ];
 
-// 2. Load Doctrine Data Template
-private _doctrineData = createHashMap;
-private _doctrinePath = format ["Doctrines\Data\%1.sqf", _doctrineKey];
+// 2. Load Doctrine Data Template (via centralized loader with alias resolution)
+private _doctrineData = [_doctrineKey] call FTCS_fnc_loadDoctrineData;
 
-if (fileExists _doctrinePath) then {
-    _doctrineData = call compile preprocessFileLineNumbers _doctrinePath;
-} else {
-    // Default fallback to 101st Airborne template
-    _doctrineData = call compile preprocessFileLineNumbers "Doctrines\Data\101_US_Para_Company.sqf";
-    if (count _doctrineData == 0) then {
-        _doctrineData = createHashMapFromArray [
-            ["doctrineID", _doctrineKey],
-            ["companyLetter", "A"],
-            ["requiredMods", []],
-            ["entities", []]
-        ];
-    };
+if (count _doctrineData == 0) exitWith {
+    diag_log "FTCS Deploy Error: Doctrine data could not be loaded. Deployment aborted.";
+    hint parseText "<t color='#FF5555'>FTCS Error: No se pudo cargar la doctrina seleccionada. Revisa el fichero en Doctrines\Data\.</t>";
 };
 
 // 3. Deploy Main Doctrinal Force
@@ -129,16 +118,20 @@ if (_fixedEnabled) then {
     };
 };
 
-// 6. Confirmation Notification
+// 6. Confirmation Notification: styled floating tactical box in lower viewport
+// Rendered via parseText inside a dedicated hintSilent call with transparent structured backdrop
 private _rankTitle = if (_echelon == "PLATOON") then { "Teniente" } else { "Capitán" };
 private _echelonLabel = if (_echelon == "PLATOON") then { "1er Pelotón (HQ Cía presente)" } else { "Compañía Completa" };
 
-hint parseText format [
-    "<t color='#00FFCC'><t size='1.3' font='PuristaBold'>¡Despliegue Operacional Exitoso!</t></t><br/><br/>" +
-    "<t color='#FFFFFF'>Doctrina:</t> <t color='#AAAAAA'>%1</t><br/>" +
-    "<t color='#FFFFFF'>Mando:</t> <t color='#AAAAAA'>%2 (%3)</t><br/>" +
-    "<t color='#FFFFFF'>Zona:</t> <t color='#AAAAAA'>Grid %4</t><br/><br/>" +
-    "<t color='#00FF00'>Todas las escuadras enlazadas. ¡A sus órdenes, mi %3!</t>",
+hintSilent parseText format [
+    "<t font='PuristaBold' size='1.25' color='#00FFCC'>[ FTCS - DESPLIEGUE OPERACIONAL ]</t><br/>" +
+    "<t size='0.95' color='#00FFCC'>════════════════════════════════════</t><br/>" +
+    "<t align='left' size='0.90' color='#AAAAAA'>Doctrina:</t><t align='right' size='0.90' color='#FFFFFF'>%1</t><br/>" +
+    "<t align='left' size='0.90' color='#AAAAAA'>Mando:</t><t align='right' size='0.90' color='#00BFFF'>%2 (%3)</t><br/>" +
+    "<t align='left' size='0.90' color='#AAAAAA'>Zona Táctica:</t><t align='right' size='0.90' color='#FFFFFF'>Grid %4</t><br/>" +
+    "<t size='0.95' color='#00FFCC'>════════════════════════════════════</t><br/>" +
+    "<t size='0.95' color='#00FF66' font='PuristaMedium'>✔ Todas las escuadras enlazadas al mando.</t><br/>" +
+    "<t size='0.85' color='#888888'>¡A sus órdenes, mi %3!</t>",
     _doctrineKey,
     _echelonLabel,
     _rankTitle,
