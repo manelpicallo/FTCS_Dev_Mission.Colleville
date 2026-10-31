@@ -33,8 +33,8 @@ class FTCS_DeployDialog
             onMouseButtonClick = "_this call FTCS_fnc_onDeployMapClick;";
         };
 
-        // Tactical Command Panel Background - Glassmorphic Cyber-Tactical Theme
-        // Uses semi-transparent dark tinted glass (#00111a at 72% opacity) matching the HUD hint style
+        // Tactical Command Panel Background - High Transparency Glassmorphic Theme
+        // Reduced to ~36% opacity (double transparency) so the 3D world / satellite map dominates
         class FTCS_Panel_Background: RscText
         {
             idc = -1;
@@ -42,7 +42,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.03 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.94 * safeZoneH";
-            colorBackground[] = {0.0, 0.06, 0.10, 0.72};
+            colorBackground[] = {0.0, 0.04, 0.07, 0.36};
         };
 
         class FTCS_Panel_Border: RscText
@@ -52,7 +52,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.03 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.003 * safeZoneH";
-            colorBackground[] = {0.0, 1.0, 0.8, 0.95};
+            colorBackground[] = {1.0, 0.55, 0.0, 0.95};
         };
 
         class FTCS_Header_Background: RscText
@@ -62,7 +62,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.033 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.055 * safeZoneH";
-            colorBackground[] = {0.0, 0.12, 0.18, 0.65};
+            colorBackground[] = {0.0, 0.08, 0.12, 0.40};
         };
     };
 
@@ -117,7 +117,8 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.130 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {0.0, 0.7, 0.8, 0.6};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorSelect[] = {1.0, 1.0, 1.0, 1.0};
             onLBSelChanged = "_this call FTCS_fnc_onDeployDoctrineChanged;";
         };
 
@@ -128,7 +129,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.168 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.055 * safeZoneH";
-            colorBackground[] = {0.0, 0.08, 0.12, 0.45};
+            colorBackground[] = {0.0, 0.04, 0.08, 0.25};
         };
 
         // ---------------------------------------------------------------------
@@ -154,7 +155,8 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.260 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {0.0, 0.7, 0.8, 0.6};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorSelect[] = {1.0, 1.0, 1.0, 1.0};
             onLBSelChanged = "_this call FTCS_fnc_onDeployEchelonChanged;";
         };
 
@@ -165,7 +167,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.298 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.060 * safeZoneH";
-            colorBackground[] = {0.0, 0.08, 0.12, 0.45};
+            colorBackground[] = {0.0, 0.04, 0.08, 0.25};
         };
 
         // ---------------------------------------------------------------------
@@ -191,7 +193,8 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.395 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {0.0, 0.7, 0.8, 0.6};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorSelect[] = {1.0, 1.0, 1.0, 1.0};
             onLBSelChanged = "_this call FTCS_fnc_onDeployAreaChanged;";
         };
 
@@ -202,7 +205,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.433 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.070 * safeZoneH";
-            colorBackground[] = {0.0, 0.08, 0.12, 0.45};
+            colorBackground[] = {0.0, 0.04, 0.08, 0.25};
         };
 
         // ---------------------------------------------------------------------
