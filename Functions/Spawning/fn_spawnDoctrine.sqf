@@ -237,22 +237,34 @@ if (_factionSide == resistance) then {
             };
 
             if (_isPlayerSlot) then {
-                // Position player directly into their designated commander slot (flush with terrain)
-                _playerUnit setPosATL _finalPos;
-                _playerUnit setVelocity [0, 0, 0];
-                _playerUnit setDir _finalDir;
-                [_playerUnit] joinSilent _group;
+                // Instantiate the authentic doctrinal commander unit defined in the doctrine template
+                // (e.g. SPE_US_101AB_CO with its exact WW2 uniform, weapons, helmet and gear).
+                private _doctrinalUnit = _group createUnit [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
+                _doctrinalUnit setDir _finalDir;
+                _doctrinalUnit setPosATL _finalPos;
+                _doctrinalUnit setVelocity [0, 0, 0];
 
                 if (_rank != "") then {
-                    _playerUnit setRank _rank;
+                    _doctrinalUnit setRank _rank;
                 };
 
                 if (_varName != "") then {
-                    _playerUnit setVehicleVarName _varName;
-                    missionNamespace setVariable [_varName, _playerUnit, true];
+                    _doctrinalUnit setVehicleVarName _varName;
+                    missionNamespace setVariable [_varName, _doctrinalUnit, true];
                 };
 
-                _group selectLeader _playerUnit;
+                _group selectLeader _doctrinalUnit;
+
+                // Transfer local client control directly into the authentic doctrinal commander entity
+                if (!isNull _playerUnit && {_playerUnit != _doctrinalUnit}) then {
+                    private _oldAvatar = _playerUnit;
+                    selectPlayer _doctrinalUnit;
+                    deleteVehicle _oldAvatar;
+                } else {
+                    selectPlayer _doctrinalUnit;
+                };
+
+                _playerUnit = _doctrinalUnit;
             } else {
                 private _unit = _group createUnit [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
                 _unit setDir _finalDir;
