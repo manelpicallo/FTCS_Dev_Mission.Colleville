@@ -27,16 +27,20 @@ switch (_playerRole) do {
             private _captain = _assignedRoles getOrDefault ["HQ_CO_CAPTAIN", objNull];
 
             if (!isNull _captain && {_captain == player}) then {
-                // If the player is in a mixed group with other units, isolate them into an independent group
+                // If the player is in a mixed group with other units, isolate them into an independent group of the same faction side
                 if (count (units group player) > 1) then {
                     private _oldGroup = group player;
-                    [player] joinSilent grpNull;
+                    private _playerSide = side _oldGroup;
+                    private _newCmdGroup = createGroup [_playerSide, true];
+                    [player] joinSilent _newCmdGroup;
+                    _newCmdGroup selectLeader player;
+                    
                     // Refresh old group's remaining units/leader if stored in companyHQ
                     if ((_companyHQData getOrDefault ["group", grpNull]) == _oldGroup) then {
                         _companyHQData set ["units", units _oldGroup];
                         _companyHQData set ["leader", leader _oldGroup];
                     };
-                    diag_log "FTCS: Company Commander isolated from mixed group into an independent group.";
+                    diag_log format ["FTCS: Company Commander isolated from mixed group into an independent %1 group.", _playerSide];
                 } else {
                     diag_log "FTCS: Company Commander verified as local player (already independent).";
                 };
@@ -60,16 +64,20 @@ switch (_playerRole) do {
                 private _leaderObj = _assignedRoles getOrDefault [_pltLeaderVar, objNull];
 
                 if (!isNull _leaderObj && {_leaderObj == player}) then {
-                    // If the Platoon Leader is in a mixed group, isolate them into an independent group
+                    // If the Platoon Leader is in a mixed group, isolate them into an independent group of the same faction side
                     if (count (units group player) > 1) then {
                         private _oldGroup = group player;
-                        [player] joinSilent grpNull;
+                        private _playerSide = side _oldGroup;
+                        private _newCmdGroup = createGroup [_playerSide, true];
+                        [player] joinSilent _newCmdGroup;
+                        _newCmdGroup selectLeader player;
+
                         // Refresh old group's remaining units/leader in SQD_X_0
                         if ((_sqdData getOrDefault ["group", grpNull]) == _oldGroup) then {
                             _sqdData set ["units", units _oldGroup];
                             _sqdData set ["leader", leader _oldGroup];
                         };
-                        diag_log format ["FTCS: Platoon Commander (Platoon %1) isolated from mixed group into an independent group.", _platoonID];
+                        diag_log format ["FTCS: Platoon Commander (Platoon %1) isolated into an independent %2 group.", _platoonID, _playerSide];
                     } else {
                         diag_log format ["FTCS: Platoon Commander (Platoon %1) verified as local player (already independent).", _platoonID];
                     };

@@ -52,7 +52,8 @@ if (_doctrineKey == "LIST") exitWith {
         if (count _data > 0) then {
             private _docId = _data getOrDefault ["doctrineID", _x];
             private _label = format ["%1 (%2)", _docId, _x];
-            _list pushBack [_label, _docId, _data];
+            // Key is the filename in Doctrines\Data\ to guarantee 100% exact loading
+            _list pushBack [_label, _x, _data];
         };
     } forEach _fileNames;
 

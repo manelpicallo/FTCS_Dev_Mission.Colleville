@@ -305,12 +305,16 @@ function Convert-SQEToDoctrineData {
 
         # Si es un objeto (soldado o vehículo) con tipo de clase válido
         if ($node.DataType -eq "Object" -and $node.Type -ne "") {
-            # El nombre de la unidad puede estar en el propio nodo o en su hijo 'Attributes'
+            # El nombre de la unidad y el rango pueden estar en el propio nodo o en su hijo 'Attributes'
             $uName = $node.Name
-            if ($uName -eq "") {
-                $attr = $node.Children | Where-Object { $_.Class -eq "Attributes" } | Select-Object -First 1
-                if ($attr -and $attr.Name -ne "") {
-                    $uName = $attr.Name
+            $uRank = $node.Rank
+            $attrChild = $node.Children | Where-Object { $_.Class -eq "Attributes" } | Select-Object -First 1
+            if ($attrChild) {
+                if ($uName -eq "" -and $attrChild.Name -ne "") {
+                    $uName = $attrChild.Name
+                }
+                if ($attrChild.Rank -ne "" -and $attrChild.Rank -ne "PRIVATE") {
+                    $uRank = $attrChild.Rank
                 }
             }
 
@@ -347,7 +351,7 @@ function Convert-SQEToDoctrineData {
                 RelDir     = $relDir
                 VarName    = $uName
                 GroupVar   = $effGroupVar
-                Rank       = $node.Rank
+                Rank       = $uRank
                 IsVehicle  = $isVeh
             }
             [void]$detectedEntities.Add($entityEntry)
@@ -406,9 +410,17 @@ function Convert-SQEToDoctrineData {
     [void]$sqfBuilder.AppendLine('        ["SQD_1_1", "1st Rifle Squad"],')
     [void]$sqfBuilder.AppendLine('        ["SQD_1_2", "2nd Rifle Squad"],')
     [void]$sqfBuilder.AppendLine('        ["SQD_1_3", "3rd Rifle Squad"],')
-    [void]$sqfBuilder.AppendLine('        ["SQD_1_4", "Mortar Section"]')
+    [void]$sqfBuilder.AppendLine('        ["SQD_1_4", "Mortar Section"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_2_1", "1st Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_2_2", "2nd Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_2_3", "3rd Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_2_4", "Mortar Section"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_3_1", "1st Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_3_2", "2nd Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_3_3", "3rd Rifle Squad"],')
+    [void]$sqfBuilder.AppendLine('        ["SQD_3_4", "Mortar Section"]')
     [void]$sqfBuilder.AppendLine('    ]],')
-    [void]$sqfBuilder.AppendLine('    ["teamStructure", ["Scout Team", "Rifle Team A", "Rifle Team B", "BAR Support Team"]],')
+    [void]$sqfBuilder.AppendLine('    ["teamStructure", ["Rifle Team A", "Scout Team", "Rifle Team B", "BAR Support Team"]],')
     [void]$sqfBuilder.AppendLine('    ["teamRoles", ["ASSAULT", "ASSAULT", "ASSAULT", "SUPPORT"]],')
     [void]$sqfBuilder.AppendLine("    [`"entities`", [")
 

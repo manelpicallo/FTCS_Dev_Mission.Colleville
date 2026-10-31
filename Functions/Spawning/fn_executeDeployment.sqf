@@ -30,11 +30,23 @@ private _mobileEnabled = cbChecked _ctrlMobileCheck;
 private _spawnPos = missionNamespace getVariable ["FTCS_Deploy_SpawnPos", getPos player];
 private _advanceDir = missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", 0];
 
-// Close dialog and clean preview markers
+// Close dialog and clean all 4 potential preview markers from map
 closeDialog 1;
 
 if (getMarkerType "FTCS_PREVIEW_MARKER" != "") then {
     deleteMarkerLocal "FTCS_PREVIEW_MARKER";
+};
+if (getMarkerType "FTCS_PREVIEW_BOX" != "") then {
+    deleteMarkerLocal "FTCS_PREVIEW_BOX";
+};
+if (getMarkerType "FTCS_PREVIEW_HQ" != "") then {
+    deleteMarkerLocal "FTCS_PREVIEW_HQ";
+};
+if (getMarkerType "FTCS_PREVIEW_ARTY" != "") then {
+    deleteMarkerLocal "FTCS_PREVIEW_ARTY";
+};
+if (getMarkerType "FTCS_PREVIEW_ARMOR" != "") then {
+    deleteMarkerLocal "FTCS_PREVIEW_ARMOR";
 };
 
 titleText [
@@ -55,6 +67,7 @@ if (count _doctrineData == 0) exitWith {
 
 // 3. Deploy Main Doctrinal Force
 // In Platoon mode, check if a dedicated Company HQ marker exists in the mission
+// or if the player manually clicked a custom HQ position via Option B
 private _customHQPos = [];
 private _customHQDir = -1;
 if (_echelon == "PLATOON") then {
@@ -63,6 +76,24 @@ if (_echelon == "PLATOON") then {
         _customHQPos = getMarkerPos _hqMarker;
         _customHQDir = markerDir _hqMarker;
         diag_log format ["FTCS: Deploying Company HQ at dedicated editor marker '%1' (Grid %2).", _hqMarker, mapGridPosition _customHQPos];
+    } else {
+        // Retrieve interactive position chosen by the player via Option B buttons, or default to 150m rear
+        private _clickedHQ = missionNamespace getVariable ["FTCS_Deploy_CustomHQPos", []];
+        if (count _clickedHQ >= 2) then {
+            _customHQPos = _clickedHQ;
+            _customHQDir = _advanceDir;
+            diag_log format ["FTCS: Deploying Company HQ at player interactive map position (Grid %1).", mapGridPosition _customHQPos];
+        } else {
+            // Default: 150m to the rear of the platoon anchor
+            private _rad = _advanceDir;
+            _customHQPos = [
+                (_spawnPos select 0) - (150 * sin _rad),
+                (_spawnPos select 1) - (150 * cos _rad),
+                0
+            ];
+            _customHQDir = _advanceDir;
+            diag_log format ["FTCS: Deploying Company HQ at automatic 150m rear position (Grid %1).", mapGridPosition _customHQPos];
+        };
     };
 };
 
@@ -81,40 +112,58 @@ if (!_deploySuccess) exitWith {
     hint "FTCS Error: Falló el despliegue de la doctrina.";
 };
 
-// 4. Deploy Mobile Support (Alongside troops in deployment area)
+// 4. Deploy Mobile Support (Interactive chosen position or default offset)
 if (_mobileEnabled) then {
     private _armorPath = "Doctrines\Data\Support_Armor.sqf";
     if (fileExists _armorPath) then {
         private _armorData = call compile preprocessFileLineNumbers _armorPath;
         
-        // Calculate offset position for mobile support (offset to flank/rear)
-        private _rad = _advanceDir;
-        private _offX = 30;
-        private _offY = -35;
-        private _rotX = (_offX * cos _rad) + (_offY * sin _rad);
-        private _rotY = ((-_offX * sin _rad) + (_offY * cos _rad));
-        private _mobilePos = [(_spawnPos select 0) + _rotX, (_spawnPos select 1) + _rotY, _spawnPos select 2];
+        // Retrieve interactive position chosen via "[ UBICAR ]" button, or default offset
+        private _customArmor = missionNamespace getVariable ["FTCS_Deploy_CustomArmorPos", []];
+        private _mobilePos = if (count _customArmor >= 2) then {
+            _customArmor
+        } else {
+            private _rad = _advanceDir;
+            private _offX = 30;
+            private _offY = -35;
+            private _rotX = (_offX * cos _rad) + (_offY * sin _rad);
+            private _rotY = ((-_offX * sin _rad) + (_offY * cos _rad));
+            [(_spawnPos select 0) + _rotX, (_spawnPos select 1) + _rotY, _spawnPos select 2]
+        };
 
         [_armorData, _mobilePos, _advanceDir] call FTCS_fnc_spawnSupportUnit;
-        diag_log "FTCS: Mobile armored support deployed alongside main force.";
+        diag_log format ["FTCS: Mobile armored support deployed at Grid %1.", mapGridPosition _mobilePos];
     };
 };
 
-// 5. Deploy Fixed Support (At designated editor marker)
+// 5. Deploy Fixed Support (Interactive chosen position or editor marker)
 if (_fixedEnabled) then {
-    private _artyMarker = missionNamespace getVariable ["FTCS_Deploy_ArtilleryMarker", ""];
-    if (_artyMarker != "" && {getMarkerType _artyMarker != ""}) then {
-        private _artyPath = "Doctrines\Data\Support_Artillery.sqf";
-        if (fileExists _artyPath) then {
-            private _artilleryData = call compile preprocessFileLineNumbers _artyPath;
-            private _artyPos = getMarkerPos _artyMarker;
-            private _artyDir = markerDir _artyMarker;
+    private _artyPath = "Doctrines\Data\Support_Artillery.sqf";
+    if (fileExists _artyPath) then {
+        private _artilleryData = call compile preprocessFileLineNumbers _artyPath;
+        
+        // Priority: custom interactive click via "[ UBICAR ]" button, then editor marker
+        private _customArty = missionNamespace getVariable ["FTCS_Deploy_CustomArtyPos", []];
+        private _artyPos = [];
+        private _artyDir = _advanceDir;
 
-            [_artilleryData, _artyPos, _artyDir] call FTCS_fnc_spawnSupportUnit;
-            diag_log format ["FTCS: Fixed artillery support deployed at marker '%1'.", _artyMarker];
+        if (count _customArty >= 2) then {
+            _artyPos = _customArty;
+            diag_log format ["FTCS: Fixed artillery deployed at interactive map position (Grid %1).", mapGridPosition _artyPos];
+        } else {
+            private _artyMarker = missionNamespace getVariable ["FTCS_Deploy_ArtilleryMarker", ""];
+            if (_artyMarker != "" && {getMarkerType _artyMarker != ""}) then {
+                _artyPos = getMarkerPos _artyMarker;
+                _artyDir = markerDir _artyMarker;
+                diag_log format ["FTCS: Fixed artillery support deployed at marker '%1'.", _artyMarker];
+            };
         };
-    } else {
-        diag_log "FTCS Warning: Fixed artillery selected but no valid marker was found.";
+
+        if (count _artyPos >= 2) then {
+            [_artilleryData, _artyPos, _artyDir] call FTCS_fnc_spawnSupportUnit;
+        } else {
+            diag_log "FTCS Warning: Fixed artillery selected but no coordinate or marker was found.";
+        };
     };
 };
 

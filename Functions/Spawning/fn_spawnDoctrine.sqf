@@ -73,35 +73,13 @@ private _spawnZ = if (count _spawnAnchorPos > 2) then { _spawnAnchorPos select 2
 // Cache of spawned groups by their groupVar name in the composition
 private _spawnedGroups = createHashMap;
 
-// Default side for doctrine force: determined by the doctrine template itself
-// (or derived from the first combat unit's config side), supporting WEST (BLUFOR),
-// EAST (OPFOR), and RESISTANCE/INDEPENDENT (los aliados / independientes).
-// The local player is dynamically switched into this side's group during deployment.
+// Default side for doctrine force: determined by the doctrine template itself,
+// falling back safely to player's current side or west.
 private _factionSide = _doctrineData getOrDefault ["side", sideUnknown];
-if !(_factionSide in [west, east, resistance, independent]) then {
-    // Attempt auto-detection from the first soldier class in entities
-    if (count _entities > 0) then {
-        private _firstClass = (_entities select 0) select 0;
-        private _sideNum = getNumber (configFile >> "CfgVehicles" >> _firstClass >> "side");
-        _factionSide = switch (_sideNum) do {
-            case 0: { east };
-            case 1: { west };
-            case 2: { resistance }; // independent
-            default { sideUnknown };
-        };
-    };
-};
 if !(_factionSide in [west, east, resistance, independent]) then {
     _factionSide = side group player;
 };
-if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide = resistance; };
-
-// Ensure internal side cohesion: in Arma 3, RESISTANCE/INDEPENDENT factions must
-// explicitly be marked friendly to themselves at mission level so disparate
-// independent groups never treat each other as hostiles under default map diplomacy.
-if (_factionSide == resistance) then {
-    resistance setFriend [resistance, 1];
-};
+if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide = west; };
 
 // -----------------------------------------------------------------------------
 // 4. Instantiate Entities
@@ -129,11 +107,29 @@ if (_factionSide == resistance) then {
         };
     };
 
+    // In PLATOON command mode, locate the Platoon Leader entity (PLT_1_LEADER) to use its
+    // composition coordinate as the local anchor offset, centering the deployment around the Lieutenant.
+    private _plt1AnchorOffset = [0, 0];
+    if (_commandEchelon == "PLATOON") then {
+        {
+            if ((_x select 3) == "PLT_1_LEADER") exitWith {
+                private _pPos = _x select 1;
+                _plt1AnchorOffset = [_pPos select 0, _pPos select 1];
+            };
+        } forEach _entities;
+    };
+
     if (!_skipEntity) then {
         _offsetXYZ params ["_offX", "_offY", "_offZ"];
 
         // Determine if this entity belongs to the Company HQ
         private _isEntityCompanyHQ = (_groupVar == "SQUAD_0_0") || ((toUpper _varName) find "HQ_" == 0);
+
+        // If in PLATOON echelon mode and not Company HQ, adjust local offset relative to the Lieutenant
+        if (_commandEchelon == "PLATOON" && {!_isEntityCompanyHQ}) then {
+            _offX = _offX - (_plt1AnchorOffset select 0);
+            _offY = _offY - (_plt1AnchorOffset select 1);
+        };
 
         // Calculate dynamic anchor position and direction for this entity
         private _curAnchorX = _spawnX;
@@ -270,6 +266,12 @@ if (_factionSide == resistance) then {
                 _unit setDir _finalDir;
                 _unit setPosATL _finalPos;
                 _unit setVelocity [0, 0, 0];
+
+                // FTCS Phase 1 (Planning / Assembly Area) Doctrine Requirement:
+                // Newly spawned AI subordinates must remain strictly static at their exact doctrinal
+                // formation coordinates until the commander issues an explicit movement order.
+                // Prevents Arma 3 native AI squad re-clustering / wandering immediately upon spawn.
+                doStop _unit;
 
                 if (_rank != "") then {
                     _unit setRank _rank;

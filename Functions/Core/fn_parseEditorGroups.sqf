@@ -218,34 +218,46 @@ private _playerSide = side group player;
                                 _squadData set ["leader", leader _group];
                             };
                         } else {
-                            // Handle multi-team tactical squads vs single-group/unified squads
-                            if (_teamSuffix == "team" && count _tokens >= 5) then {
-                                private _teamNum = _tokens select 4;
-                                private _upperTeamSuffix = format ["TEAM_%1", _teamNum];
-                                private _tacticalTeams = _squadData getOrDefault ["tacticalTeams", createHashMap];
-                                private _teamId = format ["SQD_%1_%2_%3", _pltIndex, _sqdIndex, _upperTeamSuffix];
-                                
-                                _tacticalTeams set [_teamId, createHashMapFromArray [
-                                    ["teamId", _teamId],
-                                    ["type", _upperTeamSuffix],
-                                    ["group", _group],
-                                    ["units", units _group],
-                                    ["leader", leader _group]
-                                ]];
-                                
-                                _squadData set ["tacticalTeams", _tacticalTeams];
-
-                                // Set main squad leader to Team 1 leader by default
-                                if (_upperTeamSuffix == "TEAM_1" || !("leader" in _squadData)) then {
-                                    _squadData set ["leader", leader _group];
-                                };
-                            } else {
-                                // Unified single-group squad (e.g. Mortar Section)
+                            // Unified single-group squad (e.g. Mortar Section)
+                            // If named as SQUAD_X_4_TEAM_1, treat it strictly as a unified squad
+                            // without splitting into sub-teams or appending "TEAM" to its name
+                            private _isMortarDesignation = (toLower _doctrinalName) find "mortar" >= 0 || (toLower _doctrinalName) find "mortero" >= 0;
+                            
+                            if (_isMortarDesignation) then {
                                 _squadData set ["group", _group];
                                 _squadData set ["name", _doctrinalName];
                                 _squadData set ["units", units _group];
                                 _squadData set ["leader", leader _group];
                                 _squadData set ["isUnified", true];
+                            } else {
+                                if (_teamSuffix == "team" && count _tokens >= 5) then {
+                                    private _teamNum = _tokens select 4;
+                                    private _upperTeamSuffix = format ["TEAM_%1", _teamNum];
+                                    private _tacticalTeams = _squadData getOrDefault ["tacticalTeams", createHashMap];
+                                    private _teamId = format ["SQD_%1_%2_%3", _pltIndex, _sqdIndex, _upperTeamSuffix];
+                                    
+                                    _tacticalTeams set [_teamId, createHashMapFromArray [
+                                        ["teamId", _teamId],
+                                        ["type", _upperTeamSuffix],
+                                        ["group", _group],
+                                        ["units", units _group],
+                                        ["leader", leader _group]
+                                    ]];
+                                    
+                                    _squadData set ["tacticalTeams", _tacticalTeams];
+
+                                    // Set main squad leader to Team 1 leader by default
+                                    if (_upperTeamSuffix == "TEAM_1" || !("leader" in _squadData)) then {
+                                        _squadData set ["leader", leader _group];
+                                    };
+                                } else {
+                                    // Standard unified squad
+                                    _squadData set ["group", _group];
+                                    _squadData set ["name", _doctrinalName];
+                                    _squadData set ["units", units _group];
+                                    _squadData set ["leader", leader _group];
+                                    _squadData set ["isUnified", true];
+                                };
                             };
                         };
 

@@ -19,6 +19,7 @@
 3. **Compatibilidad con Enfusion:** Todo el código debe ser modular, desacoplado y portable a Enforce Script. Separa lógica y datos (arquitectura data-driven), evita duplicar código (DRY) y evita construcciones SQF difíciles de migrar sin justificarlo. Usa la versión estable actual de Arma 3 y sus comandos nativos, incluido `HashMap`; no propongas alternativas con arrays anidados para sustituirlo.
 4. **Cambios mínimos:** Modifica solo lo que se te pide. No reescribas, renombres ni reorganices código no relacionado con la tarea.
 5. **Nomenclatura:** Respeta los nombres existentes (prefijo `FTCS_`, variables estándar como `SQUAD_X_Y`, `PLT_X_LEADER`, `HQ_CO_CAPTAIN`, etc.).
+6. **Alcance Estricto de Ficheros de Código (`functions`):** Dentro de la carpeta de funciones (`functions`), la IA solo debe analizar, leer o modificar aquellas funciones que estén explícitamente listadas o referenciadas en el fichero `description.ext` (o `description.txt`). Cualquier otro archivo de código fuera de ese listado debe ser estrictamente ignorado para evitar análisis o modificaciones innecesarias de módulos en desuso. (Los directorios de datos como `Doctrines\Data\` y la documentación sí pueden examinarse libremente).
 
 **Validación contra este documento:**
 

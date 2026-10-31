@@ -34,7 +34,7 @@ class FTCS_DeployDialog
         };
 
         // Tactical Command Panel Background - High Transparency Glassmorphic Theme
-        // Reduced to ~36% opacity (double transparency) so the 3D world / satellite map dominates
+        // Opacity reduced to 18% (more than double transparency) so the 3D world dominates
         class FTCS_Panel_Background: RscText
         {
             idc = -1;
@@ -42,7 +42,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.03 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.94 * safeZoneH";
-            colorBackground[] = {0.0, 0.04, 0.07, 0.36};
+            colorBackground[] = {0.0, 0.03, 0.06, 0.18};
         };
 
         class FTCS_Panel_Border: RscText
@@ -62,7 +62,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.033 * safeZoneH";
             w = "0.32 * safeZoneW";
             h = "0.055 * safeZoneH";
-            colorBackground[] = {0.0, 0.08, 0.12, 0.40};
+            colorBackground[] = {0.0, 0.06, 0.10, 0.20};
         };
     };
 
@@ -117,8 +117,10 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.130 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorBackground[] = {0.0, 0.04, 0.08, 0.20};
+            colorText[] = {1.0, 1.0, 1.0, 1.0};
             colorSelect[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
             onLBSelChanged = "_this call FTCS_fnc_onDeployDoctrineChanged;";
         };
 
@@ -129,7 +131,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.168 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.055 * safeZoneH";
-            colorBackground[] = {0.0, 0.04, 0.08, 0.25};
+            colorBackground[] = {0.0, 0.03, 0.06, 0.15};
         };
 
         // ---------------------------------------------------------------------
@@ -155,8 +157,10 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.260 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorBackground[] = {0.0, 0.04, 0.08, 0.20};
+            colorText[] = {1.0, 1.0, 1.0, 1.0};
             colorSelect[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
             onLBSelChanged = "_this call FTCS_fnc_onDeployEchelonChanged;";
         };
 
@@ -167,7 +171,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.298 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.060 * safeZoneH";
-            colorBackground[] = {0.0, 0.04, 0.08, 0.25};
+            colorBackground[] = {0.0, 0.03, 0.06, 0.15};
         };
 
         // ---------------------------------------------------------------------
@@ -193,8 +197,10 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.395 * safeZoneH";
             w = "0.304 * safeZoneW";
             h = "0.032 * safeZoneH";
-            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorBackground[] = {0.0, 0.04, 0.08, 0.20};
+            colorText[] = {1.0, 1.0, 1.0, 1.0};
             colorSelect[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
             onLBSelChanged = "_this call FTCS_fnc_onDeployAreaChanged;";
         };
 
@@ -204,8 +210,41 @@ class FTCS_DeployDialog
             x = "safeZoneX + 0.028 * safeZoneW";
             y = "safeZoneY + 0.433 * safeZoneH";
             w = "0.304 * safeZoneW";
-            h = "0.070 * safeZoneH";
-            colorBackground[] = {0.0, 0.04, 0.08, 0.25};
+            h = "0.045 * safeZoneH";
+            colorBackground[] = {0.0, 0.03, 0.06, 0.15};
+        };
+
+        // Opción B: Selector de Modo de Ubicación para Pelotón vs Company HQ
+        class FTCS_Btn_Target_Platoon: RscButtonMenu
+        {
+            idc = 88020;
+            text = "• UBICAR PELOTON (CLIC)";
+            font = "PuristaBold";
+            sizeEx = "0.015 * safeZoneH";
+            colorBackground[] = {1.0, 0.55, 0.0, 0.85};
+            colorText[] = {1.0, 1.0, 1.0, 1.0};
+            x = "safeZoneX + 0.028 * safeZoneW";
+            y = "safeZoneY + 0.482 * safeZoneH";
+            w = "0.148 * safeZoneW";
+            h = "0.025 * safeZoneH";
+            action = "['PLATOON'] call FTCS_fnc_onDeployTargetModeChanged;";
+            onButtonClick = "['PLATOON'] call FTCS_fnc_onDeployTargetModeChanged;";
+        };
+
+        class FTCS_Btn_Target_CompanyHQ: RscButtonMenu
+        {
+            idc = 88021;
+            text = "• UBICAR HQ CIA (CLIC)";
+            font = "PuristaMedium";
+            sizeEx = "0.015 * safeZoneH";
+            colorBackground[] = {0.0, 0.15, 0.25, 0.60};
+            colorText[] = {0.8, 0.9, 1.0, 0.8};
+            x = "safeZoneX + 0.180 * safeZoneW";
+            y = "safeZoneY + 0.482 * safeZoneH";
+            w = "0.152 * safeZoneW";
+            h = "0.025 * safeZoneH";
+            action = "['COMPANY_HQ'] call FTCS_fnc_onDeployTargetModeChanged;";
+            onButtonClick = "['COMPANY_HQ'] call FTCS_fnc_onDeployTargetModeChanged;";
         };
 
         // ---------------------------------------------------------------------
@@ -244,8 +283,24 @@ class FTCS_DeployDialog
             colorText[] = {0.95, 0.95, 0.95, 1.0};
             x = "safeZoneX + 0.048 * safeZoneW";
             y = "safeZoneY + 0.545 * safeZoneH";
-            w = "0.280 * safeZoneW";
+            w = "0.190 * safeZoneW";
             h = "0.028 * safeZoneH";
+        };
+
+        class FTCS_Btn_Target_Arty: RscButtonMenu
+        {
+            idc = 88022;
+            text = "[ UBICAR ]";
+            font = "PuristaBold";
+            sizeEx = "0.014 * safeZoneH";
+            colorBackground[] = {0.0, 0.15, 0.25, 0.60};
+            colorText[] = {0.8, 0.9, 1.0, 0.8};
+            x = "safeZoneX + 0.242 * safeZoneW";
+            y = "safeZoneY + 0.545 * safeZoneH";
+            w = "0.090 * safeZoneW";
+            h = "0.024 * safeZoneH";
+            action = "['FIXED_ARTY'] call FTCS_fnc_onDeployTargetModeChanged;";
+            onButtonClick = "['FIXED_ARTY'] call FTCS_fnc_onDeployTargetModeChanged;";
         };
 
         class FTCS_Text_FixedSupport_Status: RscStructuredText
@@ -253,7 +308,7 @@ class FTCS_DeployDialog
             idc = 88007;
             x = "safeZoneX + 0.048 * safeZoneW";
             y = "safeZoneY + 0.575 * safeZoneH";
-            w = "0.280 * safeZoneW";
+            w = "0.284 * safeZoneW";
             h = "0.055 * safeZoneH";
             colorBackground[] = {0.04, 0.07, 0.10, 0.40};
         };
@@ -266,6 +321,7 @@ class FTCS_DeployDialog
             y = "safeZoneY + 0.640 * safeZoneH";
             w = "0.016 * safeZoneW";
             h = "0.028 * safeZoneH";
+            onCheckedChanged = "_this call FTCS_fnc_onDeployMobileCheckChanged;";
         };
 
         class FTCS_Label_MobileSupport: RscText
@@ -277,8 +333,24 @@ class FTCS_DeployDialog
             colorText[] = {0.95, 0.95, 0.95, 1.0};
             x = "safeZoneX + 0.048 * safeZoneW";
             y = "safeZoneY + 0.640 * safeZoneH";
-            w = "0.280 * safeZoneW";
+            w = "0.190 * safeZoneW";
             h = "0.028 * safeZoneH";
+        };
+
+        class FTCS_Btn_Target_Armor: RscButtonMenu
+        {
+            idc = 88023;
+            text = "[ UBICAR ]";
+            font = "PuristaBold";
+            sizeEx = "0.014 * safeZoneH";
+            colorBackground[] = {0.0, 0.15, 0.25, 0.60};
+            colorText[] = {0.8, 0.9, 1.0, 0.8};
+            x = "safeZoneX + 0.242 * safeZoneW";
+            y = "safeZoneY + 0.640 * safeZoneH";
+            w = "0.090 * safeZoneW";
+            h = "0.024 * safeZoneH";
+            action = "['MOBILE_ARMOR'] call FTCS_fnc_onDeployTargetModeChanged;";
+            onButtonClick = "['MOBILE_ARMOR'] call FTCS_fnc_onDeployTargetModeChanged;";
         };
 
         class FTCS_Text_MobileSupport_Status: RscStructuredText
@@ -286,7 +358,7 @@ class FTCS_DeployDialog
             idc = 88009;
             x = "safeZoneX + 0.048 * safeZoneW";
             y = "safeZoneY + 0.670 * safeZoneH";
-            w = "0.280 * safeZoneW";
+            w = "0.284 * safeZoneW";
             h = "0.055 * safeZoneH";
             colorBackground[] = {0.04, 0.07, 0.10, 0.40};
         };
