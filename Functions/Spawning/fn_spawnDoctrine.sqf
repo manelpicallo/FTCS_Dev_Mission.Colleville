@@ -92,7 +92,8 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
         "_varName", 
         "_groupVar", 
         "_rank", 
-        "_isVehicle"
+        "_isVehicle",
+        ["_customLoadout", []]
     ];
 
     // Filter entities when Platoon echelon is selected: deploy only Company HQ and 1st Platoon
@@ -249,6 +250,11 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
                     missionNamespace setVariable [_varName, _doctrinalUnit, true];
                 };
 
+                // Apply customized composition loadout (weapons, uniform, vest, backpack, optics)
+                if (!_isVehicle && {_customLoadout isEqualType [] && {count _customLoadout > 0}}) then {
+                    _doctrinalUnit setUnitLoadout _customLoadout;
+                };
+
                 _group selectLeader _doctrinalUnit;
 
                 // Transfer local client control directly into the authentic doctrinal commander entity
@@ -266,6 +272,11 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
                 _unit setDir _finalDir;
                 _unit setPosATL _finalPos;
                 _unit setVelocity [0, 0, 0];
+
+                // Apply customized composition loadout (weapons, uniform, vest, backpack, optics)
+                if (!_isVehicle && {_customLoadout isEqualType [] && {count _customLoadout > 0}}) then {
+                    _unit setUnitLoadout _customLoadout;
+                };
 
                 // FTCS Phase 1 (Planning / Assembly Area) Doctrine Requirement:
                 // Newly spawned AI subordinates must remain strictly static at their exact doctrinal

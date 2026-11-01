@@ -71,7 +71,8 @@ FTCS_Doctrines = createHashMapFromArray [
                 "COMM_SERGEANT",    // Communications Sergeant
                 "RADIO_OPERATOR",   // Company RTO / Signalman
                 "MESSENGER_1",      // Company Runner A
-                "MESSENGER_2" ,     // Company Runner B
+                "MESSENGER_2",      // Company Runner B
+                "MESSENGER_3",      // Company Runner C
                 "COMPANY_MEDIC"     // Company Medic
             ]],
             // Platoon HQ Roles for Standard Infantry (including Platoon Guide)

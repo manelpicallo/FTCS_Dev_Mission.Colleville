@@ -12,7 +12,23 @@ if (!isNil "FTCS_Initialized") exitWith {};
 // Ensure internal side cohesion: in Arma 3, RESISTANCE/INDEPENDENT factions must
 // explicitly be marked friendly to themselves at mission level so disparate
 // independent groups never treat each other as hostiles under default map diplomacy.
+// Ensure WW2 faction relations in Arma 3 engine:
+// BLUFOR / WEST = German / Wehrmacht & Japanese (Axis)
+// OPFOR / EAST = Soviet / Red Army
+// INDEPENDENT / RESISTANCE = Allied (US Army, US Airborne, British)
 resistance setFriend [resistance, 1];
+west setFriend [west, 1];
+east setFriend [east, 1];
+
+// Hostilities: Allies vs Axis, Soviets vs Axis
+resistance setFriend [west, 0];
+west setFriend [resistance, 0];
+east setFriend [west, 0];
+west setFriend [east, 0];
+
+// Allies & Soviets mutual relations
+resistance setFriend [east, 1];
+east setFriend [resistance, 1];
 
 // 1. Initialize Global Backend Data HashMaps
 FTCS_Config = createHashMap;
@@ -141,7 +157,7 @@ Selected_Vehicle_list = [];
                     if (isNull player || {!alive player}) then {
                         diag_log "FTCS: No player unit placed in mission. Creating temporary command entity...";
                         
-                        private _grp = createGroup [west, true];
+                        private _grp = createGroup [resistance, true];
                         private _dummyPos = [1000, 1000, 0];
                         if (count allMapMarkers > 0) then {
                             _dummyPos = getMarkerPos (allMapMarkers select 0);

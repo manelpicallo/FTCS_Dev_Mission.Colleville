@@ -8,11 +8,23 @@ $files = @(
     "Functions\Spawning\fn_initDeployMenu.sqf",
     "Functions\Spawning\fn_executeDeployment.sqf",
     "Functions\Spawning\fn_spawnSupportUnit.sqf",
+    "Functions\Interactions\fn_initCommandingMenus.sqf",
+    "Functions\Interactions\fn_applyCommandToTarget.sqf",
+    "Functions\Interactions\fn_openSubordinateMenu.sqf",
+    "Functions\Interactions\fn_initUnitInteractions.sqf",
     "Doctrines\Data\101_US_Para_Company_V2_1.sqf",
     "Doctrines\Data\SPE_German_Sturmgrenadier_Company.sqf",
+    "Doctrines\Data\SPE_US_Army_Rifle_Company.sqf",
     "Doctrines\Data\Doctrines_Registry.sqf",
+    "Doctrines\Data\Support_Registry.sqf",
     "Doctrines\Data\Support_Artillery.sqf",
-    "Doctrines\Data\Support_Armor.sqf"
+    "Doctrines\Data\Support_Artillery_German.sqf",
+    "Doctrines\Data\Support_Armor.sqf",
+    "Doctrines\Data\Support_Armor_German.sqf",
+    "Doctrines\Data\Support_Artillery_Soviet.sqf",
+    "Doctrines\Data\Support_Armor_Soviet.sqf",
+    "Doctrines\Data\Support_Artillery_Japanese.sqf",
+    "Doctrines\Data\Support_Armor_Japanese.sqf"
 )
 
 foreach ($f in $files) {

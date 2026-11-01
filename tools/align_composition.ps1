@@ -156,6 +156,16 @@ $groupCenters = @{
     "SQUAD_3_0_TEAM_1" = @( +55.0, -12.0 )
     "SQUAD_3_0_TEAM_2" = @( +55.0, -20.0 )
     "SQUAD_3_4_TEAM_1" = @( +55.0, -32.0 )
+
+    # 4º PELOTÓN - WEAPONS PLATOON (Apoyo Pesado Orgánico, Flanco Derecho Separado)
+    # 3er Pelotón abarca X de +40m a +70m. Colocamos el Weapons Platoon centrado en X = +115m:
+    # Deja 30m de espacio libre con el 3er Pelotón. Ametralladoras en vanguardia (+25m) y Morteros en retaguardia (-32m).
+    "SQUAD_4_0_TEAM_1" = @( +115.0, -12.0 )  # Plt 4 HQ - Mando
+    "SQUAD_4_0_TEAM_2" = @( +115.0, -20.0 )  # Plt 4 HQ - Apoyo
+    "SQUAD_4_1_TEAM_1" = @( +105.0, -32.0 )  # 1st Mortar Section (60mm)
+    "SQUAD_4_2_TEAM_1" = @( +125.0, -32.0 )  # 2nd Mortar Section (60mm)
+    "SQUAD_4_3_TEAM_1" = @( +105.0, +20.0 )  # 1st Machine Gun Section (M2/M1919)
+    "SQUAD_4_4_TEAM_1" = @( +125.0, +20.0 )  # 2nd Machine Gun Section (M2/M1919)
 }
 
 # Localizar la coordenada del mundo real base del ancla (Capitán)
@@ -200,11 +210,19 @@ if (-not $foundAnchor) {
 Write-Host (" -> Coordenada base del mundo detectada: [{0:F2}, {1:F2}]" -f $baseWorldX, $baseWorldY) -ForegroundColor DarkGray
 
 # Mapear los grupos exactos por rango de bloques
+class UnitSlot {
+    [int]$ObjLine = 0
+    [int]$PosLine = 0
+    [string]$VarName = ""
+    [string]$Rank = ""
+    [int]$Priority = 0
+}
+
 class GrpBlock {
     [string]$Name = ""
     [int]$Start = 0
     [int]$End = 0
-    [System.Collections.Generic.List[int]]$UnitLines = [System.Collections.Generic.List[int]]::new()
+    [System.Collections.Generic.List[UnitSlot]]$Units = [System.Collections.Generic.List[UnitSlot]]::new()
 }
 
 $groups = [System.Collections.Generic.List[GrpBlock]]::new()
@@ -221,11 +239,55 @@ for ($i = 0; $i -lt $rawLines.Length; $i++) {
     }
 
     if ($cur -ne $null -and $l -eq 'dataType="Object";') {
-        for ($k = $i; $k -lt [Math]::Min($rawLines.Length, $i + 20); $k++) {
-            if ($rawLines[$k] -match '^\s*position\[\]=\{([^}]+)\};') {
-                $cur.UnitLines.Add($k)
-                break
+        $slot = [UnitSlot]::new()
+        $slot.ObjLine = $i
+
+        for ($k = $i; $k -lt [Math]::Min($rawLines.Length, $i + 35); $k++) {
+            if ($rawLines[$k] -match '^\s*position\[\]=\{([^}]+)\};' -and $slot.PosLine -eq 0) {
+                $slot.PosLine = $k
             }
+            if ($rawLines[$k] -match '^\s*name="([^"]+)";' -and $slot.VarName -eq "") {
+                $slot.VarName = $matches[1]
+            }
+            if ($rawLines[$k] -match '^\s*rank="([^"]+)";' -and $slot.Rank -eq "") {
+                $slot.Rank = $matches[1]
+            }
+        }
+
+        # Calcular prioridad jerarquica táctica para garantizar que los comandantes
+        # y líderes vayan SIEMPRE a la cabeza de la columna:
+        # 1. Por variable de rol estándar
+        $prio = 10
+        $vUpper = $slot.VarName.ToUpper()
+        if ($vUpper -match 'HQ_CO_CAPTAIN|CO_CAPTAIN') { $prio = 100 }
+        elseif ($vUpper -match 'HQ_XO_LIEUTENANT|XO_LIEUTENANT') { $prio = 90 }
+        elseif ($vUpper -match 'PLT_[0-9]_LEADER') { $prio = 100 }
+        elseif ($vUpper -match 'HQ_FIRST_SERGEANT|FIRST_SERGEANT') { $prio = 80 }
+        elseif ($vUpper -match 'PLT_[0-9]_SERGEANT') { $prio = 80 }
+        elseif ($vUpper -match 'SQD_[0-9]_[0-9]_LEADER') { $prio = 100 }
+        elseif ($vUpper -match 'COMM_SERGEANT') { $prio = 70 }
+        elseif ($vUpper -match 'RADIO_OPERATOR|PLT_[0-9]_RADIO_OPERATOR|PLT_[0-9]_RTO') { $prio = 60 }
+        elseif ($vUpper -match 'MESSENGER_1|PLT_[0-9]_RUNNER') { $prio = 50 }
+        elseif ($vUpper -match 'MESSENGER_2') { $prio = 48 }
+        elseif ($vUpper -match 'MESSENGER_3') { $prio = 46 }
+        elseif ($vUpper -match 'MESSENGER_4') { $prio = 44 }
+        elseif ($vUpper -match 'MESSENGER_5') { $prio = 42 }
+        elseif ($vUpper -match 'MESSENGER_6') { $prio = 40 }
+        elseif ($vUpper -match 'MEDIC|PLT_[0-9]_MEDIC') { $prio = 30 }
+        else {
+            # 2. Por rango militar del motor si no tiene variable especifica
+            switch ($slot.Rank.ToUpper()) {
+                "CAPTAIN"    { $prio = 95 }
+                "LIEUTENANT" { $prio = 90 }
+                "SERGEANT"   { $prio = 80 }
+                "CORPORAL"   { $prio = 70 }
+                default      { $prio = 10 }
+            }
+        }
+        $slot.Priority = $prio
+
+        if ($slot.PosLine -gt 0) {
+            $cur.Units.Add($slot)
         }
     }
 }
@@ -256,8 +318,13 @@ foreach ($g in $groups) {
     }
     $center = $groupCenters[$name]
 
-    for ($idx = 0; $idx -lt $g.UnitLines.Count; $idx++) {
-        $lineIdx = $g.UnitLines[$idx]
+    # Ordenar las unidades de este grupo jerárquicamente por prioridad descendente
+    # para que Capitán / Teniente / Sargentos queden al frente de la fila ($idx = 0)
+    $sortedUnits = $g.Units | Sort-Object Priority -Descending
+
+    for ($idx = 0; $idx -lt $sortedUnits.Count; $idx++) {
+        $u = $sortedUnits[$idx]
+        $lineIdx = $u.PosLine
         
         # En fila nativa: Líder en [0, 0], subordinados exactamente 2 metros detrás en Y (-Y)
         $offX = 0.0

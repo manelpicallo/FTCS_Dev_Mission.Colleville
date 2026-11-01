@@ -30,7 +30,9 @@ class FTCS_DeployDialog
             alphaFadeStartScale = 1.15;
             alphaFadeEndScale = 1.15;
             showCountourInterval = 1;
-            onMouseButtonClick = "_this call FTCS_fnc_onDeployMapClick;";
+            onMouseButtonDown = "_this call FTCS_fnc_onDeployMapButtonDown;";
+            onMouseButtonUp = "_this call FTCS_fnc_onDeployMapButtonUp;";
+            onMouseZChanged = "_this call FTCS_fnc_onDeployMapMouseZChanged;";
         };
 
         // Tactical Command Panel Background - High Transparency Glassmorphic Theme
@@ -263,28 +265,42 @@ class FTCS_DeployDialog
             h = "0.022 * safeZoneH";
         };
 
-        // Fixed Support (Artillery)
+        // Fixed Support (Artillery / Mortars)
         class FTCS_Check_FixedSupport: RscCheckBox
         {
             idc = 88006;
             x = "safeZoneX + 0.028 * safeZoneW";
-            y = "safeZoneY + 0.545 * safeZoneH";
+            y = "safeZoneY + 0.540 * safeZoneH";
             w = "0.016 * safeZoneW";
-            h = "0.028 * safeZoneH";
+            h = "0.026 * safeZoneH";
             onCheckedChanged = "_this call FTCS_fnc_onDeployFixedCheckChanged;";
         };
 
         class FTCS_Label_FixedSupport: RscText
         {
             idc = -1;
-            text = "Apoyo Fijo: Artillería 105mm (SPE Howitzers)";
+            text = "Apoyo Fijo:";
             font = "PuristaMedium";
-            sizeEx = "0.018 * safeZoneH";
+            sizeEx = "0.017 * safeZoneH";
             colorText[] = {0.95, 0.95, 0.95, 1.0};
             x = "safeZoneX + 0.048 * safeZoneW";
-            y = "safeZoneY + 0.545 * safeZoneH";
-            w = "0.190 * safeZoneW";
-            h = "0.028 * safeZoneH";
+            y = "safeZoneY + 0.540 * safeZoneH";
+            w = "0.075 * safeZoneW";
+            h = "0.026 * safeZoneH";
+        };
+
+        class FTCS_Combo_FixedSupport: RscCombo
+        {
+            idc = 88024;
+            x = "safeZoneX + 0.125 * safeZoneW";
+            y = "safeZoneY + 0.540 * safeZoneH";
+            w = "0.122 * safeZoneW";
+            h = "0.026 * safeZoneH";
+            colorBackground[] = {0.0, 0.04, 0.08, 0.20};
+            colorText[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelect[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            onLBSelChanged = "_this call FTCS_fnc_onDeployFixedComboChanged;";
         };
 
         class FTCS_Btn_Target_Arty: RscButtonMenu
@@ -295,10 +311,10 @@ class FTCS_DeployDialog
             sizeEx = "0.014 * safeZoneH";
             colorBackground[] = {0.0, 0.15, 0.25, 0.60};
             colorText[] = {0.8, 0.9, 1.0, 0.8};
-            x = "safeZoneX + 0.242 * safeZoneW";
-            y = "safeZoneY + 0.545 * safeZoneH";
-            w = "0.090 * safeZoneW";
-            h = "0.024 * safeZoneH";
+            x = "safeZoneX + 0.252 * safeZoneW";
+            y = "safeZoneY + 0.540 * safeZoneH";
+            w = "0.080 * safeZoneW";
+            h = "0.026 * safeZoneH";
             action = "['FIXED_ARTY'] call FTCS_fnc_onDeployTargetModeChanged;";
             onButtonClick = "['FIXED_ARTY'] call FTCS_fnc_onDeployTargetModeChanged;";
         };
@@ -307,34 +323,48 @@ class FTCS_DeployDialog
         {
             idc = 88007;
             x = "safeZoneX + 0.048 * safeZoneW";
-            y = "safeZoneY + 0.575 * safeZoneH";
+            y = "safeZoneY + 0.570 * safeZoneH";
             w = "0.284 * safeZoneW";
-            h = "0.055 * safeZoneH";
+            h = "0.052 * safeZoneH";
             colorBackground[] = {0.04, 0.07, 0.10, 0.40};
         };
 
-        // Mobile Support (Armor)
+        // Mobile Support (Armor / StuG)
         class FTCS_Check_MobileSupport: RscCheckBox
         {
             idc = 88008;
             x = "safeZoneX + 0.028 * safeZoneW";
-            y = "safeZoneY + 0.640 * safeZoneH";
+            y = "safeZoneY + 0.630 * safeZoneH";
             w = "0.016 * safeZoneW";
-            h = "0.028 * safeZoneH";
+            h = "0.026 * safeZoneH";
             onCheckedChanged = "_this call FTCS_fnc_onDeployMobileCheckChanged;";
         };
 
         class FTCS_Label_MobileSupport: RscText
         {
             idc = -1;
-            text = "Apoyo Móvil: Sección Blindada (2x M4 Sherman)";
+            text = "Apoyo Móvil:";
             font = "PuristaMedium";
-            sizeEx = "0.018 * safeZoneH";
+            sizeEx = "0.017 * safeZoneH";
             colorText[] = {0.95, 0.95, 0.95, 1.0};
             x = "safeZoneX + 0.048 * safeZoneW";
-            y = "safeZoneY + 0.640 * safeZoneH";
-            w = "0.190 * safeZoneW";
-            h = "0.028 * safeZoneH";
+            y = "safeZoneY + 0.630 * safeZoneH";
+            w = "0.075 * safeZoneW";
+            h = "0.026 * safeZoneH";
+        };
+
+        class FTCS_Combo_MobileSupport: RscCombo
+        {
+            idc = 88025;
+            x = "safeZoneX + 0.125 * safeZoneW";
+            y = "safeZoneY + 0.630 * safeZoneH";
+            w = "0.122 * safeZoneW";
+            h = "0.026 * safeZoneH";
+            colorBackground[] = {0.0, 0.04, 0.08, 0.20};
+            colorText[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelect[] = {1.0, 1.0, 1.0, 1.0};
+            colorSelectBackground[] = {1.0, 0.55, 0.0, 0.85};
+            onLBSelChanged = "_this call FTCS_fnc_onDeployMobileComboChanged;";
         };
 
         class FTCS_Btn_Target_Armor: RscButtonMenu
@@ -345,10 +375,10 @@ class FTCS_DeployDialog
             sizeEx = "0.014 * safeZoneH";
             colorBackground[] = {0.0, 0.15, 0.25, 0.60};
             colorText[] = {0.8, 0.9, 1.0, 0.8};
-            x = "safeZoneX + 0.242 * safeZoneW";
-            y = "safeZoneY + 0.640 * safeZoneH";
-            w = "0.090 * safeZoneW";
-            h = "0.024 * safeZoneH";
+            x = "safeZoneX + 0.252 * safeZoneW";
+            y = "safeZoneY + 0.630 * safeZoneH";
+            w = "0.080 * safeZoneW";
+            h = "0.026 * safeZoneH";
             action = "['MOBILE_ARMOR'] call FTCS_fnc_onDeployTargetModeChanged;";
             onButtonClick = "['MOBILE_ARMOR'] call FTCS_fnc_onDeployTargetModeChanged;";
         };
@@ -357,9 +387,9 @@ class FTCS_DeployDialog
         {
             idc = 88009;
             x = "safeZoneX + 0.048 * safeZoneW";
-            y = "safeZoneY + 0.670 * safeZoneH";
+            y = "safeZoneY + 0.660 * safeZoneH";
             w = "0.284 * safeZoneW";
-            h = "0.055 * safeZoneH";
+            h = "0.052 * safeZoneH";
             colorBackground[] = {0.04, 0.07, 0.10, 0.40};
         };
 

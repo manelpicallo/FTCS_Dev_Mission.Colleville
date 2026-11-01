@@ -20,6 +20,22 @@
 4. **Cambios mínimos:** Modifica solo lo que se te pide. No reescribas, renombres ni reorganices código no relacionado con la tarea.
 5. **Nomenclatura:** Respeta los nombres existentes (prefijo `FTCS_`, variables estándar como `SQUAD_X_Y`, `PLT_X_LEADER`, `HQ_CO_CAPTAIN`, etc.).
 6. **Alcance Estricto de Ficheros de Código (`functions`):** Dentro de la carpeta de funciones (`functions`), la IA solo debe analizar, leer o modificar aquellas funciones que estén explícitamente listadas o referenciadas en el fichero `description.ext` (o `description.txt`). Cualquier otro archivo de código fuera de ese listado debe ser estrictamente ignorado para evitar análisis o modificaciones innecesarias de módulos en desuso. (Los directorios de datos como `Doctrines\Data\` y la documentación sí pueden examinarse libremente).
+7. **Idioma y Localización de Componentes:**
+   - Todos los **menús, interfaces de usuario (UI), textos en pantalla, acciones del motor (AddAction / UserActions), código y comentarios** se escriben estrictamente en **inglés**.
+   - Los únicos elementos que se redactan y mantienen en **castellano** son:
+     - Las herramientas y scripts externos generados en la carpeta `tools/` (ej. scripts de PowerShell, batch files, utilidades de conversión).
+     - Este propio **documento de diseño y notas** (`FTCS (First-Person Tactical Command Simulation) - Documento de Notas….md`).
+     - La comunicación y respuestas directas con el usuario en el chat.
+8. **Mapeo Obligatorio de Facciones y Bandos en el Motor (Arma 3 / WWII):**
+   - **BLUFOR (`west`):** Eje / Axis $\rightarrow$ Alemania (*Wehrmacht / Waffen-SS*) e Imperio del Japón (*IJA*).
+   - **OPFOR (`east`):** Unión Soviética / URSS $\rightarrow$ Ejército Rojo (*Red Army*).
+   - **INDEPENDENT / GUERRILLA (`resistance` / `independent`):** Aliados Occidentales $\rightarrow$ Estados Unidos (*US Army, US Airborne, US Rangers*) y Gran Bretaña (*British Army, Parachute Regt*).
+   - En composiciones 3DEN (`composition.sqe`), los grupos de unidades aliadas deben declararse con `side="Guerrila";` (que el motor y el conversor mapean a `resistance`), nunca como `West`.
+   - Las plantillas doctrinales (`Doctrines/Data/*.sqf`) deben declarar obligatoriamente:
+     - Aliados: `["side", resistance]`
+     - Eje: `["side", west]`
+     - Soviéticos: `["side", east]`
+   - En `init.sqf` la diplomacia del motor (`setFriend`) debe garantizar cohesión interna y hostilidades históricas estrictas para evitar fuego amigo al desplegar facciones aliadas.
 
 **Validación contra este documento:**
 
@@ -171,10 +187,11 @@ Para que el pelotón y las IAs sepan qué hacer, el mapa táctico permite regist
     - `"companyHQRoles"` / `"platoonHQRoles"` / `"platoonHQTeamStructure"`: Roles y sub-teams de los HQs.
     - `"isMechanized"` / `"transportAsset"`: Transporte orgánico de la doctrina.
     > **Autonomía estructural:** las doctrinas por composición (Método 2) son **autocontenidas**: toda la estructura organizativa embebe en el fichero y `FTCS_fnc_applyDoctrine` la consume directamente. El registro embebido `FTCS_Doctrines` (`fn_configDoctrines.sqf`, sistema antiguo) solo aplica al Método 1 (unidades pre-colocadas con variables del editor).
-    - `"entities"`: [Array de Arrays] Lista de entidades a spawnear con la tupla de 7 campos:
-      `[className, [offsetX, offsetY, offsetZ], relativeDir, varName, groupVar, rank, isVehicle]`
+    - `"entities"`: [Array de Arrays] Lista de entidades a spawnear con la tupla estándar extensible de 7 u 8 campos:
+      `[className, [offsetX, offsetY, offsetZ], relativeDir, varName, groupVar, rank, isVehicle, (opcional) customLoadoutArray]`
       - `groupVar` (5º campo): nombre estándar del grupo contenedor (`SQUAD_X_Y`, `PLT_X_...`, `HQ_...`). Las entidades del mismo `groupVar` se ensamblan en el mismo grupo de Arma.
-      > Decisión de diseño (Opción A confirmada): la tupla se mantiene en 7 campos. No existe campo separado de `squadRole` ni `initialCrewRoles`; el rol dentro de la escuadra se deriva del `varName` y el `rank`.
+      - `customLoadoutArray` (8º campo opcional): array íntegro de equipamiento compatible con el comando nativo `setUnitLoadout` de Arma 3 (armas, miras, cargadores, uniforme, chaleco, casco, mochila y accesorios). Extraído automáticamente por el conversor desde el bloque `class Inventory` de la composición para garantizar que las modificaciones visuales y armamentísticas del editor persistan en el juego. Si está ausente o vacío (`[]`), la unidad conserva su loadout nativo por defecto.
+      > Decisión de diseño: La tupla conserva total retrocompatibilidad con doctrinas de 7 campos y añade opcionalmente el array de loadout en el 8º campo sin alterar la derivación semántica de roles basada en `varName` y `rank`.
   - **Lógica de Ejecución del Motor Genérico (`FTCS_fnc_spawnDoctrine`):**
 
     - **Paso 1 (Verificación de Compatibilidad de Mods):** Itera sobre `"requiredMods"` comprobando `isClass (configFile >> "CfgPatches" >> _x)`. Si falta alguno, interrumpe el despliegue con alerta visual detallando los addons ausentes.
@@ -182,3 +199,103 @@ Para que el pelotón y las IAs sepan qué hacer, el mapa táctico permite regist
     - **Paso 3 (Instanciación y Asignación de Roles):** Spawnea soldados y vehículos (`createUnit` / `createVehicle`), ejecuta `setVehicleVarName` y registra los objetos en `missionNamespace`.
     - **Paso 4 (Auto-enlace con el Backend):** Dispara en cadena la secuencia de inicialización del core:
       `FTCS_fnc_applyDoctrine` -> `FTCS_fnc_parseEditorGroups` -> `FTCS_fnc_initCompanyCommand` -> `FTCS_fnc_syncGroupNames` -> `FTCS_fnc_registryInit` -> `FTCS_fnc_initUnitInteractions`.
+
+
+---
+
+## 9. Arquitectura de Menús de Transmisión de Órdenes e Interfaz Diagética
+
+- **Filosofía de Interfaz Diagética:**
+  En FTCS los menús no son elementos flotantes abstractos, sino representaciones directas de las capacidades físicas del avatar del jugador en el entorno 3D. La disponibilidad y el tipo de menú dependen estrictamente del medio de comunicación empleado:
+  1. **Voz / Gritos:** Cercanía físico-acústica local.
+  2. **Gestos Visuales / Señas:** Línea de visión y orientación espacial.
+  3. **Reunión sobre el Mapa Táctico:** Contacto físico o citación presencial de líderes.
+  4. **Mensajero / Enlace (Estafeta):** Emisión de despacho escrito o verbal a un corredor.
+  5. **Transmisión por Radio:** Red de comunicaciones táctica operada por especialistas.
+
+- **Tipos de Menús e Interacciones Detalladas:**
+
+  - **A. Menú de Voz / Grito Táctico (Proximidad Físico-Acústica):**
+    - *Condición de activación:* Pulsación de la tecla de voz / orden rápida a viva voz. No requiere apuntar a una unidad ni enfocar una dirección concreta.
+    - *Alcance:* ~15–25 metros (disminuye dinámicamente en combate por ruido ambiental de disparos y detonaciones).
+    - *Mecánica táctica:* Afecta a todas las unidades o sub-mandos subordinados situados dentro del radio de audición. Los mandos intermedios (ej. sargento) que escuchen el grito retransmiten automáticamente la orden a sus escuadras adyacentes.
+
+  - **B. Menú de Gestos Visuales y Señales de Mano (Línea de Visión / LOS):**
+    - *Condición de activación:* Mantener pulsado el botón de Gestos Tácticos mientras se apunta con la retícula o cámara hacia la dirección/zona de un pelotón o elemento.
+    - *Alcance:* ~50–100 metros (requiere línea de visión directa y condiciones de luz adecuadas).
+    - *Interfaz de selección:* Al enfocar hacia un grupo o sector, aparece una guía visual sutil (silueta o puntero de gesto).
+    - *Catálogo de gestos:*
+      1. Señal de Línea / Despliegue en Fila.
+      2. Señal de Flanqueo (indicando vector Izquierda / Derecha).
+      3. Señal de Alto / Mantener Posición.
+      4. Señal de Avance Táctico.
+    - *Realismo ambiental:* La presencia de humo denso, niebla o vegetación espesa entre el emisor y los subordinados provocará el fallo de la orden o una probabilidad calculada de malinterpretación táctica por la IA.
+
+  - **C. Menú de Mapa Físico (Conferencia de Mando y Transmisión por Cadena):**
+    - *Condición de activación:* Abrir el mapa desplegable en 3D (el personaje sostiene físicamente el mapa con sus manos en primera persona).
+    - *Condición de disponibilidad de unidades:* Para poder trazar o transmitir una orden directa en el mapa a un líder específico (ej. Sargento de Pelotón), dicho mando debe estar físicamente junto al jugador (radio de 3–5 metros, simulando la "mesa de mapas").
+    - *Citación de mandos:* Si el sargento o líder no se encuentra próximo, el jugador utiliza la acción verbal/gestual para ordenar: *"¡Sargento, al mapa!"*. El líder IA se desplazará físicamente hasta el jugador para incorporarse a la sesión de planeamiento.
+    - *Flujo de cadena de mando:*
+      1. El comandante traza y asigna un Eje de Avance u Objetivo sobre el mapa para la unidad.
+      2. Al confirmar la orden en la interfaz, el avatar del comandante le entrega o muestra el mapa al sargento.
+      3. **Delegación de la IA:** El sargento procesa la OPORD recibida y asume de forma autónoma la responsabilidad de desglosar y propagar las sub-órdenes a sus cabos de escuadra empleando sus propios medios (voz, gestos o estafetas).
+
+  - **D. Menú de Despacho por Mensajero / Estafeta (Órdenes a Distancia sin Radio):**
+    - *Condición de activación:* Interactuar directamente sobre un subordinado con rol de Mensajero/Estafeta o llamarlo verbalmente (*"¡Mensajero, informe!"*).
+    - *Estructura del despacho (OPORD Simplificada):*
+      - *Destinatario:* Selección del mando de destino (ej. Líder del 2º Pelotón).
+      - *Tipo de acción:* Avanzar / Defender / Sostener / Retirada / Reagrupar.
+      - *Ubicación destino:* Punto marcado previamente en mapa o referencia táctica visible.
+      - *Política de movimiento:*
+        - *Cauteloso / Sigilo:* Progresión por coberturas (velocidad reducida, máxima supervivencia).
+        - *Urgente / A toda prisa:* Desplazamiento directo veloz (rápido, elevado riesgo de interceptación).
+      - *Respuesta requerida:* Opción para exigir que el mensajero espere confirmación escrita/verbal del destinatario y regrese a la posición de origen.
+    - *Agente físico en el mundo:* Si el mensajero resulta abatido durante el tránsito, la orden se pierde irrevocablemente. Si el destinatario ha maniobrado y no es localizado, el mensajero entra en búsqueda local o retorna notificando entrega fallida.
+
+  - **E. Menú de Transmisión por Radio (Red de Comunicaciones Táctica):**
+    - *Condición de activación e interacción:*
+      1. *Acceso directo:* Acercamiento físico al Radio Operador (RTO) del puesto de mando (HQ Pelotón / Compañía) para abrir la interfaz de red.
+      2. *Delegación:* El jugador puede emitir la directriz a su Segundo al Mando (XO / 2iC), quien se desplazará autónomamente hasta el RTO para transmitir la orden por la malla de radio.
+    - *Destinatarios según contexto histórico:*
+      - *Segunda Guerra Mundial (WWII):* Restringido exclusivamente a Puestos de Mando de Pelotón/Compañía o blindados dotados de transceptores (SCR-300, SCR-536 Walkie-Talkie). Las escuadras de fusileros carentes de equipo no figuran en la red.
+      - *Escenarios Modernos / Equipamiento Íntegro:* Si la doctrina equipa a cada líder de escuadra con radio individual, la red se expande automáticamente a todos los escalones.
+    - *Vulnerabilidad y orografía:* La baja del RTO o la destrucción del equipo anula este canal hasta su relevo. La efectividad de la señal se degrada por orografía, distancia y contramedidas.
+
+---
+
+## 10. Sistema de Desorientación, Navegación Topográfica y Reposicionamiento (Land Navigation)
+
+- **Separación entre Conciencia Geográfica y Visión Táctica Local:**
+  Para preservar el realismo y exigir destrezas auténticas de orientación en el terreno (*Land Navigation*) sin entorpecer el combate inmediato en primera persona, se desacoplan dos niveles operativos:
+  1. **Lo que se pierde (Mando Cenital / Mapa Táctico):** Tras desplazamientos prolongados sin verificación topográfica, el comandante pierde la referencia exacta de su cuadrícula. Se desconoce la coordenada de parada de la columna o del puesto de mando.
+  2. **Lo que se mantiene (Visión en 1ª Persona / 3D):** La interacción visual y física directa con el entorno 3D permanece inalterada (ojos, binoculares y voz operan con normalidad).
+  - *Gestión de órdenes:*
+    - *Permitidas siempre:* Órdenes visuales directas en 3D (designar un muro, colina o edificación visible con la vista/prismáticos y ordenar asalto o cobertura a elementos adyacentes).
+    - *Bloqueadas al perderse:* Órdenes operativas vía mapa (trazado de rutas hacia cuadrículas lejanas o solicitudes de apoyo de artillería sobre coordenadas), al no existir un vector de origen geográfico fiable.
+
+- **Bucle de Pérdida de Posicionamiento y Degradación:**
+  - *Métricas y disparadores:*
+    - *Contador de distancia sin verificar:* Cada metro recorrido desde la última fijación topográfica suma puntos a un índice interno de desorientación.
+    - *Factores de degradación ambiental:* El índice se acelera según el terreno y visibilidad (bosque denso, niebla, nocturnidad o avance campo a través aceleran la pérdida vs. marchar sobre caminos principales).
+  - *Fases de estado del mapa:*
+    - *Fase 1 (Posición Fresca / Verificada):* El mapa refleja con precisión nítida la posición del mando y los elementos reportados.
+    - *Fase 2 (Posición Estimada / Degradación Gradual):* Los marcadores pierden opacidad progresivamente (aspecto translúcido/grisáceo) y muestran advertencias (*"Posición Estimada / +15 min"*).
+    - *Fase 3 (Pérdida Crítica / Sistema Deshabilitado):* Superado el umbral de distancia/tiempo, el mapa táctico se bloquea para órdenes cenitales mostrando el aviso: *"MAPA INOPERATIVO — PÉRDIDA DE POSICIÓN GEOGRÁFICA"*. Las unidades distantes dejan de actualizarse o se sustituyen por áreas de incertidumbre con icono de interrogación (?).
+
+- **Mecánica de Reposicionamiento Topográfico:**
+  Para despejar la niebla de orientación, desbloquear el mapa y resincronizar la red de radio, el jugador debe ejecutar un proceso de reorientación topográfica:
+  1. *Activación de interfaz:* Seleccionar la opción *"Reorientar Mando"* sobre el mapa bloqueado.
+  2. *Lectura del entorno 3D:* Identificar hitos y accidentes geográficos clave en primera persona (cota de elevación, intersección de camino y río, campanario de iglesia, puente, etc.).
+  3. *Fijación de Pin en el mapa:* Trasladar la lectura visual al plano topográfico colocando manualmente un *Pin de Posición Estimada*.
+  - *Validación por algoritmo de tolerancia:*
+    - *Pin correcto (dentro de tolerancia, ej. 50–150m):*
+      - Reorientación exitosa.
+      - Reactivación inmediata de la interfaz de mapa y de la emisión de órdenes de largo alcance.
+      - Sincronización instantánea de las unidades aliadas visibles o conectadas por radio.
+    - *Pin incorrecto (fuera de tolerancia):*
+      - El sistema rechaza la fijación o conserva el desajuste, forzando al jugador a reanalizar el paisaje o progresar hasta un punto con referencias geográficas más claras.
+
+- **Recuperación y Visibilidad de Unidades Subordinadas:**
+  Una vez reorientado el propio mando:
+  - *Línea de visión directa (LOS):* Las unidades observables en el campo visual 3D se confirman y sitúan de inmediato sobre el mapa táctico.
+  - *Malla de radio (SITREP):* Al recuperar las coordenadas exactas del puesto de mando, los informes de situación (SITREP) recibidos por radio desde unidades distantes vuelven a plotearse con precisión en sus cuadrículas correspondientes.

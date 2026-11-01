@@ -134,7 +134,7 @@ function Convert-SQEToDoctrineData {
     $detectedGroups = [System.Collections.Generic.HashSet[string]]::new()
     $detectedSide = "WEST"
 
-    # Parser estructural con soporte de herencia jerárquica de grupos.
+    # Parser estructural con soporte de herencia jerárquica de grupos y extracción de loadout personalizado.
     # En el formato composition.sqe del 3DEN Editor, los soldados son entidades hijas
     # (nodos Object) contenidas dentro de un bloque 'class Entities' de un nodo padre
     # con dataType="Group". Las variables de grupo (name=...) se declaran en el propio
@@ -149,8 +149,154 @@ function Convert-SQEToDoctrineData {
         [string]$Rank = "PRIVATE"
         [double[]]$Pos = @(0.0, 0.0, 0.0)
         [double[]]$Angles = @(0.0, 0.0, 0.0)
+        [int]$LineNumber = 0
+        [string]$CustomLoadout = "[]"
         [SqNode]$Parent = $null
         [System.Collections.Generic.List[SqNode]]$Children = [System.Collections.Generic.List[SqNode]]::new()
+    }
+
+    # Función auxiliar para traducir un bloque 'class Inventory' de composition.sqe
+    # al formato nativo 'Unit Loadout Array' de Arma 3 (compatible con setUnitLoadout)
+    function Convert-SQEInventoryToSQFLoadout([string[]]$invLines) {
+        function Parse-WeaponBlock($className) {
+            $wName = ""; $muzzle = ""; $laser = ""; $optic = ""; $bipod = ""; $mag = @()
+            $wSlice = @(); $depth = 0; $inW = $false
+            for ($idx = 0; $idx -lt $invLines.Count; $idx++) {
+                $l = $invLines[$idx].Trim()
+                if ($l -eq "class $className") { $inW = $true; $depth = 1; continue }
+                if ($inW) {
+                    $wSlice += $invLines[$idx]
+                    if ($l -match '\{') { $depth++ }
+                    if ($l -match '\}') {
+                        $depth--
+                        if ($depth -le 0) { break }
+                    }
+                }
+            }
+            if ($wSlice.Count -eq 0) { return "[]" }
+
+            for ($idx = 0; $idx -lt $wSlice.Count; $idx++) {
+                $l = $wSlice[$idx].Trim()
+                if ($l -match '^name="([^"]+)";' -and $wName -eq "") { $wName = $matches[1] }
+                if ($l -match '^class\s+primaryMuzzleMag') {
+                    $mName = ""; $mAmmo = 0
+                    for ($k = $idx + 1; $k -lt [Math]::Min($wSlice.Count, $idx + 12); $k++) {
+                        if ($wSlice[$k] -match 'name="([^"]+)";' -and $mName -eq "") { $mName = $matches[1] }
+                        if ($wSlice[$k] -match 'ammoLeft=([0-9]+);') { $mAmmo = [int]$matches[1] }
+                        if ($wSlice[$k].Trim() -eq '};') { break }
+                    }
+                    if ($mName -ne "") { $mag = @($mName, $mAmmo) }
+                }
+            }
+
+            if ($wName -eq "") { return "[]" }
+            $magStr = if ($mag.Count -gt 0) { "['$($mag[0])', $($mag[1])]" } else { "[]" }
+            return "['$wName', '$muzzle', '$laser', '$optic', $magStr, [], '$bipod']"
+        }
+
+        function Parse-ContainerBlock($className) {
+            $cType = ""; $cargo = [System.Collections.Generic.List[string]]::new()
+            $cSlice = @(); $depth = 0; $inC = $false
+            for ($idx = 0; $idx -lt $invLines.Count; $idx++) {
+                $l = $invLines[$idx].Trim()
+                if ($l -eq "class $className") { $inC = $true; $depth = 1; continue }
+                if ($inC) {
+                    $cSlice += $invLines[$idx]
+                    if ($l -match '\{') { $depth++ }
+                    if ($l -match '\}') {
+                        $depth--
+                        if ($depth -le 0) { break }
+                    }
+                }
+            }
+            if ($cSlice.Count -eq 0) { return "[]" }
+
+            for ($idx = 0; $idx -lt $cSlice.Count; $idx++) {
+                $l = $cSlice[$idx].Trim()
+                if ($l -match '^typeName="([^"]+)";' -and $cType -eq "") { $cType = $matches[1] }
+                if ($l -match '^class\s+Item[0-9]+') {
+                    $iName = ""; $iCount = 1; $iAmmo = -1
+                    for ($k = $idx + 1; $k -lt [Math]::Min($cSlice.Count, $idx + 12); $k++) {
+                        if ($cSlice[$k] -match 'name="([^"]+)";' -and $iName -eq "") { $iName = $matches[1] }
+                        if ($cSlice[$k] -match 'count=([0-9]+);') { $iCount = [int]$matches[1] }
+                        if ($cSlice[$k] -match 'ammoLeft=([0-9]+);') { $iAmmo = [int]$matches[1] }
+                        if ($cSlice[$k].Trim() -eq '};') { break }
+                    }
+                    if ($iName -ne "") {
+                        if ($iAmmo -ge 0) {
+                            $cargo.Add("['$iName', $iCount, $iAmmo]")
+                        } else {
+                            $cargo.Add("['$iName', $iCount]")
+                        }
+                    }
+                }
+            }
+
+            if ($cType -eq "") { return "[]" }
+            $cargoStr = $cargo -join ", "
+            return "['$cType', [$cargoStr]]"
+        }
+
+        $primStr = Parse-WeaponBlock "primaryWeapon"
+        $secStr  = Parse-WeaponBlock "secondaryWeapon"
+        $hgStr   = Parse-WeaponBlock "handgun"
+        $uniStr  = Parse-ContainerBlock "uniform"
+        $vestStr = Parse-ContainerBlock "vest"
+        $bpStr   = Parse-ContainerBlock "backpack"
+
+        $helmet = ""; $glasses = ""; $map = ""; $gps = ""; $radio = ""; $compass = ""; $watch = ""; $hmd = ""
+        for ($idx = 0; $idx -lt $invLines.Count; $idx++) {
+            $l = $invLines[$idx].Trim()
+            if ($l -match '^headgear="([^"]*)";') { $helmet = $matches[1] }
+            if ($l -match '^goggles="([^"]*)";')  { $glasses = $matches[1] }
+            if ($l -match '^map="([^"]*)";')      { $map = $matches[1] }
+            if ($l -match '^gps="([^"]*)";')      { $gps = $matches[1] }
+            if ($l -match '^radio="([^"]*)";')    { $radio = $matches[1] }
+            if ($l -match '^compass="([^"]*)";')  { $compass = $matches[1] }
+            if ($l -match '^watch="([^"]*)";')    { $watch = $matches[1] }
+            if ($l -match '^hmd="([^"]*)";')      { $hmd = $matches[1] }
+        }
+
+        $binocClass = ""
+        for ($idx = 0; $idx -lt $invLines.Count; $idx++) {
+            if ($invLines[$idx].Trim() -eq "class binocular") {
+                for ($k = $idx + 1; $k -lt [Math]::Min($invLines.Count, $idx + 10); $k++) {
+                    if ($invLines[$k] -match 'name="([^"]+)";') { $binocClass = $matches[1]; break }
+                    if ($invLines[$k].Trim() -eq '};') { break }
+                }
+                break
+            }
+        }
+        $binocStr = if ($binocClass -ne "") { "['$binocClass', '', '', '', [], [], '']" } else { "[]" }
+        $assignedStr = "['$map', '$gps', '$radio', '$compass', '$watch', '$hmd']"
+
+        return "[$primStr, $secStr, $hgStr, $uniStr, $vestStr, $bpStr, '$helmet', '$glasses', $binocStr, $assignedStr]"
+    }
+
+    # Pre-mapear los bloques 'class Inventory' a la línea de inicio de su objeto correspondiente
+    $inventoryMap = @{}
+    for ($i = 0; $i -lt $rawLines.Count; $i++) {
+        if ($rawLines[$i].Trim() -eq 'class Inventory') {
+            $slice = @()
+            $depth = 1
+            for ($k = $i + 1; $k -lt $rawLines.Count; $k++) {
+                $l = $rawLines[$k].Trim()
+                $slice += $rawLines[$k]
+                if ($l -match '\{') { $depth++ }
+                if ($l -match '\}') {
+                    $depth--
+                    if ($depth -le 0) { break }
+                }
+            }
+            $sqfLoadout = Convert-SQEInventoryToSQFLoadout $slice
+
+            for ($k = $i; $k -ge [Math]::Max(0, $i - 60); $k--) {
+                if ($rawLines[$k].Trim() -eq 'dataType="Object";') {
+                    $inventoryMap[$k] = $sqfLoadout
+                    break
+                }
+            }
+        }
     }
 
     $root = [SqNode]::new()
@@ -193,6 +339,12 @@ function Convert-SQEToDoctrineData {
 
         if ($line -match '^dataType="([^"]+)";') {
             $current.DataType = $matches[1]
+            if ($matches[1] -eq "Object") {
+                $current.LineNumber = $i
+                if ($inventoryMap.ContainsKey($i)) {
+                    $current.CustomLoadout = $inventoryMap[$i]
+                }
+            }
             continue
         }
 
@@ -222,9 +374,11 @@ function Convert-SQEToDoctrineData {
 
         if ($line -match '^side="([^"]+)";') {
             $sideVal = $matches[1].ToUpper()
-            if ($sideVal -in @("WEST", "EAST", "GUER", "RESISTANCE", "IND", "INDEPENDENT")) {
+            if ($sideVal -in @("WEST", "EAST", "GUER", "GUERRILA", "GUERRILLA", "RESISTANCE", "IND", "INDEPENDENT")) {
                 $detectedSide = switch ($sideVal) {
                     "GUER"        { "RESISTANCE" }
+                    "GUERRILA"    { "RESISTANCE" }
+                    "GUERRILLA"   { "RESISTANCE" }
                     "IND"         { "RESISTANCE" }
                     "INDEPENDENT" { "RESISTANCE" }
                     default       { $sideVal }
@@ -262,12 +416,15 @@ function Convert-SQEToDoctrineData {
                 $attr = $node.Children | Where-Object { $_.Class -eq "Attributes" } | Select-Object -First 1
                 if ($attr -and $attr.Name -ne "") { $uName = $attr.Name }
             }
-            if ($uName -match "CAPTAIN|LEADER|HQ") {
-                if ($node.Pos.Count -ge 3 -and ($node.Pos[0] -ne 0.0 -or $node.Pos[1] -ne 0.0 -or $node.Pos[2] -ne 0.0)) {
-                    return $node.Pos
+            if ($uName -match "HQ_CO_CAPTAIN|CO_CAPTAIN|CAPTAIN") {
+                $effPos = $node.Pos
+                if ($effPos[0] -eq 0.0 -and $effPos[1] -eq 0.0 -and $effPos[2] -eq 0.0) {
+                    $posChild = $node.Children | Where-Object { $_.Class -eq "PositionInfo" -and ($_.Pos[0] -ne 0.0 -or $_.Pos[1] -ne 0.0 -or $_.Pos[2] -ne 0.0) } | Select-Object -First 1
+                    if ($posChild) { $effPos = $posChild.Pos }
                 }
-                $posChild = $node.Children | Where-Object { $_.Class -eq "PositionInfo" -and ($_.Pos[0] -ne 0.0 -or $_.Pos[1] -ne 0.0 -or $_.Pos[2] -ne 0.0) } | Select-Object -First 1
-                if ($posChild) { return $posChild.Pos }
+                if ($effPos[0] -ne 0.0 -or $effPos[1] -ne 0.0 -or $effPos[2] -ne 0.0) {
+                    return $effPos
+                }
             }
         }
         foreach ($child in $node.Children) {
@@ -346,13 +503,14 @@ function Convert-SQEToDoctrineData {
             $isVeh = ($node.Type -match "Car|Truck|Tank|Wheeled|APC|Armored|Jeep|Willys|Kübel|Kubel|Sdkfz|Halftrack")
 
             $entityEntry = @{
-                Type       = $node.Type
-                Offset     = $effPos
-                RelDir     = $relDir
-                VarName    = $uName
-                GroupVar   = $effGroupVar
-                Rank       = $uRank
-                IsVehicle  = $isVeh
+                Type          = $node.Type
+                Offset        = $effPos
+                RelDir        = $relDir
+                VarName       = $uName
+                GroupVar      = $effGroupVar
+                Rank          = $uRank
+                IsVehicle     = $isVeh
+                CustomLoadout = $node.CustomLoadout
             }
             [void]$detectedEntities.Add($entityEntry)
         }
@@ -432,8 +590,9 @@ function Convert-SQEToDoctrineData {
         $relZ = [Math]::Round(($ent.Offset[2] - $anchorZ), 2)
 
         $comma = if ($j -lt ($detectedEntities.Count - 1)) { "," } else { "" }
-        $lineOut = "        [`"{0}`", [{1}, {2}, {3}], {4}, `"{5}`", `"{6}`", `"{7}`", {8}]{9}" -f `
-            $ent.Type, $relX, $relY, $relZ, $ent.RelDir, $ent.VarName, $ent.GroupVar, $ent.Rank, ($ent.IsVehicle.ToString().ToLower()), $comma
+        $loadoutSuffix = if ($ent.CustomLoadout -ne "[]" -and -not $ent.IsVehicle) { ", " + $ent.CustomLoadout } else { "" }
+        $lineOut = "        [`"{0}`", [{1}, {2}, {3}], {4}, `"{5}`", `"{6}`", `"{7}`", {8}{9}]{10}" -f `
+            $ent.Type, $relX, $relY, $relZ, $ent.RelDir, $ent.VarName, $ent.GroupVar, $ent.Rank, ($ent.IsVehicle.ToString().ToLower()), $loadoutSuffix, $comma
         [void]$sqfBuilder.AppendLine($lineOut)
     }
 

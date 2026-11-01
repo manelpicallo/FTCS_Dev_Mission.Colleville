@@ -34,8 +34,7 @@
       - HQ_FIRST_SERGEANT   -> Company First Sergeant
       - HQ_COMM_SERGEANT    -> Communications / Signal Sergeant
       - HQ_RADIO_OPERATOR   -> Heavy RTO (Backpack Radio)
-      - HQ_MESSENGER_1      -> Company Runner / Messenger A
-      - HQ_MESSENGER_2      -> Company Runner / Messenger B
+      - HQ_MESSENGER_1..6   -> Company Runners / Messengers (up to 6 messengers supported)
       - HQ_MEDIC            -> Company Combat Medic
 
     * Platoon HQ Roles (SQUAD_X_0) [Indexed per Platoon to avoid variable duplicates]:

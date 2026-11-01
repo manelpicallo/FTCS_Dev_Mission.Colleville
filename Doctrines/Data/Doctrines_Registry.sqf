@@ -9,5 +9,6 @@
 
 [
     "101_US_Para_Company_V2_1",
-    "SPE_German_Sturmgrenadier_Company"
+    "SPE_German_Sturmgrenadier_Company",
+    "SPE_US_Army_Rifle_Company"
 ];
