@@ -31,6 +31,11 @@ FTCS_Pace_Soldiers = 5;
 FTCS_Platoon_MAX_Infantry_Groups = 13;
 FTCS_Squad_MAX_Infantry_Groups = 5;
 
+// Global debug mode sentinel (Controls visual telemetry and map slot markers)
+if (isNil "FTCS_Debug_Mode") then {
+    FTCS_Debug_Mode = true;
+};
+
 missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", 0];
 missionNamespace setVariable ["FTCS_Last_Commander_Dir", getDir player];
 
@@ -61,15 +66,20 @@ FTCS_fnc_registrySet = {
 
 // -------------------------------------------------------
 // Registry geometry helper: updates formationPosition & relPosition slots together
+// Supports optional _refLeaderGroup to bind fireteams to their specific Squad Leader
 // ---------------------------------------------------------------------------
 
 FTCS_fnc_registryUpdatePos = {
-    params ["_groupID", "_distance", "_direction"];
+    params ["_groupID", "_distance", "_direction", ["_refLeaderGroup", objNull]];
     private _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
     private _formPos = _entry getOrDefault ["formationPosition", [-1, -1, objNull]];
     private _relPos = _entry getOrDefault ["relPosition", [-1, -1, objNull]];
     _formPos set [0, _distance]; _formPos set [1, _direction];
     _relPos set [0, _distance]; _relPos set [1, _direction];
+    if (!isNull _refLeaderGroup) then {
+        _formPos set [2, _refLeaderGroup];
+        _relPos set [2, _refLeaderGroup];
+    };
     _entry set ["formationPosition", _formPos];
     _entry set ["relPosition", _relPos];
     FTCS_Groups_Registry_Table set [_groupID, _entry];

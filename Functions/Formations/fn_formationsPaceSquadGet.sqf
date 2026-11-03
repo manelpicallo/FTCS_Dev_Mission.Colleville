@@ -3,6 +3,9 @@ params ["_formation_elements", "_formation_type", "_separate_dis"];
 private _return = [-1, -1, -1, -1]; // Return array [distance front, distance rear, distance right, distance left]
 private _num_elements = count _formation_elements;
 
+// Safe defensive fallback for soldier pace factor per Rule 2 & 7
+private _paceSoldiers = missionNamespace getVariable ["FTCS_Pace_Soldiers", 2.0];
+
 private _aux_Rear = 0;
 private _aux_Front = 0;
 private _aux_Left = 0;
@@ -34,9 +37,9 @@ switch (_formation_type) do {
                 
                 // Calculate group footprint based on unit count and soldier pace factor
                 private _aux = if ((_unit_count mod 2) != 0) then {
-                    ((_unit_count - 1) / 2) * FTCS_Pace_Soldiers
+                    ((_unit_count - 1) / 2) * _paceSoldiers
                 } else {
-                    (_unit_count / 2) * FTCS_Pace_Soldiers
+                    (_unit_count / 2) * _paceSoldiers
                 };
 
                 // Leader (0) and trailing elements (2,3,4) accumulate distance backward
@@ -54,9 +57,9 @@ switch (_formation_type) do {
         // Calculate lateral space based on the widest sub-group in the column
         if (_max_units > 0) then {
             private _lateral_pace = if ((_max_units mod 2) != 0) then {
-                ((_max_units - 1) / 2) * FTCS_Pace_Soldiers
+                ((_max_units - 1) / 2) * _paceSoldiers
             } else {
-                (_max_units / 2) * FTCS_Pace_Soldiers
+                (_max_units / 2) * _paceSoldiers
             };
             _aux_Left = _lateral_pace + _separate_dis;
             _aux_Right = _lateral_pace + _separate_dis;
@@ -148,6 +151,30 @@ switch (_formation_type) do {
         _aux_Rear  = _separate_dis * 2.5;
         _aux_Left  = _separate_dis * 2;
         _aux_Right = _separate_dis * 2;
+    };
+
+    case "ECHELON_RIGHT": {
+        /****************-----------------------------------------------
+            ECHELON RIGHT Pace Calculation Schema:
+            Diagonal rear-right stepped footprint calculation.
+        ****************------------------------------------------------**/
+        private _steps = (_num_elements - 1) max 1;
+        _aux_Front = 0;
+        _aux_Rear  = _steps * (_separate_dis * 0.707 + 2);
+        _aux_Right = _steps * (_separate_dis * 0.707 + 2);
+        _aux_Left  = _separate_dis;
+    };
+
+    case "ECHELON_LEFT": {
+        /****************-----------------------------------------------
+            ECHELON LEFT Pace Calculation Schema:
+            Diagonal rear-left stepped footprint calculation.
+        ****************------------------------------------------------**/
+        private _steps = (_num_elements - 1) max 1;
+        _aux_Front = 0;
+        _aux_Rear  = _steps * (_separate_dis * 0.707 + 2);
+        _aux_Left  = _steps * (_separate_dis * 0.707 + 2);
+        _aux_Right = _separate_dis;
     };
 
     case "DO NOTHING": {

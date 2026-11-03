@@ -93,8 +93,8 @@ private _fnc_addSubordinateCompanyHQActions = {
         "<t color='#FF8C00'>[Report] Request Reinforcements & Supplies</t>",
         { 
             params ["_target", "_caller", "_actionId"];
-            systemChat "Transmitting request for reinforcements and supplies to Company HQ...";
-            ["REQUEST_SUPPLIES", group player] remoteExec ["FTCS_fnc_handleCompanyLogistics", 2];
+            systemChat "[LOGISTICS] Request for ammunition resupply and reinforcements logged at Company HQ.";
+            hint parseText "<t color='#FFAA00'>[Company Logistics]</t><br/><t color='#FFFFFF'>Request received:</t> Ammunition & supplies dispatch queued.";
         },
         [], 2.0, 10.0, "cursorObject == _target"
     ] call FTCS_fnc_addEngineAction;
@@ -104,8 +104,10 @@ private _fnc_addSubordinateCompanyHQActions = {
         "<t color='#00CED1'>[Report] Submit Tactical SITREP</t>",
         { 
             params ["_target", "_caller", "_actionId"];
-            systemChat "Submitting Platoon SITREP to Company Commander / XO...";
-            ["SUBMIT_SITREP", group player] remoteExec ["FTCS_fnc_handleCompanySITREP", 2];
+            private _pltGrp = group player;
+            private _effectiveCount = { alive _x } count (units _pltGrp);
+            systemChat format ["[SITREP] Platoon status delivered to Company HQ: %1 soldiers combat ready.", _effectiveCount];
+            hint parseText format ["<t color='#00CED1'>[Tactical SITREP Received]</t><br/><t color='#FFFFFF'>Origin:</t> %1<br/><t color='#00FFCC'>Readiness:</t> %2 active personnel.", groupId _pltGrp, _effectiveCount];
         },
         [], 1.9, 10.0, "cursorObject == _target"
     ] call FTCS_fnc_addEngineAction;
@@ -126,28 +128,27 @@ private _fnc_addPlatoonSergeantActions = {
     private _pltData = _platoonsMap getOrDefault [_platoonKey, createHashMap];
     private _pltName = _pltData getOrDefault ["name", _platoonKey];
 
-    // 1. Direct entire platoon orders through Platoon Sergeant
+    // 1. Direct entire platoon orders through Platoon Sergeant (Dynamic by Operational Phase)
     [
         _unit,
-        format ["<t color='#00FFCC'>[Orders: %1] Direct Entire Platoon</t>", _pltName],
+        format ["<t color='#00FFCC'>[Orders: %1] Platoon Command Net (Sgt)</t>", _pltName],
         { 
             params ["_target", "_caller", "_actionId", "_arguments"];
             _arguments params ["_pKey", "_pName"];
-            [_target, _caller, _actionId, ["PLATOON", _pName]] call FTCS_fnc_openSubordinateMenu;
+            [_target, _caller, _actionId, ["PLATOON_SERGEANT", _pName]] call FTCS_fnc_openSubordinateMenu;
         },
         [_platoonKey, _pltName], 2.1, 20.0, "cursorObject == _target"
     ] call FTCS_fnc_addEngineAction;
 
-    // 2. Platoon Sergeant internal support directives
+    // 2. Direct Phase Transition action
     [
         _unit,
-        format ["<t color='#FFAA00'>[Staff: %1] Platoon Sergeant Directives</t>", _pltName],
+        "<t color='#FFAA00'>[Phase] Transition Operational Phase</t>",
         { 
-            params ["_target", "_caller", "_actionId", "_arguments"];
-            _arguments params ["_pKey", "_pName"];
-            [_target, _caller, _actionId, ["PLATOON_SERGEANT", format ["Platoon Sergeant (%1)", _pName]]] call FTCS_fnc_openSubordinateMenu;
+            params ["_target", "_caller", "_actionId"];
+            [_target, _caller, _actionId, ["PHASE_TRANSITION", "Operational Phase"]] call FTCS_fnc_openSubordinateMenu;
         },
-        [_platoonKey, _pltName], 2.0, 20.0, "cursorObject == _target"
+        [], 2.0, 20.0, "cursorObject == _target"
     ] call FTCS_fnc_addEngineAction;
 
     // 3. Dynamic squad tasking actions through Platoon Sergeant (individual squad orders)
@@ -397,6 +398,49 @@ if (count _assignedRoles > 0) then {
         if (_airActionId > -1) then {
             FTCS_PlayerStaffActionsCache pushBack _airActionId;
         };
+    };
+
+    // If player is a Platoon Commander, register Platoon Formation self-actions directly on the Lieutenant
+    if (_playerRole == "PLATOON_COMMANDER") then {
+        private _pltLeaderAction = [
+            player,
+            "<t color='#00FFCC'>[Platoon Orders] Command Net (Radio / Voice)</t>",
+            {
+                params ["_target", "_caller", "_actionId"];
+                private _pKey = format ["PLT_%1", missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1]];
+                [_target, _caller, _actionId, ["PLATOON_SERGEANT", format ["Platoon Leader (%1)", _pKey]]] call FTCS_fnc_openSubordinateMenu;
+            },
+            [],
+            1.5,
+            0.0,
+            "isNull cursorObject || {cursorObject distance player > 20}"
+        ] call FTCS_fnc_addEngineAction;
+
+        private _phaseAction = [
+            player,
+            "<t color='#FFAA00'>[Operational Phase] Set Doctrinal Phase</t>",
+            {
+                params ["_target", "_caller", "_actionId"];
+                [_target, _caller, _actionId, ["PHASE_TRANSITION", "Operational Phase"]] call FTCS_fnc_openSubordinateMenu;
+            },
+            [],
+            1.4,
+            0.0,
+            "isNull cursorObject || {cursorObject distance player > 20}"
+        ] call FTCS_fnc_addEngineAction;
+
+        private _tlpAction = [
+            player,
+            "<t color='#E0BB20'>[Planning] Platoon TLP & Mission Prep</t>",
+            {
+                params ["_target", "_caller", "_actionId"];
+                [_target, _caller, _actionId, ["TLP_PLANNING", "Pre-Mission TLP"]] call FTCS_fnc_openSubordinateMenu;
+            },
+            [],
+            1.3,
+            0.0,
+            "isNull cursorObject || {cursorObject distance player > 20}"
+        ] call FTCS_fnc_addEngineAction;
     };
 };
 

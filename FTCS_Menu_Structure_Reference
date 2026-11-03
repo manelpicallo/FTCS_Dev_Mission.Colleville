@@ -1,0 +1,143 @@
+================================================================================
+FTCS (FIRST-PERSON TACTICAL COMMAND SIMULATOR) - ARQUITECTURA DE MENÚS Y FASES
+================================================================================
+
+[RESUMEN DEL SISTEMA]
+El mando del Teniente (Platoon Leader) utiliza menús contextuales y dinámicos
+tipo Arma (accionados por rueda/teclas sin perder movimiento ni vista libre).
+Los menús se adaptan automáticamente a la Fase Operacional en curso para acelerar
+la toma de decisiones y evitar la saturación de opciones.
+
+Las fases doctrinales (FM 3-21.8) se estructuran en 3 grandes etapas:
+1. APPROACH PHASE (Aproximación y Desplazamiento / Sin contacto)
+2. CONTACT LIKELY / OVERWATCH PHASE (Aproximación Cauta / Zonas de peligro y obstáculos)
+3. COMBAT, ASSAULT & CONSOLIDATION PHASE (Combate, asalto, flanqueo de pelotón y reorganización)
+
+[ESTADO DE IMPLEMENTACIÓN Y VISIBILIDAD EN MOTOR]
+- Fase inicial tras el despliegue: FASE 0 (DEPLOYMENT / INSPECTION - Tropas congeladas en formación de revista).
+- Activación táctica: El teniente debe ordenar explícitamente una fase operacional (Set Phase 1 / 2 / 3) para despertar a las tropas. Las órdenes de formación están bloqueadas mientras el pelotón permanezca en Fase 0.
+- Estado multi-pelotón independiente: Cada pelotón (PLT_1..4) gestiona su propia fase operacional (FTCS_Platoon_Phase_1..4 y FTCS_Company_Data "currentPhase").
+- Motor de transición modular: Gobernado por FTCS_fnc_platoonSetOperationalPhase, el cual aplica postura física, conciencia (CARELESS/AWARE/COMBAT), velocidad y ROE a todas las escuadras orgánicas. En Fase 1 (APPROACH) los soldados adoptan comportamiento CARELESS (armas bajadas / sin estado de combate), reservándose SAFE para marchas seguras.
+- Opciones activas / habilitadas en UI (seleccionables / texto blanco):
+  * FASE 1 -> 1.A. Operational Phase Transition (a1, a2, a3)
+  * FASE 1 -> 1.B. Platoon-Wide Orders (Column, Wedge, Vee, Line, File, Relative/Absolute Follow Modes)
+  * FASE 1 -> 1.C. Movement Techniques (Traveling, Traveling Overwatch)
+  * FASE 2 -> 1.A. Operational Phase Transition (a1, a2, a3)
+  * FASE 2 -> 1.B. Platoon Formations (Column, Wedge, Vee, Line, File, Relative/Absolute Follow Modes)
+- Formaciones de Escuadra: Soportadas hasta 5 sub-equipos (1 Líder + hasta 4 grupos subordinados). En Fase 1 (APPROACH) los flancos de cuña/Vee adoptan dinámicamente ECHELON_RIGHT y ECHELON_LEFT para escalonamiento de marcha en columna relajada. En Fase 2 (CONTACT LIKELY / OVERWATCH) las escuadras recuperan su geometría táctica abierta completa (WEDGE/LINE) en disciplina estricta AWARE.
+- Resto de opciones: Visibles en UI pero desactivadas (gris claro / enable="0") hasta su implementación.
+
+================================================================================
+FASE 1: APPROACH PHASE (Desplazamiento / Sin Contacto) [FASE ACTIVA POR DEFECTO]
+================================================================================
+
+1. VÍA SARGENTO DE PELOTÓN (Radio / CP Interface - Selección de Escuadras)
+├── A. Operational Phase Transition (Selección y cambio manual de fase doctrinal) [ACTIVO]
+│   ├── a1. Set Phase 1: APPROACH (Forzar estado de marcha, aproximación y seguridad) [ACTIVO]
+│   ├── a2. Set Phase 2: CONTACT LIKELY / OVERWATCH (Forzar aproximación cauta y cruce) [ACTIVO]
+│   └── a3. Set Phase 3: COMBAT & ASSAULT (Forzar estado de combate y despliegue) [ACTIVO]
+├── B. Platoon-Wide Orders (Formaciones de Pelotón y Modos de Seguimiento) [ACTIVO]
+│   ├── b1. Platoon Column (Trail / Road) [ACTIVO]
+│   ├── b2. Platoon Wedge (Security / Cross-country) [ACTIVO]
+│   ├── b3. Platoon Vee (Flexible Front) [ACTIVO]
+│   ├── b4. Platoon Line (Full Frontage Assault) [ACTIVO]
+│   ├── b5. Platoon File (Dense Vegetation / Narrow) [ACTIVO]
+│   ├── b6. Adopt Ground Layout (Lock Positions) [ACTIVO]
+│   ├── b7. Follow Mode: Relative (Turn with Leader) [ACTIVO - Por defecto / En gris al estar activo]
+│   └── b8. Follow Mode: Absolute (Fixed Compass) [ACTIVO - Seleccionable para alternar]
+├── C. Movement Techniques (Traveling, Traveling Overwatch) [ACTIVO]
+│   ├── c1. Traveling (Standard March Speed) [ACTIVO]
+│   └── c2. Traveling Overwatch (Cautious Advance) [ACTIVO]
+├── D. Route & March Control (Ajustar velocidad, chequear Checkpoints en mapa) [DESACTIVADO]
+└── E. Weapons Control Status (Weapons Hold / Weapons Tight) [DESACTIVADO]
+
+2. VÍA LÍDER DE ESCUADRA (Interacción Directa / Visual) [DESACTIVADO]
+├── A. Base Squad Formations (Squad Column, Squad Line, Squad File) [DESACTIVADO]
+└── B. March Pace & Spacing (Ajustar intervalo entre soldados y ritmo) [DESACTIVADO]
+
+================================================================================
+FASE 2: CONTACT LIKELY / OVERWATCH PHASE (Aproximación Cauta / Obstáculos y Alerta)
+================================================================================
+*(Nota: Se activa automáticamente por la vanguardia / Scouts al detectar un obstáculo
+o Zona de Peligro Lineal [LDA: carreteras, ríos, claros], o manualmente por el teniente).*
+
+1. VÍA SARGENTO DE PELOTÓN (Radio / CP Interface - Protocolos de Cruce por Escuadras)
+├── A. Operational Phase Transition (Selección y cambio manual de fase doctrinal) [ACTIVO]
+│   ├── a1. Set Phase 1: APPROACH [ACTIVO]
+│   ├── a2. Set Phase 2: CONTACT LIKELY / OVERWATCH [ACTIVO]
+│   └── a3. Set Phase 3: COMBAT & ASSAULT [ACTIVO]
+├── B. Platoon Formations (Formaciones de Pelotón: Column, Wedge, Vee, Line, File) [ACTIVO]
+├── C. Transition to Bounding Overwatch (Preparar saltos por fuego y movimiento) [DESACTIVADO]
+│   ├── c1. Successive Bounds (Alternate) [DESACTIVADO]
+│   ├── c2. Continuous Bounds [DESACTIVADO]
+│   └── c3. Cease Bounds & Consolidate [DESACTIVADO]
+├── D. Halt & 360° Security (Orden de alto táctico y perímetro defensivo circular) [DESACTIVADO]
+├── E. LDA Crossing Protocols (Asignación Doctrinal a Nivel Pelotón) [DESACTIVADO]
+│   ├── e1. Assign Support Squad (SBF) -> [ Seleccionar Escuadra: Alpha / Bravo / Weapons ] [DESACTIVADO]
+│   │   *(Fija la escuadra seleccionada como base de fuego de cobertura en la orilla actual)*
+│   ├── e2. Assign Crossing Squad (Security) -> [ Seleccionar Escuadra: Alpha / Bravo / Charlie ] [DESACTIVADO]
+│   │   *(Ordena a la escuadra seleccionada cruzar primera para asegurar la cabeza de puente)*
+│   └── e3. Execute Platoon Leapfrog -> [ Resto de Escuadras ] [DESACTIVADO]
+│       *(Ordena al resto de escuadras cruzar en cadena por detrás de la seguridad)*
+└── F. Weapons Readiness (Establecer Weapons Tight / Weapons Free) [DESACTIVADO]
+    ├── f1. Weapons Tight (Return Fire Only) [DESACTIVADO]
+    └── f2. Weapons Free (Engage on Sight) [DESACTIVADO]
+
+2. VÍA LÍDER DE ESCUADRA / SCOUT TEAM (Interacción Directa / Visual ante el Obstáculo) [DESACTIVADO]
+├── A. Recon / Scout Ahead (Enviar exploradores a tantear el paso al otro lado del obstáculo) [DESACTIVADO]
+├── B. Set Overwatch Base (Establecer línea de fuego de cobertura sobre los flancos del claro/río) [DESACTIVADO]
+└── C. Resume Normal March (Descartar amenaza menor y continuar avance) [DESACTIVADO]
+
+================================================================================
+FASE 3: COMBAT, ASSAULT & CONSOLIDATION PHASE (Combate Unificado y Maniobra)
+================================================================================
+
+1. VÍA SARGENTO DE PELOTÓN (Radio / Menú Numérico Global y de Escuadras)
+├── A. Operational Phase Transition (Selección y cambio manual de fase doctrinal) [ACTIVO]
+│   ├── a1. Set Phase 1: APPROACH [ACTIVO]
+│   ├── a2. Set Phase 2: CONTACT LIKELY / OVERWATCH [ACTIVO]
+│   └── a3. Set Phase 3: COMBAT & ASSAULT [ACTIVO]
+├── B. Platoon-Wide Tactical Orders (Órdenes globales a todo el pelotón) [DESACTIVADO]
+│   ├── b1. Direct Assault Wave (Orden de asalto frontal coordinado para todo el pelotón) [DESACTIVADO]
+│   ├── b2. Platoon Flanking Maneuver -> [ Left Envelopment ] [DESACTIVADO]
+│   └── b3. Platoon Flanking Maneuver -> [ Right Envelopment ] [DESACTIVADO]
+├── C. Select Squad: [ ALPHA ] ──► Submenú: Movimiento, Fuego, Flanqueo y Roles [DESACTIVADO]
+│   ├── c1. Direct Push Forward (Avance frontal directo) [DESACTIVADO]
+│   ├── c2. Flanking Maneuver -> [ Left Flank ] [DESACTIVADO]
+│   ├── c3. Flanking Maneuver -> [ Right Flank ] [DESACTIVADO]
+│   ├── c4. Fall Back / Break Contact (Repliegue por saltos / Leapfrog) [DESACTIVADO]
+│   └── c5. Suppress Target / Sector (Fuego de supresión) [DESACTIVADO]
+├── D. Select Squad: [ BRAVO ] ──► Submenú: Movimiento, Fuego, Flanqueo y Roles [DESACTIVADO]
+├── E. Select Squad: [ CHARLIE ] ─► Submenú: Movimiento, Fuego, Flanqueo y Roles [DESACTIVADO]
+├── F. Select Squad: [ WEAPONS ] ─► Submenú: Posicionamiento SBF y Supresión Pesada [DESACTIVADO]
+├── G. Fire Direction & Area Suppression (Fuegos a TRP / Map Grid / Cease Fire) [DESACTIVADO]
+├── H. Sustainment & MEDEVAC (Roster Check & Casualty Collection Point / 9-Line) [DESACTIVADO]
+└── I. Fire Support Coordination (Morteros / Artillería / CAS) [DESACTIVADO]
+
+2. VÍA LÍDER DE ESCUADRA (Interacción Directa con Apuntado 3D / Cursor Visual) [DESACTIVADO]
+├── A. Direct Local Combat & Terrain Tactics (Control espacial sobre el terreno) [DESACTIVADO]
+│   ├── a1. Move to Point / Cover Here (Atrincherarse exactamente en muro/vaguada apuntada) [DESACTIVADO]
+│   ├── a2. Breach / Clear Building (Asaltar y limpiar edificio o habitación señalada) [DESACTIVADO]
+│   ├── a3. Push Forward [5m / 10m / 15m / 25m] (Avanzar metros indicados bajo fuego) [DESACTIVADO]
+│   ├── a4. Fall Back [5m / 10m / 15m / 25m] (Retroceder metros indicados bajo fuego) [DESACTIVADO]
+│   ├── a5. Break Contact / Fall Back (Romper contacto y repliegue coordinado) [DESACTIVADO]
+│   ├── a6. Flanking Maneuver -> [ Left Flank ] [DESACTIVADO]
+│   ├── a7. Flanking Maneuver -> [ Right Flank ] [DESACTIVADO]
+│   └── a8. Shift Lateral [Left / Right] [5m / 10m] [DESACTIVADO]
+├── B. Direct Target Engagement & Fire Suppression (Asignación visual de blancos) [DESACTIVADO]
+│   ├── b1. Engage Target at Crosshair (Atacar enemigo/vehículo señalado en la mira) [DESACTIVADO]
+│   ├── b2. Suppress Window / Nest Here (Fuego de supresión sobre ventana/nido visible) [DESACTIVADO]
+│   └── b3. Assault that Position Now! (Carga de asalto coordinada a corta distancia) [DESACTIVADO]
+└── C. Post-Assault Consolidation (Reorganización local) [DESACTIVADO]
+    └── c1. Shift Sector / Change Facing (Reorientar sector defensivo de 360° tras asaltar) [DESACTIVADO]
+
+================================================================================
+[APÉNDICE TÉCNICO: PRE-MISIÓN / TLP] [DESACTIVADO]
+(Menú de configuración inicial en el Puesto de Mando antes del despliegue)
+================================================================================
+[PLATOON PLANNING & TLP MENU - PRE-MISIÓN / CP] [DESACTIVADO]
+├── 1. MISSION & TERRAIN ANALYSIS (METT-TC: Objectives, OAKOC Terrain, Axis of Advance) [DESACTIVADO]
+├── 2. PLATOON ROSTER & PERSONNEL (Fatigue, Morale, Assign Key Roles) [DESACTIVADO]
+├── 3. SUSTAINMENT & LOADOUT (Basic vs Heavy Load, Ammo Distribution, Special Gear) [DESACTIVADO]
+├── 4. FIRE SUPPORT PLANNING (Pre-plan Target Reference Points / TRPs & Mortars) [DESACTIVADO]
+└── 5. OPORD TACMAP & ROUTE PLANNER (Draw Axis of Advance, Checkpoints, Danger Areas) [DESACTIVADO]

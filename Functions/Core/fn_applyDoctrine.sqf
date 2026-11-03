@@ -247,13 +247,16 @@ private _tacticalPlatoonIndex = 1;
             _squadsArray pushBack _squadId;
         };
 
-        // Store generated platoon data
+        // Store generated platoon data (initialized in Phase 0: DEPLOYMENT / INSPECTION)
         _newPlatoonsMap set [_pltId, createHashMapFromArray [
             ["name", _pltName],
             ["squads", _squadsArray],
             ["isMechanized", _isMechanized],
-            ["transportAsset", _transportAsset]
+            ["transportAsset", _transportAsset],
+            ["currentPhase", 0]
         ]];
+
+        missionNamespace setVariable [format ["FTCS_Platoon_Phase_%1", _tacticalPlatoonIndex], 0];
 
         _tacticalPlatoonIndex = _tacticalPlatoonIndex + 1;
     };

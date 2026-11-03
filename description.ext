@@ -41,6 +41,16 @@ class CfgFunctions
             class registryInit {};
         };
 
+        class Groups
+        {
+            class groupSetAwareMode {};
+            class groupSetStance {};
+            class groupSetROE {};
+            class groupSetSpeed {};
+            class commanderStanceSyncWorker {};
+            class platoonSetOperationalPhase {};
+        };
+
        class Formations
         {
             class formationsCurrentPositionSet {};
@@ -50,6 +60,7 @@ class CfgFunctions
             class formationsGroupDoFollowCommander {};
             class formationsGroupListFollowCommander {};
             class formationsSetAdvanceDirection {};
+            class formationsApplyPlatoonOrder {};
         };
 
         class Interactions
@@ -66,6 +77,8 @@ class CfgFunctions
             class spawnDoctrine {};
             class openDeployMenu {};
             class initDeployMenu {};
+            class deployPreviewMarkerUpdate {};
+            class deploySupportCombosPopulate {};
             class executeDeployment {};
             class spawnSupportUnit {};
         };

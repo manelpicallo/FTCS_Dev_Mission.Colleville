@@ -6,36 +6,49 @@
 
 **Reglas obligatorias de código:**
 
-1. **Comentarios existentes:**
+1. **Principio de Responsabilidad Única (SRP):**
+   - Cada función debe realizar una única tarea clara y específica. Si una función supera las 200-250 líneas de código ejecutable, debe ser refactorizada en subfunciones más pequeñas, excepto si es una funcion.Las fuciones deben de ser reutilizables en el proyecto, por tanto debes valorar siempre si esa funcion tendra utiliad en algun otro de los puntos descriptivos donde se explica el alcance del proyecto.
+   - Quedan estrictamente prohibidas las funciones anidadas profundas o los bloques de código monolíticos que mezclen lógica de IA, gestión de UI, efectos de red y control de estado en un mismo bloque.
+2. **Estructura y Aislamiento de Archivos (SQF / Enforce Script):**
+   - Diseña siempre pensando en la compilación modular a través de `CfgFunctions` (en SQF) o clases limpias (en Enforce). Cada función lógica debe residir en su propio archivo independiente con nomenclatura estándar (ej. `fn_spawnTacticalComposition.sqf`).
+   - Evita el uso excesivo de variables globales ocultas. Toda función debe recibir sus dependencias o parámetros de entrada de forma explícita mediante `params` (o firmas tipadas) y devolver resultados claros.
+3. **Desacoplamiento de Capas:**
+   - La lógica de simulación/cálculo táctico debe estar completamente desacoplada de la interfaz de usuario (Rsc / Dialogs) y de los manejadores de eventos (EventHandlers).
+   - Utiliza patrones orientados a eventos o colas de mensajes ligeras cuando los módulos deban comunicarse entre sí, evitando dependencias circulares directas entre sistemas (ej. el sistema de moral no debe llamar directamente a la UI de comandos, sino emitir un evento o actualizar una estructura de datos central).
+4. **Diseño Orientado a la Portabilidad (Arma 3 a Arma 4):**
+   - Escribe el código SQF emulando buenas prácticas de programación estructurada y modular que faciliten una futura traducción limpia a Enforce Script (clases, métodos cohesivos, tipado lógico documentado en comentarios).
+5. **Comentarios existentes:**
    - NUNCA elimines, resumas ni acortes comentarios existentes sin motivo.
    - Si modificas código y su comentario deja de describirlo con exactitud, **reescribe ese comentario** para que refleje el nuevo comportamiento. No dejes comentarios obsoletos ni añadas uno nuevo al lado del viejo: debe haber un único comentario correcto por bloque.
    - Si eliminas por completo un bloque de código, puedes eliminar su comentario, pero indícalo en el resumen final.
    - Los comentarios de código que no tocas se conservan tal cual, sin retocar su redacción.
    - Todos los comentarios nuevos o reescritos se escriben en **inglés**.
-2. **Esquemas ASCII de las cabeceras:**
+6. **Esquemas ASCII de las cabeceras:**
    - NUNCA los elimines ni los simplifiques.
    - Solo puedes modificarlos si la arquitectura o el flujo de esa función cambia de forma explícita. En ese caso, actualiza el esquema para que coincida con el nuevo funcionamiento y avísame de que lo has hecho.
    - Si cambias la función pero el esquema sigue siendo válido, déjalo exactamente igual.
-3. **Compatibilidad con Enfusion:** Todo el código debe ser modular, desacoplado y portable a Enforce Script. Separa lógica y datos (arquitectura data-driven), evita duplicar código (DRY) y evita construcciones SQF difíciles de migrar sin justificarlo. Usa la versión estable actual de Arma 3 y sus comandos nativos, incluido `HashMap`; no propongas alternativas con arrays anidados para sustituirlo.
-4. **Cambios mínimos:** Modifica solo lo que se te pide. No reescribas, renombres ni reorganices código no relacionado con la tarea.
-5. **Nomenclatura:** Respeta los nombres existentes (prefijo `FTCS_`, variables estándar como `SQUAD_X_Y`, `PLT_X_LEADER`, `HQ_CO_CAPTAIN`, etc.).
-6. **Alcance Estricto de Ficheros de Código (`functions`):** Dentro de la carpeta de funciones (`functions`), la IA solo debe analizar, leer o modificar aquellas funciones que estén explícitamente listadas o referenciadas en el fichero `description.ext` (o `description.txt`). Cualquier otro archivo de código fuera de ese listado debe ser estrictamente ignorado para evitar análisis o modificaciones innecesarias de módulos en desuso. (Los directorios de datos como `Doctrines\Data\` y la documentación sí pueden examinarse libremente).
-7. **Idioma y Localización de Componentes:**
+7. **Compatibilidad con Enfusion:** Todo el código debe ser modular, desacoplado y portable a Enforce Script. Separa lógica y datos (arquitectura data-driven), evita duplicar código (DRY) y evita construcciones SQF difíciles de migrar sin justificarlo. Usa la versión estable actual de Arma 3 y sus comandos nativos, incluido `HashMap`; no propongas alternativas con arrays anidados para sustituirlo.
+8. **Cambios mínimos:** Modifica solo lo que se te pide. No reescribas, renombres ni reorganices código no relacionado con la tarea.
+9. **Nomenclatura:** Respeta los nombres existentes (prefijo `FTCS_`, variables estándar como `SQUAD_X_Y`, `PLT_X_LEADER`, `HQ_CO_CAPTAIN`, etc.).
+10. **Alcance Estricto de Ficheros de Código (`functions`):** Dentro de la carpeta de funciones (`functions`), la IA solo debe analizar, leer o modificar aquellas funciones que estén explícitamente listadas o referenciadas en el fichero `description.ext` (o `description.txt`). Cualquier otro archivo de código fuera de ese listado debe ser estrictamente ignorado para evitar análisis o modificaciones innecesarias de módulos en desuso. (Los directorios de datos como `Doctrines\Data\` y la documentación sí pueden examinarse libremente).
+11. **Idioma y Localización de Componentes:**
    - Todos los **menús, interfaces de usuario (UI), textos en pantalla, acciones del motor (AddAction / UserActions), código y comentarios** se escriben estrictamente en **inglés**.
    - Los únicos elementos que se redactan y mantienen en **castellano** son:
      - Las herramientas y scripts externos generados en la carpeta `tools/` (ej. scripts de PowerShell, batch files, utilidades de conversión).
      - Este propio **documento de diseño y notas** (`FTCS (First-Person Tactical Command Simulation) - Documento de Notas….md`).
      - La comunicación y respuestas directas con el usuario en el chat.
-8. **Mapeo Obligatorio de Facciones y Bandos en el Motor (Arma 3 / WWII):**
+12. **Mapeo Obligatorio de Facciones y Bandos en el Motor (Arma 3 / WWII):**
    - **BLUFOR (`west`):** Eje / Axis $\rightarrow$ Alemania (*Wehrmacht / Waffen-SS*) e Imperio del Japón (*IJA*).
    - **OPFOR (`east`):** Unión Soviética / URSS $\rightarrow$ Ejército Rojo (*Red Army*).
    - **INDEPENDENT / GUERRILLA (`resistance` / `independent`):** Aliados Occidentales $\rightarrow$ Estados Unidos (*US Army, US Airborne, US Rangers*) y Gran Bretaña (*British Army, Parachute Regt*).
-   - En composiciones 3DEN (`composition.sqe`), los grupos de unidades aliadas deben declararse con `side="Guerrila";` (que el motor y el conversor mapean a `resistance`), nunca como `West`.
+   - En composiciones 3DEN (`composition.sqe`), los grupos de unidades aliadas deben declararse con `side="Independent";` o `side="Guerrila";` (que el motor y el conversor mapean a `resistance`), nunca como `West`.
    - Las plantillas doctrinales (`Doctrines/Data/*.sqf`) deben declarar obligatoriamente:
      - Aliados: `["side", resistance]`
      - Eje: `["side", west]`
      - Soviéticos: `["side", east]`
    - En `init.sqf` la diplomacia del motor (`setFriend`) debe garantizar cohesión interna y hostilidades históricas estrictas para evitar fuego amigo al desplegar facciones aliadas.
+13. **Sincronización Obligatoria de la Estructura de Menús (`FTCS_Menu_Structure_Reference`):**
+   - La IA debe mirarse siempre el documento `FTCS_Menu_Structure_Reference` para que lo actualice obligatoriamente siempre que toque algo referente al tema de ese fichero, que son los menús e interfaces de comando, manteniendo rigurosamente el formato original del fichero con las modificaciones oportunas.
 
 **Validación contra este documento:**
 
@@ -43,6 +56,8 @@
 - Si lo que se te pide contradice el documento, o ves una incoherencia entre el código y el diseño, **AVÍSAME ANTES de continuar**, explica el conflicto y propón alternativas. No lo resuelvas por tu cuenta en silencio.
 - Si algo no está definido en el documento, no lo inventes: pregúntame.
 - Si un cambio exige actualizar este documento, indícamelo explícitamente.
+- **Sincronización Obligatoria de la Estructura de Datos:** La especificación y el árbol formal de todas las tablas de hash y modelos de datos del proyecto (`FTCS_Company_Data`, `FTCS_Groups_Registry_Table`, plantillas doctrinales, tuplas y estados) residen en el fichero `FTCS_Data_Structure_Reference.md`. Si cualquier tarea modifica, amplía o altera campos, estructuras o enumeraciones en el código backend, **la IA debe actualizar obligatoriamente dicho fichero `FTCS_Data_Structure_Reference.md`** para mantenerlo siempre como referencia técnica viva y exacta.
+- **Sincronización Obligatoria de la Estructura de Menús:** La arquitectura, jerarquía y definición de los menús e interfaces de comando del proyecto residen en el documento `FTCS_Menu_Structure_Reference`. La IA debe mirarse siempre el documento `FTCS_Menu_Structure_Reference` para que lo actualice obligatoriamente siempre que toque o modifique cualquier aspecto referente al tema de ese fichero (menús e interfaces de comando), manteniendo rigurosamente el formato original del fichero con las modificaciones oportunas.
 
 **Forma de trabajar:**
 

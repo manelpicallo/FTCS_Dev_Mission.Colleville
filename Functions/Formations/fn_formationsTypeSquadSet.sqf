@@ -60,21 +60,18 @@ switch (_formation_type) do {
 
     case "COLUMN": {
         /********************************-------------------------------
-            COLUMN Squad Layout: Macro trail, sub-groups in WEDGE for security.
+            COLUMN Squad Layout: Pure longitudinal trail in single column.
+            Each fireteam follows directly behind in WEDGE formation.
             
-                                        .(1) [WEDGE]
-                                     .     .          
-                                                    
-                                        .(0) [WEDGE] ==> leader 
-                                                    
-                                        .(2) [WEDGE]          
-                                     .     .
-            
-                                        .(3) [WEDGE]
-                                     .     .
-                                                            
+                                        .(1) [WEDGE] ==> Lead / Scout Team
+                                         |
+                                        .(0) [WEDGE] ==> Squad Leader Team
+                                         |
+                                        .(2) [WEDGE] ==> Maneuver Team
+                                         |
+                                        .(3) [WEDGE] ==> Support / BAR Team
+                                         |
                                         .(4) [WEDGE]
-                                     .     .
         ******************************************************************/
         _separate_dis_1 = _pace_rear_1 + _separate_dis;
         _separate_dis_2 = _pace_rear_0 + _separate_dis;
@@ -86,7 +83,7 @@ switch (_formation_type) do {
         _direction_3 = 180;
         _direction_4 = 180;
 
-        // Sub-groups deploy in WEDGE even in column march
+        // Sub-groups deploy in WEDGE for all-round security even during column march
         _formation_0 = "WEDGE";
         _formation_1 = "WEDGE";
         _formation_2 = "WEDGE";
@@ -219,6 +216,88 @@ switch (_formation_type) do {
         _formation_4 = "COLUMN";
     };
 
+    case "ECHELON_RIGHT": {
+        /********************************-------------------------------
+            ECHELON RIGHT Squad Layout (1 Leader + up to 4 Sub-teams):
+            Sub-groups stepped back diagonally to the right (135° bearing).
+            Each sub-group maintains its native column / file march posture.
+
+                         ▲ [Advance Direction 0°]
+                         │
+                        (0) [Squad Leader Team - Point]
+                           \
+                            \ (135°)
+                             (1) [Sub-team 1: Support / BAR]
+                                \
+                                 \ (135°)
+                                  (2) [Sub-team 2: Assault / Clearing]
+                                     \
+                                      \ (135°)
+                                       (3) [Sub-team 3: Reserve / Ammo]
+                                          \
+                                           \ (135°)
+                                            (4) [Sub-team 4: Tail Guard]
+        ******************************************************************/
+        _separate_dis_1 = _pace_rear_1 + _separate_dis;
+        _direction_1 = 135;
+
+        _separate_dis_2 = _separate_dis_1 + _pace_rear_2 + _separate_dis;
+        _direction_2 = 135;
+
+        _separate_dis_3 = _separate_dis_2 + _pace_rear_3 + _separate_dis;
+        _direction_3 = 135;
+
+        _separate_dis_4 = _separate_dis_3 + _pace_rear_4 + _separate_dis;
+        _direction_4 = 135;
+
+        _formation_0 = "COLUMN";
+        _formation_1 = "COLUMN";
+        _formation_2 = "COLUMN";
+        _formation_3 = "COLUMN";
+        _formation_4 = "COLUMN";
+    };
+
+    case "ECHELON_LEFT": {
+        /********************************-------------------------------
+            ECHELON LEFT Squad Layout (1 Leader + up to 4 Sub-teams):
+            Sub-groups stepped back diagonally to the left (225° bearing).
+            Each sub-group maintains its native column / file march posture.
+
+                         ▲ [Advance Direction 0°]
+                         │
+                        (0) [Squad Leader Team - Point]
+                           /
+                  (225°)  /
+                        (1) [Sub-team 1: Support / BAR]
+                         /
+                (225°)  /
+                      (2) [Sub-team 2: Assault / Clearing]
+                       /
+              (225°)  /
+                    (3) [Sub-team 3: Reserve / Ammo]
+                     /
+            (225°)  /
+                  (4) [Sub-team 4: Tail Guard]
+        ******************************************************************/
+        _separate_dis_1 = _pace_rear_1 + _separate_dis;
+        _direction_1 = 225;
+
+        _separate_dis_2 = _separate_dis_1 + _pace_rear_2 + _separate_dis;
+        _direction_2 = 225;
+
+        _separate_dis_3 = _separate_dis_2 + _pace_rear_3 + _separate_dis;
+        _direction_3 = 225;
+
+        _separate_dis_4 = _separate_dis_3 + _pace_rear_4 + _separate_dis;
+        _direction_4 = 225;
+
+        _formation_0 = "COLUMN";
+        _formation_1 = "COLUMN";
+        _formation_2 = "COLUMN";
+        _formation_3 = "COLUMN";
+        _formation_4 = "COLUMN";
+    };
+
     case "DO NOTHING": {};
 
     default { hint "Unknown formation type"; };
@@ -232,22 +311,22 @@ if (_num_elements > 0) then {
 };
 
 if (_num_elements > 1 && {!isNull (_formation_elements select 1)}) then {
-    [groupId (_formation_elements select 1), _separate_dis_1, _direction_1 + _direction] call FTCS_fnc_registryUpdatePos;
+    [groupId (_formation_elements select 1), _separate_dis_1, _direction_1 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 1) setFormation _formation_1;
 };
 
 if (_num_elements > 2 && {!isNull (_formation_elements select 2)}) then {
-    [groupId (_formation_elements select 2), _separate_dis_2, _direction_2 + _direction] call FTCS_fnc_registryUpdatePos;
+    [groupId (_formation_elements select 2), _separate_dis_2, _direction_2 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 2) setFormation _formation_2;
 };
 
 if (_num_elements > 3 && {!isNull (_formation_elements select 3)}) then {
-    [groupId (_formation_elements select 3), _separate_dis_3, _direction_3 + _direction] call FTCS_fnc_registryUpdatePos;
+    [groupId (_formation_elements select 3), _separate_dis_3, _direction_3 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 3) setFormation _formation_3;
 };
 
 if (_num_elements > 4 && {!isNull (_formation_elements select 4)}) then {
-    [groupId (_formation_elements select 4), _separate_dis_4, _direction_4 + _direction] call FTCS_fnc_registryUpdatePos;
+    [groupId (_formation_elements select 4), _separate_dis_4, _direction_4 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 4) setFormation _formation_4;
 };
 
