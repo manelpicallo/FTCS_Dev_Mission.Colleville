@@ -134,11 +134,25 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
             missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", missionNamespace getVariable ["FTCS_Last_Commander_Dir", getDir _leader]]
         };
 
+        // Resolve Platoon Leader unit (Lieutenant / Player or NPC Platoon Leader)
+        private _platoonLeader = missionNamespace getVariable ["FTCS_Platoon_Leader_Unit", objNull];
+        if (isNull _platoonLeader) then {
+            _platoonLeader = missionNamespace getVariable ["FTCS_Formation_Visualizer_Leader", objNull];
+        };
+        if (isNull _platoonLeader) then {
+            if (!((vehicleVarName _leader) find "SQD_" >= 0)) then {
+                _platoonLeader = _leader;
+            };
+        };
+        if (isNull _platoonLeader) then { _platoonLeader = player; };
+        private _platoonLeaderDir = getDir _platoonLeader;
+
         if (!_alignedOnStop) then 
         {
-            // If the leader is an AI (e.g. Squad Leader), ensure leader faces the platoon advance direction
+            // If the leader is an AI (e.g. Squad Leader), ensure leader faces the platoon leader stop direction
             if (!isPlayer _leader) then {
-                (group _leader) setFormDir _curPlatoonDir;
+                private _leaderFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonLeaderDir };
+                (group _leader) setFormDir _leaderFacing;
             };
 
             private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
@@ -158,7 +172,7 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
                 if (_mode == "FOLLOWING_COMMANDER_REL") then {
                     _group setFormDir _curPlatoonDir;
                 } else {
-                    _group setFormDir _platoonDir;
+                    _group setFormDir _platoonLeaderDir;
                 };
             };
 
@@ -168,7 +182,7 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
         // Once units arrive at final stopped position (unitReady), apply facing strictly ONCE
         if (!_facingAppliedOnReady && {unitReady (leader _group)}) then 
         {
-            private _targetFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonDir };
+            private _targetFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonLeaderDir };
             _group setFormDir _targetFacing;
             if (!isPlayer _leader) then {
                 (group _leader) setFormDir _targetFacing;
