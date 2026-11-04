@@ -21,7 +21,7 @@ private _spd = speed _leader;
 private _last_spd = 10;
 
 // Identify if the reference leader is the main platoon commander (player or platoon HQ leader)
-private _isPlatoonCommander = (isPlayer _leader || {_leader == (leader (missionNamespace getVariable ["FTCS_Group_Commander", grpNull]))} || {(vehicleVarName _leader) find "LEADER" >= 0 && {(vehicleVarName _leader) find "SQD_" < 0}});
+private _isPlatoonCommander = (isPlayer _leader || {_leader == (leader (missionNamespace getVariable ["FTCS_Group_Commander", grpNull]))} || {_leader == (missionNamespace getVariable ["FTCS_Platoon_Leader_Unit", objNull])} || {(vehicleVarName _leader) find "LEADER" >= 0 && {(vehicleVarName _leader) find "SQD_" < 0}});
 
 // If the commander is actively moving or giving the order, initialize/update advance direction in relative mode only
 if (_isPlatoonCommander && {_mode != "FOLLOWING_COMMANDER_ABS"}) then {
@@ -165,7 +165,7 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
             _alignedOnStop = true;
         };
 
-        // Once units arrive at final stopped position (unitReady), apply the platoon advance direction strictly ONCE
+        // Once units arrive at final stopped position (unitReady), apply facing strictly ONCE
         if (!_facingAppliedOnReady && {unitReady (leader _group)}) then 
         {
             private _targetFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonDir };
