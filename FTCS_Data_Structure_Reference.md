@@ -16,6 +16,7 @@ missionNamespace
 ├── FTCS_Groups_Registry_Table      (HashMap: Registro Plano de Estados y Físicas de Grupos)
 ├── FTCS_Platoon_Phase_1 .. 4       (NUMBER: Fase operacional activa individual por pelotón: 1, 2 o 3)
 ├── FTCS_Platoon_Follow_Mode        (STRING: Modo de seguimiento activo: "FOLLOWING_COMMANDER_REL" | "FOLLOWING_COMMANDER_ABS")
+├── FTCS_Platoon_Fixed_Abs_Dir      (NUMBER: Rumbo fijo congelado en brújula [0-360] para seguimiento y debug en modo absoluto)
 └── FTCS_Debug_Mode                 (BOOLEAN: Centinela de depuración, true para telemetría visual y slots en mapa)
 ```
 
@@ -65,6 +66,7 @@ FTCS_Company_Data (HashMap)
             ├── "isMechanized"   : BOOLEAN     -> true / false
             ├── "transportAsset" : STRING      -> Classname de transporte de pelotón o ""
             ├── "squads"         : ARRAY of ID -> Lista de IDs de escuadras: ["SQD_1_0", "SQD_1_1", "SQD_1_2", "SQD_1_3"]
+            ├── "formationSlots" : HashMap     -> Mapeo pre-resuelto de slots doctrinales (Slot 0..12 -> ID escuadra/team)
             │
             └── "parsedSquads"   : HashMap (Escuadras resueltas en el motor)
                   │
@@ -224,6 +226,15 @@ Doctrinal Data Template (HashMap devuelto por cada fichero SQF)
 ├── "teamRoles"               : ARRAY of STRINGS -> Roles tácticos de cada sub-equipo:
 │                                                  ["ASSAULT", "SUPPORT", "ASSAULT"]
 │
+├── "platoonFormationSlots"   : HashMap (Opcional) -> Mapeo macro de ranuras de formación (Slot 0..12 -> ID patrón):
+│     ├── 0  : "SQD_X_1"         (1st Rifle Squad -> Vanguard / Center)
+│     ├── 1  : "SQD_X_2"         (2nd Rifle Squad -> Left Flank)
+│     ├── 2  : "SQD_X_3"         (3rd Rifle Squad -> Right Flank)
+│     ├── 3  : "SQD_X_4"         (4th Squad / Mortar Section)
+│     ├── 4  : "SQD_X_0_TEAM_2"  (Platoon Sergeant & Support)
+│     ├── 9  : "SQD_X_0_TEAM_1"  (Attached HQ Command Group / Escort)
+│     └── 10 : "HQ_ATTACHED"     (Company HQ Attached Liaison / Runners)
+│
 └── "entities"                : ARRAY of TUPLES (Tupla estándar de 7 u 8 campos por soldado/vehículo):
       │
       └── [
@@ -292,7 +303,7 @@ FTCS_fnc_formationsApplyPlatoonOrder
 (4. Dispara FTCS_fnc_formationsTypePlatoonSet)
                  │
                  ├──► FTCS_fnc_formationsTypePlatoonSet
-                 │    (Calcula ranuras macro del Pelotón: 0 a 11)
+                 │    (Calcula ranuras macro del Pelotón: 0 a 12)
                  │    (Actualiza "formationPosition" y "relPosition" en FTCS_Groups_Registry_Table)
                  │    │
                  │    └──► FTCS_fnc_formationsTypeSquadSet (Recursivo por Escuadra)

@@ -30,7 +30,7 @@
     |               │                                                             |
     |               ▼                                                             |
     |     [Two-Tier Formation Geometry Calculation]                               |
-    |     -> FTCS_fnc_formationsTypePlatoonSet (Macro slots 0-11)                 |
+    |     -> FTCS_fnc_formationsTypePlatoonSet (Macro slots 0-12)                 |
     |        -> FTCS_fnc_formationsTypeSquadSet (Internal squad teams)            |
     |               │                                                             |
     |               ▼                                                             |
@@ -46,8 +46,9 @@
 
 params [
     ["_platoonLeaderUnit", objNull],
-    ["_formationType", "FILE"],
-    ["_separationDistance", 15]
+    ["_formationType", "COLUMN"],
+    ["_separationDistance", 15],
+    ["_squadFormationsOverride", []]
 ];
 
 if (isNull _platoonLeaderUnit) exitWith { false };
@@ -75,82 +76,165 @@ if (_currentPhase == 0) exitWith {
     false;
 };
 
-// 3. Identify the Platoon Leader's group as the formation anchor (Slot 0)
+// 3. Identify the Platoon Leader's group as the formation anchor [X]
 private _leaderGroup = group _platoonLeaderUnit;
 
 // Gather Platoon HQ sub-teams (Team 1: Command Element / RTO, Team 2: Support Element / Sergeant, Runner, Medic)
-private _hqSquadId = format ["SQD_%1_0", parseNumber ((_pltKey splitString "_") select 1)];
+private _pltIdx = parseNumber ((_pltKey splitString "_") select 1);
+private _hqSquadId = format ["SQD_%1_0", _pltIdx];
 private _hqSquadData = _parsedSquads getOrDefault [_hqSquadId, createHashMap];
 private _hqTeams = _hqSquadData getOrDefault ["tacticalTeams", createHashMap];
-private _hqSubordinateGroups = [];
+
+// Isolate HQ sub-teams distinctly:
+// - Command Element remaining group (Team 1 without isolated Leader) -> Slot 9 (HQ Command Attachments)
+// - Support Element group (Team 2: Platoon Sergeant, Runner, Medic) -> Slot 4 (Platoon Sergeant)
+// - Any secondary attached elements (e.g. attached Company messenger / liaison) -> Slot 10
+private _team1Grp = grpNull;
+private _team2Grp = grpNull;
+private _extraHqGrps = [];
 
 {
-    private _tKey = _x;
+    private _tKey = toUpper _x;
     private _hGrp = (_y) getOrDefault ["group", grpNull];
     if (!isNull _hGrp && {_hGrp != _leaderGroup}) then {
-        if !(_hGrp in _hqSubordinateGroups) then {
-            _hqSubordinateGroups pushBack _hGrp;
+        if (_tKey find "TEAM_1" >= 0 || _tKey find "COMMAND" >= 0) then {
+            if (isNull _team1Grp) then { _team1Grp = _hGrp; } else { _extraHqGrps pushBack _hGrp; };
+        } else {
+            if (_tKey find "TEAM_2" >= 0 || _tKey find "SUPPORT" >= 0) then {
+                if (isNull _team2Grp) then { _team2Grp = _hGrp; } else { _extraHqGrps pushBack _hGrp; };
+            } else {
+                _extraHqGrps pushBack _hGrp;
+            };
         };
     };
 } forEach _hqTeams;
 
 // Check if base HQ squad group is distinct from the leader's group
 private _baseHqGroup = _hqSquadData getOrDefault ["group", grpNull];
-if (!isNull _baseHqGroup && {_baseHqGroup != _leaderGroup} && {!(_baseHqGroup in _hqSubordinateGroups)}) then {
-    _hqSubordinateGroups pushBack _baseHqGroup;
+if (!isNull _baseHqGroup && {_baseHqGroup != _leaderGroup}) then {
+    if (isNull _team1Grp && isNull _team2Grp) then {
+        _team2Grp = _baseHqGroup;
+    } else {
+        if !(_baseHqGroup in [_team1Grp, _team2Grp]) then {
+            _extraHqGrps pushBack _baseHqGroup;
+        };
+    };
 };
 
-private _formationElements = [[_leaderGroup]];
-
-// 4. Structure subordinate squads and their nested fireteams
-private _squadKeys = keys _parsedSquads;
-_squadKeys sort true;
-
-private _allSubordinateGroups = [];
-
-// Attach Platoon HQ remaining sub-teams (Command Element & Support Element) right behind the Leader
-{
-    _formationElements pushBack [_x];
-    _allSubordinateGroups pushBack _x;
-} forEach _hqSubordinateGroups;
+// 4. Resolve subordinate combat squads (Squad 1, Squad 2, Squad 3, Squad 4 / Mortars)
+private _squadElementsMap = createHashMap; // Key: squad ID suffix (e.g. "SQD_1_1", "SQD_1_2") -> groups array
+private _mortarElements = [];
 
 {
     private _sqdKey = _x;
-    // Exclude the Platoon HQ itself from the subordinate squad slots
     if (_sqdKey find "_0" < 0) then {
         private _sqdData = _parsedSquads get _sqdKey;
+        private _sqdName = _sqdData getOrDefault ["name", ""];
         private _squadGroup = _sqdData getOrDefault ["group", grpNull];
         private _tacticalTeams = _sqdData getOrDefault ["tacticalTeams", createHashMap];
 
         private _elementGroups = [];
-
         if (count _tacticalTeams > 0) then {
-            // Sort teams so Team 1 (Squad Leader / Point) is at index 0, followed by Team 2, 3, 4
             private _teamKeys = keys _tacticalTeams;
             _teamKeys sort true;
-
             {
                 private _tGrp = (_tacticalTeams get _x) getOrDefault ["group", grpNull];
-                if (!isNull _tGrp) then {
-                    _elementGroups pushBack _tGrp;
-                    _allSubordinateGroups pushBack _tGrp;
-                };
+                if (!isNull _tGrp) then { _elementGroups pushBack _tGrp; };
             } forEach _teamKeys;
         } else {
-            if (!isNull _squadGroup) then {
-                _elementGroups pushBack _squadGroup;
-                _allSubordinateGroups pushBack _squadGroup;
-            };
+            if (!isNull _squadGroup) then { _elementGroups pushBack _squadGroup; };
         };
 
         if (count _elementGroups > 0) then {
-            _formationElements pushBack _elementGroups;
+            private _isMortar = (toLower _sqdName) find "mortar" >= 0 || (toLower _sqdName) find "mortero" >= 0;
+            if (_isMortar && count _mortarElements == 0) then {
+                _mortarElements = _elementGroups;
+            };
+            _squadElementsMap set [_sqdKey, _elementGroups];
         };
     };
-} forEach _squadKeys;
+} forEach (keys _parsedSquads);
+
+// Initialize 13 macro formation slots (Slots 0 to 12)
+private _slottedElements = [[], [], [], [], [], [], [], [], [], [], [], [], []];
+
+// Query active doctrine custom slot overrides (Method 2 data template hook)
+// Checks platoon-level pre-resolved formationSlots (from fn_applyDoctrine) or raw doctrine data
+private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+if (count _formationSlotsMap == 0) then {
+    private _activeDocData = FTCS_Company_Data getOrDefault ["activeDoctrineData", createHashMap];
+    private _rawOverrides = _activeDocData getOrDefault ["platoonFormationSlots", createHashMap];
+    {
+        private _sIdx = _x;
+        private _tPattern = _y;
+        private _resolvedVal = if (_tPattern find "SQD_X_" == 0) then {
+            format ["SQD_%1_%2", _pltIdx, _tPattern select [6]]
+        } else {
+            _tPattern
+        };
+        _formationSlotsMap set [_sIdx, _resolvedVal];
+    } forEach _rawOverrides;
+};
+
+// Default deterministic assignment:
+// Slot 0: 1st Rifle Squad (SQD_X_1)
+private _sqd1Key = format ["SQD_%1_1", _pltIdx];
+if (_sqd1Key in _squadElementsMap) then { _slottedElements set [0, _squadElementsMap get _sqd1Key]; };
+
+// Slot 1: 2nd Rifle Squad (SQD_X_2)
+private _sqd2Key = format ["SQD_%1_2", _pltIdx];
+if (_sqd2Key in _squadElementsMap) then { _slottedElements set [1, _squadElementsMap get _sqd2Key]; };
+
+// Slot 2: 3rd Rifle Squad (SQD_X_3)
+private _sqd3Key = format ["SQD_%1_3", _pltIdx];
+if (_sqd3Key in _squadElementsMap) then { _slottedElements set [2, _squadElementsMap get _sqd3Key]; };
+
+// Slot 3: 4th Squad (SQD_X_4) or Mortar / Heavy Weapons section
+private _sqd4Key = format ["SQD_%1_4", _pltIdx];
+if (_sqd4Key in _squadElementsMap) then {
+    _slottedElements set [3, _squadElementsMap get _sqd4Key];
+} else {
+    if (count _mortarElements > 0) then {
+        _slottedElements set [3, _mortarElements];
+    };
+};
+
+// Slot 4: Platoon Sergeant & Support Element (Team 2)
+if (!isNull _team2Grp) then { _slottedElements set [4, [_team2Grp]]; };
+
+// Slot 9: Company HQ Command Group Attachments (Team 1 escort / runners / RTO)
+if (!isNull _team1Grp) then { _slottedElements set [9, [_team1Grp]]; };
+
+// Slot 10: Additional HQ liaison / company messenger attachments
+if (count _extraHqGrps > 0) then { _slottedElements set [10, [_extraHqGrps select 0]]; };
+
+// Apply pre-configured formation slots from doctrine if defined
+{
+    private _slotIdx = _x;
+    private _resolvedKey = _y; // e.g. "SQD_1_1", "SQD_1_0_TEAM_2"
+    if (_slotIdx >= 0 && _slotIdx < 13) then {
+        if (_resolvedKey in _squadElementsMap) then {
+            _slottedElements set [_slotIdx, _squadElementsMap get _resolvedKey];
+        };
+    };
+} forEach _formationSlotsMap;
+
+// Gather all active subordinate groups participating in formation navigation
+private _allSubordinateGroups = [];
+{
+    {
+        if (!isNull _x && {!(_x in _allSubordinateGroups)}) then {
+            _allSubordinateGroups pushBack _x;
+        };
+    } forEach _x;
+} forEach _slottedElements;
+
+// Build final formation elements list: Index 0 is strictly Leader Group [X], followed by Slots 0 to 12
+private _formationElements = [[_leaderGroup]] + _slottedElements;
 // 5. Two-tier formation geometry calculation:
 // Set platoon advance direction strictly to the leader's current heading at the moment the formation order is issued
 private _advanceDir = getDir _platoonLeaderUnit;
+missionNamespace setVariable ["FTCS_Platoon_Fixed_Abs_Dir", _advanceDir];
 missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", _advanceDir];
 missionNamespace setVariable ["FTCS_Last_Commander_Dir", _advanceDir];
 
@@ -158,9 +242,9 @@ missionNamespace setVariable ["FTCS_Last_Commander_Dir", _advanceDir];
 systemChat format ["[FORMATION ANCHOR SLOT 0] %1 -> (Heading %2° | Leader: %3)", groupId _leaderGroup, round _advanceDir, name (leader _leaderGroup)];
 _leaderGroup setGroupIconParams [[0.55, 0.55, 0.55, 1.0], format ["[Slot 0 Anchor] %1", groupId _leaderGroup], 1.0, true];
 
-// FTCS_fnc_formationsTypePlatoonSet calculates macro platoon slots (0 to 11)
+// FTCS_fnc_formationsTypePlatoonSet calculates macro platoon slots (0 to 12)
 // and recursively calls FTCS_fnc_formationsTypeSquadSet for internal squad teams
-private _followerGroups = [_formationElements, _formationType, _separationDistance] call FTCS_fnc_formationsTypePlatoonSet;
+private _followerGroups = [_formationElements, _formationType, _separationDistance, _squadFormationsOverride] call FTCS_fnc_formationsTypePlatoonSet;
 
 // 6. Launch concurrent follow-commander movement threads for all subordinate groups
 if (count _allSubordinateGroups > 0) then {
@@ -185,29 +269,8 @@ _arrowMarker setMarkerDirLocal _advanceDir;
 _arrowMarker setMarkerSizeLocal [1.2, 1.8];
 _arrowMarker setMarkerTextLocal format [" %1 (%2 - %3°)", _pltData getOrDefault ["name", _pltKey], _formationType, round _advanceDir];
 
-// 8. Debug slot markers on map (Active when FTCS_Debug_Mode is true)
-private _isDebug = missionNamespace getVariable ["FTCS_Debug_Mode", false];
-if (_isDebug) then {
-    {
-        private _slotDist = _x select 0;
-        private _slotBearing = _x select 1;
-        private _slotGrp = if (count _x > 2) then { _x select 2 } else { grpNull };
-        private _slotPos = _anchorPos getPos [_slotDist, _advanceDir + _slotBearing];
-
-        private _dotName = format ["FTCS_DEBUG_SLOT_%1_%2", _forEachIndex, round time];
-        private _dot = createMarkerLocal [_dotName, _slotPos];
-        _dot setMarkerTypeLocal "mil_dot";
-        if (!isNull _slotGrp) then {
-            _dot setMarkerColorLocal "ColorOrange";
-            _dot setMarkerSizeLocal [0.8, 0.8];
-            _dot setMarkerTextLocal format [" (Slot %1)", _forEachIndex];
-        } else {
-            // Theoretical unassigned slot position
-            _dot setMarkerColorLocal "ColorYellow";
-            _dot setMarkerSizeLocal [0.5, 0.5];
-            _dot setMarkerTextLocal format [" (Slot %1)", _forEachIndex];
-        };
-    } forEach Platoon_Formation_Position_List;
-};
+// 8. Launch real-time dynamic formation slots visualizer on map
+missionNamespace setVariable ["FTCS_Debug_Mode", true];
+[_platoonLeaderUnit] spawn FTCS_fnc_formationsLiveSlotsDebugWorker;
 
 true;

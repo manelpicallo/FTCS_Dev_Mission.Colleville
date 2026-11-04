@@ -29,26 +29,8 @@ if (_mode == "FOLLOWING_COMMANDER_ABS") then
             private _leader_formation = leader _refGroup;
             if (!isNull _leader_formation) then 
             {
-                // Retrieve original relative geometry from formationPosition
-                private _formPos = [ _curGroupId, "formationPosition" ] call FTCS_fnc_registryGet;
-                if (isNil "_formPos" || {!(_formPos isEqualType [])} || {count _formPos < 2}) then {
-                    _formPos = _relPos;
-                };
-
-                private _dist = if (!isNil "_formPos" && {_formPos isEqualType []} && {count _formPos > 0}) then { _formPos select 0 } else { 15 };
-                private _relAngle = if (!isNil "_formPos" && {_formPos isEqualType []} && {count _formPos > 1}) then { _formPos select 1 } else { 180 };
-
-                // Freeze absolute compass bearing (0-360) based on leader's heading at this moment
-                private _refDir = missionNamespace getVariable ["FTCS_Last_Commander_Dir", getDir _leader_formation];
-                private _absBearing = (_refDir + _relAngle) % 360;
-                if (_absBearing < 0) then { _absBearing = _absBearing + 360; };
-
-                // Store fixed compass bearing in relPosition so ABS getPos anchors to map grid
-                [ _curGroupId, "relPosition", [_dist, _absBearing, _refGroup] ] call FTCS_fnc_registrySet;
-
                 // Launch individual follow loop in ABS mode
                 [_curGroup, _mode, _leader_formation] spawn FTCS_fnc_formationsGroupDoFollowCommander;
-
                 [ _curGroupId, "movingMode", _mode ] call FTCS_fnc_registrySet;
             };
         };

@@ -1,4 +1,4 @@
-/*
+﻿/*
     File: fn_applyDoctrine.sqf
     Module: Ctrl_Doctrines
     Author: FTCS Team
@@ -78,6 +78,14 @@ if (_doctrineInput isEqualType "") then {
 FTCS_Config set ["activeDoctrine", _doctrineKey];
 FTCS_Config set ["companyLetter", _companyLetter];
 
+// Store active doctrine data map for runtime formation queries and slot overrides
+private _doctrineDataMap = if (_doctrineInput isEqualType createHashMap) then {
+    _doctrineInput
+} else {
+    [_doctrineKey] call FTCS_fnc_loadDoctrineData
+};
+FTCS_Company_Data set ["activeDoctrineData", _doctrineDataMap];
+
 // Robust retrieval supporting both key formats across different doctrines
 private _platoonNames = _doctrine getOrDefault ["platoons", _doctrine getOrDefault ["platoonNames", []]];
 private _squadsCount = _doctrine getOrDefault ["squadsPerPlatoon", 3];
@@ -96,6 +104,16 @@ private _teamRoles = _doctrine getOrDefault ["teamRoles", []];
 private _platoonHQStructure = _doctrine getOrDefault ["platoonHQTeamStructure", [
     ["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]],
     ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]]
+]];
+
+// Pre-configured macro formation slot allocations (Slots 0 to 12)
+private _platoonFormationSlots = _doctrine getOrDefault ["platoonFormationSlots", createHashMapFromArray [
+    [0, "SQD_X_1"],
+    [1, "SQD_X_2"],
+    [2, "SQD_X_3"],
+    [3, "SQD_X_4"],
+    [4, "SQD_X_0_TEAM_2"],
+    [9, "SQD_X_0_TEAM_1"]
 ]];
 
 // 2. Update Company Identifier in structural data
@@ -247,10 +265,20 @@ private _tacticalPlatoonIndex = 1;
             _squadsArray pushBack _squadId;
         };
 
+        // Resolve and pre-bind macro formation slots into this platoon's structural definition
+        private _resolvedFormationSlots = createHashMap;
+        {
+            private _slotNum = _x;
+            private _targetIdPattern = _y; // e.g. "SQD_X_1", "SQD_X_0_TEAM_2"
+            private _resolvedTargetId = if (_targetIdPattern find "SQD_X_" == 0) then { format ["SQD_%1_%2", _tacticalPlatoonIndex, _targetIdPattern select [6]] } else { _targetIdPattern };
+            _resolvedFormationSlots set [_slotNum, _resolvedTargetId];
+        } forEach _platoonFormationSlots;
+
         // Store generated platoon data (initialized in Phase 0: DEPLOYMENT / INSPECTION)
         _newPlatoonsMap set [_pltId, createHashMapFromArray [
             ["name", _pltName],
             ["squads", _squadsArray],
+            ["formationSlots", _resolvedFormationSlots],
             ["isMechanized", _isMechanized],
             ["transportAsset", _transportAsset],
             ["currentPhase", 0]

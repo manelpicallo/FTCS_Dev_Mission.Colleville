@@ -49,6 +49,9 @@
    - En `init.sqf` la diplomacia del motor (`setFriend`) debe garantizar cohesión interna y hostilidades históricas estrictas para evitar fuego amigo al desplegar facciones aliadas.
 13. **Sincronización Obligatoria de la Estructura de Menús (`FTCS_Menu_Structure_Reference`):**
    - La IA debe mirarse siempre el documento `FTCS_Menu_Structure_Reference` para que lo actualice obligatoriamente siempre que toque algo referente al tema de ese fichero, que son los menús e interfaces de comando, manteniendo rigurosamente el formato original del fichero con las modificaciones oportunas.
+14. **Aviso Obligatorio de Recompilación de `CfgFunctions` (`description.ext`):**
+   - Cuando la IA genere o cree una nueva función y la añada al fichero `description.ext` (o modifique las clases de `CfgFunctions`), es **estrictamente obligatorio avisar al programador al final de la respuesta** con una línea destacada y clara indicando que se ha añadido una nueva función.
+   - Debe advertirse explícitamente que es **imprescindible salir de la misión, pasar por el editor 3DEN y volver a entrar (o recargar)**, ya que un simple reinicio (*Restart*) in-game no recompila `description.ext` ni carga funciones nuevas en el motor de Arma 3.
 
 **Validación contra este documento:**
 
@@ -64,6 +67,7 @@
 - Si falta contexto (archivos, funciones relacionadas), pídelo en lugar de suponerlo.
 - Entrega el código completo de las funciones modificadas, no fragmentos con "..." que omitan partes.
 - Al final de cada respuesta, indica qué comentarios o esquemas ASCII has reescrito o eliminado y por qué. Si no has tocado ninguno, confírmalo.
+- Si has añadido o registrado alguna función nueva en `description.ext`, incluye OBLIGATORIAMENTE una línea destacada de aviso indicando al programador que se ha añadido una nueva función y que debe salir al editor 3DEN y volver a entrar a la misión para que el motor recompile `CfgFunctions`.
 - Responde en español; el código y sus comentarios, en inglés.
 
 ---

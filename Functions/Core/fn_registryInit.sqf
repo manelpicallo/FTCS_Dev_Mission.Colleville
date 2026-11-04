@@ -28,7 +28,7 @@
 // ---------------------------------------------------------------------------
 
 FTCS_Pace_Soldiers = 5;
-FTCS_Platoon_MAX_Infantry_Groups = 13;
+FTCS_Platoon_MAX_Infantry_Groups = 14;
 FTCS_Squad_MAX_Infantry_Groups = 5;
 
 // Global debug mode sentinel (Controls visual telemetry and map slot markers)
@@ -113,6 +113,7 @@ private _registeredCount = 0;
         };
     };
     private _leaderRef = if (isNull _pltHqGroup) then { FTCS_Group_Commander } else { _pltHqGroup };
+    private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
 
     private _slot = 0;
 
@@ -121,22 +122,38 @@ private _registeredCount = 0;
         private _sqdData = _y;
         private _isUnified = _sqdData getOrDefault ["isUnified", false];
 
+        // Resolve pre-assigned formation slot for this squad from the doctrine definition
+        private _preassignedSlot = -1;
+        {
+            if (_y == _sqdId) exitWith { _preassignedSlot = _x; };
+        } forEach _formationSlotsMap;
+        if (_preassignedSlot < 0) then { _preassignedSlot = _slot; };
+
         // Collect every Arma 3 group belonging to this squad element (including HQ sub-teams)
         private _squadGroups = [];
         private _teamsContainer = _sqdData getOrDefault ["teams", _sqdData getOrDefault ["tacticalTeams", createHashMap]];
 
         if (count _teamsContainer > 0) then {
             {
+                private _teamId = _x;
                 private _teamGroup = (_y) getOrDefault ["group", grpNull];
-                if (!isNull _teamGroup) then { _squadGroups pushBack _teamGroup; };
+                if (!isNull _teamGroup) then {
+                    // Check if the specific sub-team has its own formation slot (e.g. SQD_1_0_TEAM_2 -> Slot 4)
+                    private _teamSlot = _preassignedSlot;
+                    {
+                        if (_y == _teamId) exitWith { _teamSlot = _x; };
+                    } forEach _formationSlotsMap;
+                    _squadGroups pushBack [_teamGroup, _teamSlot];
+                };
             } forEach _teamsContainer;
         } else {
             private _grp = _sqdData getOrDefault ["group", grpNull];
-            if (!isNull _grp) then { _squadGroups pushBack _grp; };
+            if (!isNull _grp) then { _squadGroups pushBack [_grp, _preassignedSlot]; };
         };
 
         {
-            private _group = _x;
+            private _group = _x select 0;
+            private _groupSlot = _x select 1;
             private _groupID = groupId _group;
 
             // Skip already registered groups (idempotent initialization)
@@ -149,7 +166,7 @@ private _registeredCount = 0;
                     ["roe", "FIRE_IF_FIRED_UPON"],
                     ["task", "AT_WILL"],
                     ["formationType", "COLUMN"],
-                    ["allocationSlot", _slot],
+                    ["allocationSlot", _groupSlot],
                     ["formationPosition", [-1, -1, _leaderRef]],
                     ["relPosition", [-1, -1, _leaderRef]]
                 ]];
@@ -209,10 +226,10 @@ private _registeredCount = 0;
 } forEach (FTCS_Company_Data getOrDefault ["unassignedGroups", []]);
 
 // ---------------------------------------------------------------------------
-// 6. Platoon-level formation geometry buffer (13 slots: commander + 0..11)
+// 6. Platoon-level formation geometry buffer (14 slots: commander + 0..12)
 // ---------------------------------------------------------------------------
 
-Platoon_Formation_Position_List = [[], [], [], [], [], [], [], [], [], [], [], [], []];
+Platoon_Formation_Position_List = [[], [], [], [], [], [], [], [], [], [], [], [], [], []];
 
 diag_log format ["FTCS: Master Group Registry initialized (%1 groups registered).", _registeredCount];
 true;

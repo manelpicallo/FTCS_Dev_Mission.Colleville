@@ -80,6 +80,7 @@ private _leaderGroup = group _platoonLeaderUnit;
 
 // Update global advance direction strictly from leader's current heading
 private _advanceDir = getDir _platoonLeaderUnit;
+missionNamespace setVariable ["FTCS_Platoon_Fixed_Abs_Dir", _advanceDir];
 missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", _advanceDir];
 missionNamespace setVariable ["FTCS_Last_Commander_Dir", _advanceDir];
 
@@ -201,24 +202,11 @@ _arrowMarker setMarkerDirLocal _advanceDir;
 _arrowMarker setMarkerSizeLocal [1.2, 1.8];
 _arrowMarker setMarkerTextLocal format [" %1 (Ground Locked - %2°)", _pltName, round _advanceDir];
 
-// Debug slot markers on map (Active when FTCS_Debug_Mode is true)
-private _isDebug = missionNamespace getVariable ["FTCS_Debug_Mode", false];
-if (_isDebug) then {
-    {
-        private _slotDist = _x select 0;
-        private _slotBearing = _x select 1;
-        private _slotPos = _anchorPos getPos [_slotDist, _advanceDir + _slotBearing];
+// 8. Launch real-time dynamic formation slots visualizer on map
+missionNamespace setVariable ["FTCS_Debug_Mode", true];
+[_platoonLeaderUnit] spawn FTCS_fnc_formationsLiveSlotsDebugWorker;
 
-        private _dotName = format ["FTCS_DEBUG_SLOT_%1_%2", _forEachIndex, round time];
-        private _dot = createMarkerLocal [_dotName, _slotPos];
-        _dot setMarkerTypeLocal "mil_dot";
-        _dot setMarkerColorLocal "ColorOrange";
-        _dot setMarkerSizeLocal [0.8, 0.8];
-        _dot setMarkerTextLocal format [" (Slot %1)", _forEachIndex];
-    } forEach Platoon_Formation_Position_List;
-};
-
-// 8. Player feedback
+// 9. Player feedback
 private _modeLabel = if (_isRelative) then { "Relative" } else { "Absolute" };
 systemChat format ["[FORMATION LOCKED] %1 formation geometry anchored to current real-world ground layout (%2 mode).", _pltName, _modeLabel];
 hint parseText format ["<t color='#00FFCC'>[GROUND LAYOUT LOCKED]</t><br/><t color='#FFFFFF'>%1</t><br/><t color='#FFAA00'>Mode:</t> %2<br/><t color='#AAAAAA'>Positions and relative bearings captured from active terrain coordinates.", _pltName, _modeLabel];

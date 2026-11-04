@@ -61,6 +61,7 @@ class CfgFunctions
             class formationsGroupListFollowCommander {};
             class formationsSetAdvanceDirection {};
             class formationsApplyPlatoonOrder {};
+            class formationsLiveSlotsDebugWorker {};
         };
 
         class Interactions

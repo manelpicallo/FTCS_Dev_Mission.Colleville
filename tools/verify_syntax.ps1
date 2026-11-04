@@ -21,6 +21,7 @@ $files = @(
     "Functions\Formations\fn_formationsGroupListFollowCommander.sqf",
     "Functions\Formations\fn_formationsPaceSquadGet.sqf",
     "Functions\Formations\fn_formationsCurrentPositionSet.sqf",
+    "Functions\Formations\fn_formationsLiveSlotsDebugWorker.sqf",
     "Functions\Core\fn_registryInit.sqf",
     "Functions\Groups\fn_groupSetAwareMode.sqf",
     "Functions\Groups\fn_groupSetStance.sqf",

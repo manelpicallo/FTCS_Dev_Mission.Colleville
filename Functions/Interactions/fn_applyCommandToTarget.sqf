@@ -192,10 +192,14 @@ switch (_commandCode) do {
     // =========================================================================
     // 2. FASE 1: PLATOON FORMATIONS & MARCH CONTROL
     // =========================================================================
-    case "PLT_FORM_FILE";
     case "PLT_FORM_COLUMN": {
-        [_targetUnit, "FILE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
-        systemChat "[PLATOON ORDER] Platoon Formation set to FILE (Trail / Road March).";
+        [_targetUnit, "COLUMN", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        systemChat "[PLATOON ORDER] Platoon Formation set to COLUMN (Trail / Road March).";
+    };
+    case "PLT_FORM_FILE": {
+        // Reserved for special terrain / single file march (Road / Dense Vegetation)
+        [_targetUnit, "COLUMN", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        systemChat "[PLATOON ORDER] Platoon Formation set to FILE (Single File / Narrow Trail).";
     };
     case "PLT_FORM_WEDGE": {
         [_targetUnit, "WEDGE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
@@ -248,7 +252,23 @@ switch (_commandCode) do {
         (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "1"];
         (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"];
         
+        // Ensure absolute formation heading is locked to current leader heading if not already set
+        private _ldr = if (!isNull _targetUnit) then { _targetUnit } else { player };
+        if (isNil {missionNamespace getVariable "FTCS_Platoon_Fixed_Abs_Dir"}) then {
+            missionNamespace setVariable ["FTCS_Platoon_Fixed_Abs_Dir", getDir _ldr];
+        };
+        
         private _squads = call _fnc_getAllPlatoonSquads;
+
+        // Ensure relative formation geometry is clean in relPosition
+        {
+            private _gId = groupId _x;
+            private _formPos = [_gId, "formationPosition"] call FTCS_fnc_registryGet;
+            if (!isNil "_formPos" && {_formPos isEqualType []}) then {
+                [_gId, "relPosition", +_formPos] call FTCS_fnc_registrySet;
+            };
+        } forEach _squads;
+
         if (count _squads > 0) then {
             [_squads, "FOLLOWING_COMMANDER_ABS"] spawn FTCS_fnc_formationsGroupListFollowCommander;
         };
@@ -328,28 +348,81 @@ switch (_commandCode) do {
     // =========================================================================
     // 3. FASE 1: SQUAD BASE FORMATIONS & PACE
     // =========================================================================
-    case "SQD_FORM_COLUMN": {
-        if (!isNull _targetGroup) then {
-            _targetGroup setFormation "COLUMN";
-            systemChat format ["[SQUAD ORDER] %1: Formation set to COLUMN.", _targetRole];
-        };
-    };
-    case "SQD_FORM_LINE": {
-        if (!isNull _targetGroup) then {
-            _targetGroup setFormation "LINE";
-            systemChat format ["[SQUAD ORDER] %1: Formation set to LINE.", _targetRole];
-        };
-    };
-    case "SQD_FORM_FILE": {
-        if (!isNull _targetGroup) then {
-            _targetGroup setFormation "FILE";
-            systemChat format ["[SQUAD ORDER] %1: Formation set to FILE.", _targetRole];
-        };
-    };
+    case "SQD_FORM_COLUMN";
+    case "SQD_FORM_LINE";
+    case "SQD_FORM_FILE";
     case "SQD_FORM_WEDGE": {
+        private _sqdFormType = switch (_commandCode) do {
+            case "SQD_FORM_COLUMN": { "COLUMN" };
+            case "SQD_FORM_LINE":   { "LINE" };
+            case "SQD_FORM_FILE":   { "FILE" };
+            case "SQD_FORM_WEDGE":  { "WEDGE" };
+            default { "COLUMN" };
+        };
+
         if (!isNull _targetGroup) then {
-            _targetGroup setFormation "WEDGE";
-            systemChat format ["[SQUAD ORDER] %1: Formation set to WEDGE.", _targetRole];
+            private _tGrpId = groupId _targetGroup;
+
+            // 1. Resolve platoon and squad key
+            private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+            private _pltKey = format ["PLT_%1", _pltId];
+            private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+            private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+            private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+
+            // Locate squad entry corresponding to targetGroup
+            private _targetSquadData = createHashMap;
+            private _targetSquadId = "";
+            {
+                private _sId = _x;
+                private _sData = _y;
+                private _grp = _sData getOrDefault ["group", grpNull];
+                private _teams = _sData getOrDefault ["tacticalTeams", createHashMap];
+
+                if (_grp == _targetGroup) exitWith {
+                    _targetSquadData = _sData;
+                    _targetSquadId = _sId;
+                };
+
+                private _foundTeam = false;
+                {
+                    if ((_y getOrDefault ["group", grpNull]) == _targetGroup) exitWith {
+                        _foundTeam = true;
+                    };
+                } forEach _teams;
+
+                if (_foundTeam) exitWith {
+                    _targetSquadData = _sData;
+                    _targetSquadId = _sId;
+                };
+            } forEach _parsedSquads;
+
+            // 2. Gather squad elements (Team 1, 2, 3, 4) or unified group
+            private _squadElements = [];
+            private _tacticalTeams = _targetSquadData getOrDefault ["tacticalTeams", createHashMap];
+            if (count _tacticalTeams > 0) then {
+                private _teamKeys = keys _tacticalTeams;
+                _teamKeys sort true;
+                {
+                    private _tGrp = (_tacticalTeams get _x) getOrDefault ["group", grpNull];
+                    if (!isNull _tGrp) then { _squadElements pushBack _tGrp; };
+                } forEach _teamKeys;
+            } else {
+                private _grp = _targetSquadData getOrDefault ["group", _targetGroup];
+                if (!isNull _grp) then { _squadElements pushBack _grp; };
+            };
+
+            // 3. Persist manual formation choice into registry
+            [_tGrpId, "formationType", _sqdFormType] call FTCS_fnc_registrySet;
+
+            // 4. Trigger recursive squad formation calculation
+            if (count _squadElements > 1) then {
+                [_squadElements, _sqdFormType, 4, 0] call FTCS_fnc_formationsTypeSquadSet;
+            } else {
+                _targetGroup setFormation _sqdFormType;
+            };
+
+            systemChat format ["[SQUAD DIRECTIVE] %1: Local formation deployed into %2.", _targetRole, _sqdFormType];
         };
     };
     case "SQD_PACE_NORMAL": {

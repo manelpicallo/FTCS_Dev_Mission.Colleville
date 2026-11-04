@@ -88,12 +88,12 @@ FTCS_MENU_SquadStance_Common = [
 // 1.1 Platoon Formations Submenu (Phase 1 & Phase 2) - [ACTIVE]
 FTCS_MENU_PlatoonFormations_P1 = [
     ["Platoon Formations", false],
-    ["1. Platoon File (Dense Vegetation / Narrow)", [2], "", -5, [["expression", "['PLT_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["1. Platoon Column (Trail / Road March)", [2], "", -5, [["expression", "['PLT_FORM_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["2. Platoon Wedge (Security / Cross-country)", [3], "", -5, [["expression", "['PLT_FORM_WEDGE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["3. Platoon Vee (Flexible Front)", [4], "", -5, [["expression", "['PLT_FORM_VEE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["4. Platoon Line (Full Frontage Assault)", [5], "", -5, [["expression", "['PLT_FORM_LINE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["5. Platoon Diamond (All-Round Security / Open)", [6], "", -5, [["expression", "['PLT_FORM_DIAMOND'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["6. Platoon Column (Trail / Road)", [7], "", -5, [["expression", "['PLT_FORM_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["6. Platoon File (Dense Vegetation / Narrow Trail)", [7], "", -5, [["expression", "['PLT_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
     ["7. Adopt Ground Layout (Lock Positions)", [8], "", -5, [["expression", "['PLT_FORM_LOCK_GROUND'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["8. Follow Mode: Relative (Turn with Leader)", [9], "", -5, [["expression", "['PLT_MODE_RELATIVE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
     ["9. Follow Mode: Absolute (Fixed Compass)", [10], "", -5, [["expression", "['PLT_MODE_ABSOLUTE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
@@ -135,13 +135,13 @@ FTCS_MENU_Sgt_Phase1 = [
     ["7. Platoon Readiness SITREP", [8], "", -5, [["expression", "['PLT_SITREP'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"]
 ];
 
-// 1.6 Squad Formations Submenu (Phase 1) - [DISABLED]
+// 1.6 Squad Formations Submenu (Phase 1) - [ACTIVE]
 FTCS_MENU_SquadFormations_P1 = [
     ["Squad Formations", false],
-    ["1. Squad Column", [2], "", -5, [["expression", "['SQD_FORM_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["2. Squad Line", [3], "", -5, [["expression", "['SQD_FORM_LINE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["3. Squad File", [4], "", -5, [["expression", "['SQD_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["4. Squad Wedge", [5], "", -5, [["expression", "['SQD_FORM_WEDGE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"]
+    ["1. Squad Column", [2], "", -5, [["expression", "['SQD_FORM_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["2. Squad Line", [3], "", -5, [["expression", "['SQD_FORM_LINE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["3. Squad File", [4], "", -5, [["expression", "['SQD_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["4. Squad Wedge", [5], "", -5, [["expression", "['SQD_FORM_WEDGE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
 ];
 
 // 1.7 Squad Pace & Spacing Submenu (Phase 1) - [DISABLED]
@@ -153,10 +153,10 @@ FTCS_MENU_SquadPace_P1 = [
     ["4. Open Interval (10m Spacing)", [5], "", -5, [["expression", "['SQD_SPACING_OPEN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"]
 ];
 
-// 1.8 Master Squad Leader Menu (Phase 1: Approach) - [DISABLED]
+// 1.8 Master Squad Leader Menu (Phase 1: Approach) - [ACTIVE]
 FTCS_MENU_Squad_Phase1 = [
     ["Squad Directives (Phase 1: Approach)", false],
-    ["1. Squad Formations", [2], "#USER:FTCS_MENU_SquadFormations_P1", -5, [["expression", ""]], "1", "0"],
+    ["1. Squad Formations", [2], "#USER:FTCS_MENU_SquadFormations_P1", -5, [["expression", ""]], "1", "1"],
     ["2. March Pace & Spacing", [3], "#USER:FTCS_MENU_SquadPace_P1", -5, [["expression", ""]], "1", "0"],
     ["3. Tactical Stance", [4], "#USER:FTCS_MENU_SquadStance_Common", -5, [["expression", ""]], "1", "0"],
     ["4. Follow Commander", [5], "", -5, [["expression", "['TASK_FOLLOW_COMMANDER'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],

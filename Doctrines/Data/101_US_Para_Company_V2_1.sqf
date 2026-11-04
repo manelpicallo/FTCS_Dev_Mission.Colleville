@@ -39,6 +39,36 @@ createHashMapFromArray [
     ]],
     ["teamStructure", ["Rifle Team A", "Scout Team", "Rifle Team B", "BAR Support Team"]],
     ["teamRoles", ["ASSAULT", "ASSAULT", "ASSAULT", "SUPPORT"]],
+
+    // =========================================================================
+    // PLATOON FORMATION MACRO SLOTS ALLOCATION (Slots 0 to 12)
+    // =========================================================================
+    // Maps subordinate platoon elements into macro tactical formation slots.
+    // The Platoon Leader (Lieutenant) always acts as the central anchor [X].
+    //
+    //   - Slots 0, 1, 2 : Primary combat rifle squads (Vanguard/Center, Left Wing, Right Wing).
+    //   - Slot 3        : 4th Rifle Squad or Heavy Weapons / Mortar Section.
+    //   - Slot 4        : Platoon Sergeant & Support Element (Mid-rear position).
+    //   - Slot 5        : Deep Rear Reserve / Tail Security.
+    //   - Slots 6, 7, 8 : Forward Advanced Scout screens.
+    //   - Slots 9, 10   : Attached HQ Command Group (Messengers, Medical Aid, Liaison).
+    //   - Slots 11, 12  : Extended outer flank security.
+    // =========================================================================
+    ["platoonFormationSlots", createHashMapFromArray [
+        [0, "SQD_X_1"],
+        [1, "SQD_X_2"],
+        [2, "SQD_X_3"],
+        [3, "SQD_X_4"],
+        [4, "SQD_X_0_TEAM_2"],
+        [9, "SQD_X_0_TEAM_1"]
+    ]],
+
+    // =========================================================================
+    // SQUAD FORMATIONS PER PLATOON FORMATION ORDER
+    // =========================================================================
+    // Defines what local formation each squad takes under a given platoon order.
+    // e.g. In Platoon LINE, rifle squads (0, 1, 2) deploy in LINE abreast,
+    // while mortars/weapons (3) maintain COLUMN march posture.
     ["entities", [
         ["SPE_US_101AB_CO", [0, 0, 0], 0, "HQ_CO_CAPTAIN", "SQUAD_0_0", "CAPTAIN", false],
         ["SPE_US_101AB_CO", [0, -2, 0], 0, "HQ_XO_LIEUTENANT", "SQUAD_0_0", "LIEUTENANT", false],
