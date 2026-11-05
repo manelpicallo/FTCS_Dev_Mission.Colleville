@@ -17,8 +17,9 @@
                    (mid-rear tactical position).
                  - Slot 5: Deep rear reserve and tail security element.
                  - Slots 6, 7, 8: Advanced scout screens.
-                 - Slots 9, 10: Dedicated to Company HQ Command Group Attachments (runners/messengers,
+                 - Slot 9: Dedicated to Company HQ Command Group Attachments (runners/messengers,
                    medical corpsmen, and direct-support specialists) operating in close proximity to Leader.
+                 - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide (Tactical Guide and rear/flank anchor).
                  - Slots 11, 12: Extended outer flank guards and peripheral security elements.
     Compatibility: Arma 3 (SQF) | Designed for 1:1 Enfusion Engine (Arma 4) port.
     ================================================================================
@@ -112,13 +113,14 @@ switch (_formation_type) do {
             - Slot 3: Dedicated to a 4th main rifle squad (when present in certain doctrines)
               or an additional weapons section (mortars or heavy machine guns).
             - Slot 4: Dedicated to the Platoon Sergeant and accompanying support/escort troops.
-            - Slots 9, 10: Dedicated to Company HQ Command Group Attachments (runners/messengers,
-              medical support, or direct specialists operating adjacent to Leader).
+            - Slot 9: Dedicated to Company HQ Command Group Attachments (runners/messengers/medics).
+            - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide.
 
             COLUMN Layout (Platoon Level - WWII Road/Trail March):
             [X]   = Platoon Leader / Commander (Anchor point in vanguard)
             6,7,8 = Forward Advanced Scout Screen (Ahead of Leader)
-            9,10  = Company HQ Command Group Attachments (Flanking Leader)
+            9     = HQ Command Attachment Left
+            10    = Platoon Sergeant / Platoon Guide (Flanking Leader Right)
             0     = 1st Rifle Squad (Directly behind Leader [X] and 9-10)
             4     = Platoon Sergeant & Support (Directly behind Slot 0, between 0 and 1)
             1     = 2nd Rifle Squad (Following behind Platoon Sergeant)
@@ -130,7 +132,7 @@ switch (_formation_type) do {
                       7 ----- 6 ----- 8  <-- Forward Scouts Screen
                               |
                              [X]         <-- Platoon Leader
-                           9 -|- 10      <-- HQ Command Attachments
+                           9 -|- 10      <-- 9: HQ Attach | 10: Platoon Guide
                               0          <-- 1st Rifle Squad
                               |
                               4          <-- Platoon Sergeant & Support
@@ -224,38 +226,33 @@ switch (_formation_type) do {
             - Slot 3: Dedicated to a 4th main rifle squad (when present in certain doctrines)
               or an additional weapons section (mortars or heavy machine guns).
             - Slot 4: Dedicated to the Platoon Sergeant and accompanying support/escort troops.
-            - Slots 9, 10: Dedicated to Company HQ Command Group Attachments (runners/messengers,
-              medical support, or direct specialists operating adjacent to Leader).
+            - Slot 9: Dedicated to Company HQ Command Group Attachment Left.
+            - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide (Tactical Guide).
 
             LINE Layout (Platoon Level - Assault Line with Leader & Scouts in Vanguard):
             [X]     = Platoon Leader / Commander (Anchor point in vanguard, 5m ahead of Slot 0)
-            9,10    = Company HQ Command Group Attachments (Flanking Leader [X])
-            6,7,8   = Forward Advanced Scouts Screen (20m ahead of Leader)
-            1,0,2   = Main Assault Line (0 centered 5m behind Leader, 1 on left, 2 on right)
-            4       = Platoon Sergeant & Support (Retreat behind front line, centered between Slot 1 and 0)
-            3       = Rear Reserve Line (Directly behind Slot 0)
-            5       = Deep Rear Reserve / Tail Security (Behind Slot 3)
-            11,12   = Outer Wings / Flank Protection (11 laterally aligned with 7, 12 aligned with 8)
+            9       = Company HQ Command Group Attachment Left (Flanking Leader [X])
+            6,7,8   = Forward Advanced Scouts Screen (45m ahead of Leader, 7 & 8 opened +5m wider)
+            11,1,0,2,12 = Main Assault Line (0 center, 1 left, 2 right; 11 & 12 extended 55m outer wings, abreast with 0, 1, 2)
+            4       = Platoon Sergeant & Support (Centered halfway between Slot 1 and Slot 0)
+            10      = Platoon Sergeant / Platoon Guide (Centered halfway between Slot 0 and Slot 2, abreast with 4)
+            3       = 4th Squad / Weapons Section (Aligned centrally with Slot 0, 5m behind Slot 4)
+            5       = Deep Rear Reserve / Tail Security (Behind Slot 3, aligned on central axis with Slot 0)
 
-                              7               6               8  <-- Advanced Scouts (+20m)
+                              7               6               8  <-- Advanced Scouts (+45m, wider +5m)
                               |               |               |
                                              [X]                 <-- Platoon Leader
-                                           9 -|- 10              <-- HQ Command Attachments
+                                           9 -|-                 <-- HQ Command Attachment
                                               |               
-                         1 (Squad Left) ----- 0 (Center) ----- 2 (Squad Right)
+   11 (55m out from 1) -- 1 (Squad Left) --- 0 (Center) --- 2 (Squad Right) -- 12 (55m out from 2)
+                                   |                     |
+                                   4 (Halfway 1 and 0)  10 (Platoon Guide)
                                               |
-                                              4                        <-- Platoon Sergeant (between 1 and 0)
-                                              |
-                       11 (Aligned with 7) -- 3 -------------------- 12 (Aligned with 8)
+                                              3 (Aligned with 0, 5m behind 4)
                                               |
                                               5 (Deep Reserve)
         */
-        // Slots 9 & 10: Company HQ Command Group Attachments (Flanking Platoon Leader [X])
-        private _separate_lat_10 = 2;
-        private _separate_long_10 = 2;
-        _direction_10 = (_leader getRelDir ((_leader getRelPos [_separate_lat_10, 90]) getPos [_separate_long_10, (getDir _leader) - 180]));
-        _separate_dis_10 = _leader distance2D ((_leader getRelPos [_separate_lat_10, 90]) getpos [_separate_long_10, (getDir _leader) - 180]);
-
+        // Slot 9: Company HQ Command Group Attachment (Flanking Platoon Leader [X] on the left)
         private _separate_lat_9 = 2;
         private _separate_long_9 = 2;
         _direction_9 = (_leader getRelDir ((_leader getRelPos [_separate_lat_9, 270]) getPos [_separate_long_9, (getDir _leader) - 180]));
@@ -277,40 +274,51 @@ switch (_formation_type) do {
         _direction_2 = _leader getRelDir _pos2;
         _separate_dis_2 = _leader distance2D _pos2;
 
-        // Slot 4: Platoon Sergeant & Support, positioned to the rear centered between Slot 1 and Slot 0
+        // Slot 4: Platoon Sergeant & Support, positioned to the rear centered exactly halfway between Slot 1 and Slot 0
         private _sep_lat_4 = _sep_lat_1 / 2;
         private _sep_long_4 = _separate_dis_0 + _separate_dis + (_paces_rear select 0);
         private _pos4 = ((_leader getRelPos [_sep_lat_4, 270]) getPos [_sep_long_4, (getDir _leader) - 180]);
         _direction_4 = _leader getRelDir _pos4;
         _separate_dis_4 = _leader distance2D _pos4;
 
-        // Slot 3: Rear Reserve Line, directly behind Slot 0
+        // Slot 10: Platoon Sergeant / Platoon Guide, positioned centered halfway between Slot 0 and Slot 2 (abreast with Slot 4)
+        private _sep_lat_10 = _sep_lat_2 / 2;
+        private _sep_long_10 = _sep_long_4;
+        private _pos10 = ((_leader getRelPos [_sep_lat_10, 90]) getPos [_sep_long_10, (getDir _leader) - 180]);
+        _direction_10 = _leader getRelDir _pos10;
+        _separate_dis_10 = _leader distance2D _pos10;
+
+        // Slot 3: 4th Squad / Weapons Section, aligned centrally with Slot 0 and 5m behind Slot 4
         _direction_3 = 180;
-        _separate_dis_3 = _separate_dis_0 + _separate_dis + (_paces_rear select 0) + (_paces_front select 3);
+        _separate_dis_3 = _sep_long_4 + 5;
 
-        // Slot 5: Deep Rear Reserve / Tail, directly behind Slot 3
+        // Slot 5: Deep Rear Reserve / Tail, aligned on central axis with Slot 0 (behind Slot 3)
         _direction_5 = 180;
-        _separate_dis_5 = _separate_dis_3 + _separate_dis + (_paces_rear select 3) + (_paces_front select 5);
+        _separate_dis_5 = _separate_dis_3 + _separate_dis + (_paces_rear select 3) + (_paces_front select 5) + 15;
 
-        // Slots 6, 7 & 8: Forward Scouts Screen (approximately 20m ahead of Leader [X])
+        // Slots 6, 7 & 8: Forward Scouts Screen (advanced 45m ahead of Leader [X], +15m forward)
         _direction_6 = 0;
-        _separate_dis_6 = 20;
+        _separate_dis_6 = 45;
 
-        // Slot 7 & 8: Flanking lateral spread matching assault wings
-        private _pos7 = ((_leader getRelPos [_sep_lat_1, 270]) getPos [_separate_dis_6, getDir _leader]);
+        // Slot 7 & 8: Flanking lateral spread matching assault wings + 5m further out
+        private _sep_lat_7 = _sep_lat_1 + 5;
+        private _pos7 = ((_leader getRelPos [_sep_lat_7, 270]) getPos [_separate_dis_6, getDir _leader]);
         _direction_7 = _leader getRelDir _pos7;
         _separate_dis_7 = _leader distance2D _pos7;
 
-        private _pos8 = ((_leader getRelPos [_sep_lat_2, 90]) getPos [_separate_dis_6, getDir _leader]);
+        private _sep_lat_8 = _sep_lat_2 + 5;
+        private _pos8 = ((_leader getRelPos [_sep_lat_8, 90]) getPos [_separate_dis_6, getDir _leader]);
         _direction_8 = _leader getRelDir _pos8;
         _separate_dis_8 = _leader distance2D _pos8;
 
-        // Slots 11 & 12: Outer Wings / Flank Protection screens, laterally aligned with Slot 7 and Slot 8
-        private _pos11 = ((_leader getRelPos [_sep_lat_1, 270]) getPos [_separate_dis_3, (getDir _leader) - 180]);
+        // Slots 11 & 12: Outer Wings / Flank Protection screens, positioned 55m outward beyond Squad 1 and Squad 2 wings (+10m more, 55m total), aligned forward with the main assault line (abreast with Slots 0, 1 and 2)
+        private _sep_lat_11 = _sep_lat_1 + 55;
+        private _pos11 = ((_leader getRelPos [_sep_lat_11, 270]) getPos [_separate_dis_0, (getDir _leader) - 180]);
         _direction_11 = _leader getRelDir _pos11;
         _separate_dis_11 = _leader distance2D _pos11;
 
-        private _pos12 = ((_leader getRelPos [_sep_lat_2, 90]) getPos [_separate_dis_3, (getDir _leader) - 180]);
+        private _sep_lat_12 = _sep_lat_2 + 55;
+        private _pos12 = ((_leader getRelPos [_sep_lat_12, 90]) getPos [_separate_dis_0, (getDir _leader) - 180]);
         _direction_12 = _leader getRelDir _pos12;
         _separate_dis_12 = _leader distance2D _pos12;
     };
@@ -322,8 +330,8 @@ switch (_formation_type) do {
             - Slot 3: Dedicated to a 4th main rifle squad (when present in certain doctrines)
               or an additional weapons section (mortars or heavy machine guns).
             - Slot 4: Dedicated to the Platoon Sergeant and accompanying support/escort troops.
-            - Slots 9, 10: Dedicated to Company HQ Command Group Attachments (runners/messengers,
-              medical support, or direct specialists operating adjacent to Leader).
+            - Slot 9: Dedicated to Company HQ Command Group Attachment Left.
+            - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide.
 
             WEDGE Layout (Platoon Level - Arrowhead / V-Inverted):
             (0)     = Vanguard / Point Squad (Apex of Wedge, ahead of Leader)
@@ -333,7 +341,8 @@ switch (_formation_type) do {
             (4)     = Platoon Sergeant & Escort (Directly behind Slot 3, midway between 3 and 5)
             (5)     = Tail / Reserve Security Squad (Directly behind Slot 4, rearmost element)
             6,7,8   = Forward Scout Screens (Screening ahead of Point 0)
-            9,10    = Company HQ Command Group Attachments (Left / Right)
+            9       = Company HQ Command Group Attachment Left
+            10      = Platoon Sergeant / Platoon Guide (Flanking Leader Right)
             11,12   = Extended Outer Flank Guards (Central Axis Screen)
 
                       7 ----------- 6 ----------- 8  <-- Forward Scout Screen
@@ -341,7 +350,7 @@ switch (_formation_type) do {
                                   (0)                <-- Point / Vanguard Squad
                                    |
                                   [X]                <-- Platoon Leader Anchor
-                                 9-|-10              <-- HQ Command Attachments
+                                 9-|-10              <-- 9: HQ Attach | 10: Platoon Guide
                                   (3)                <-- Center Support Squad
                                .   |   .
                              (1)  (4)   (2)         <-- Flank Wings & Platoon Sergeant
@@ -409,8 +418,8 @@ switch (_formation_type) do {
             - Slot 3: Dedicated to a 4th main rifle squad (when present in certain doctrines)
               or an additional weapons section (mortars or heavy machine guns).
             - Slot 4: Dedicated to the Platoon Sergeant and accompanying support/escort troops.
-            - Slots 9, 10: Dedicated to Company HQ Command Group Attachments (runners/messengers,
-              medical support, or direct specialists operating adjacent to Leader).
+            - Slot 9: Dedicated to Company HQ Command Group Attachment Left.
+            - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide.
 
             VEE Layout (Platoon Level - V Shape / Wings Forward):
             1,2     = Left / Right Forward Spearhead Wings (Ahead of Leader)
@@ -421,7 +430,8 @@ switch (_formation_type) do {
             5       = Tail Security Squad (directly behind Slot 4)
             6       = Forward Advanced Scout Screen (35m forward)
             7, 8    = Front Flank Scouts / Security Screen (35m forward, ahead of 1 & 2)
-            9, 10   = Company HQ Command Group Attachments (Left / Right)
+            9       = Company HQ Command Group Attachment Left
+            10      = Platoon Sergeant / Platoon Guide (Flanking Leader Right)
             11,12   = Extended Outer Flank Guards (Central Axis Screen)
 
                       7 ----------- 6 ----------- 8  <-- Advanced Scout Screen (+35m)
@@ -431,7 +441,7 @@ switch (_formation_type) do {
                                   [X]                <-- Leader in the Pocket
                                    |
                                   (0)                <-- Slot 0 (5m behind Leader)
-                                 9-|-10              <-- HQ Command Attachments
+                                 9-|-10              <-- 9: HQ Attach | 10: Platoon Guide
             11 -------------------(3)------------------- 12
                                    |
                                   (4)                <-- Platoon Sergeant (between 3 and 5)
@@ -499,8 +509,8 @@ switch (_formation_type) do {
             - Slot 3: Dedicated to a 4th main rifle squad (when present in certain doctrines)
               or an additional weapons section (mortars or heavy machine guns).
             - Slot 4: Dedicated to the Platoon Sergeant and accompanying support/escort troops.
-            - Slots 9, 10: Dedicated to Company HQ Command Group Attachments (runners/messengers,
-              medical support, or direct specialists operating adjacent to Leader).
+            - Slot 9: Dedicated to Company HQ Command Group Attachment Left.
+            - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide.
 
             DIAMOND Layout (Platoon Level):
             [X]     = Platoon Leader / Commander (Anchor point & Center Axis)
@@ -511,7 +521,8 @@ switch (_formation_type) do {
             5       = Command Reserve / Tail
             6       = Forward Advanced Scout
             7, 8    = Outer Forward Screen
-            9, 10   = Company HQ Command Group Attachments (Left / Right)
+            9       = Company HQ Command Group Attachment Left
+            10      = Platoon Sergeant / Platoon Guide (Flanking Leader Right)
             11,12   = Extended Outer Flank Guards (Central Axis Screen)
 
                       7 ----------- 6 ----------- 8
@@ -520,7 +531,7 @@ switch (_formation_type) do {
                                .       .
                         (1)       [X]       (2)
             11 -----------+--------+--------+----------- 12
-                                 9-|-10              <-- HQ Command Attachments
+                                 9-|-10              <-- 9: HQ Attach | 10: Platoon Guide
                                   (3)
                                    |
                                   (4)

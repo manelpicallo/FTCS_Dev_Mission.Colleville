@@ -14,11 +14,16 @@ params ["_group", "_mode", "_leader"];
 
 if (isNull _group || isNull _leader) exitWith {};
 
+// Generate unique follow thread identifier to terminate any previous concurrent thread for this group
+private _threadID = round (time * 1000) + floor (random 1000);
+_group setVariable ["FTCS_FollowThread_ID", _threadID];
+
 private _groupID = groupId _group;
 private _not_able_time = 1;  
 private _timer = time;
 private _spd = speed _leader;
 private _last_spd = 10;
+private _lastTargetPos = [0, 0, 0];
 
 // Identify if the reference leader is the main platoon commander (player or platoon HQ leader)
 private _isPlatoonCommander = (isPlayer _leader || {_leader == (leader (missionNamespace getVariable ["FTCS_Group_Commander", grpNull]))} || {_leader == (missionNamespace getVariable ["FTCS_Platoon_Leader_Unit", objNull])} || {(vehicleVarName _leader) find "LEADER" >= 0 && {(vehicleVarName _leader) find "SQD_" < 0}});
@@ -66,10 +71,14 @@ if (_mode == "FOLLOWING_COMMANDER_ABS") then
 private _alignedOnStop = false;
 private _facingAppliedOnReady = false;
 
-while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) || 
-       (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == "HALT")} do
+while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) && 
+       ((([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) || 
+        (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == "HALT"))} do
 {
     _spd = speed _leader;
+
+    // Terminate immediately if a newer follow thread was spawned for this group
+    if ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) exitWith {};
 
     // -------------------------------------------------------------------------
     // 1. ACTIVE MARCHING (speed > 2 km/h): Dynamic formation tracking
@@ -83,12 +92,14 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
 
         waitUntil { 
             time > _timer || 
+            ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) ||
             ([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode || 
             unitReady leader _group || 
             lifeState leader _group == "DEAD" || 
             lifeState leader _group == "INCAPACITATED" 
         };
 
+        if ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) exitWith {};
         if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode) exitWith {};
 
         { _x disableAI "RADIOPROTOCOL"; } foreach units _group;
@@ -145,44 +156,49 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
             };
         };
         if (isNull _platoonLeader) then { _platoonLeader = player; };
-        private _platoonLeaderDir = getDir _platoonLeader;
 
-        if (!_alignedOnStop) then 
+        // Determine facing orientation based on follow mode:
+        // In RELATIVE mode: tracks dynamic platoon advance direction or leader heading.
+        // In ABSOLUTE mode: strictly locked to compass heading (_platoonDir), independent of leader head rotation.
+        private _targetFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonDir };
+
+        // Read assigned formation polar coordinates
+        private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
+        private _hasValidPos = (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2} && {(_relPos select 0) >= 0});
+        private _targetPos = [0, 0, 0];
+        if (_hasValidPos) then {
+            private _dist = _relPos select 0;
+            private _relAngle = _relPos select 1;
+            _targetPos = if (_mode == "FOLLOWING_COMMANDER_REL") then {
+                (getPosATL _leader) getPos [_dist, _curPlatoonDir + _relAngle]
+            } else {
+                (getPosATL _leader) getPos [_dist, _platoonDir + _relAngle]
+            };
+        };
+
+        // Detect if a new formation was ordered while stopped (target position shift)
+        private _posChanged = (_hasValidPos && {(_targetPos distance2D _lastTargetPos) > 1.5});
+
+        if (!_alignedOnStop || _posChanged) then 
         {
-            // If the leader is an AI (e.g. Squad Leader), ensure leader faces the platoon leader stop direction
+            // If the leader is an AI (e.g. Squad Leader), ensure leader faces formation march direction
             if (!isPlayer _leader) then {
-                private _leaderFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonLeaderDir };
-                (group _leader) setFormDir _leaderFacing;
+                (group _leader) setFormDir _targetFacing;
             };
 
-            private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
-            if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2} && {(_relPos select 0) >= 0}) then {
-                private _dist = _relPos select 0;
-                private _relAngle = _relPos select 1;
-
-                // Crucial: Calculate position anchored to leader strictly along the platoon advance direction!
-                // Both for Squad Leaders relative to Platoon Leader AND Fireteams relative to Squad Leader.
-                private _targetPos = if (_mode == "FOLLOWING_COMMANDER_REL") then {
-                    (getPosATL _leader) getPos [_dist, _curPlatoonDir + _relAngle]
-                } else {
-                    (getPosATL _leader) getPos [_dist, _platoonDir + _relAngle]
-                };
-
+            if (_hasValidPos) then {
                 _group move _targetPos;
-                if (_mode == "FOLLOWING_COMMANDER_REL") then {
-                    _group setFormDir _curPlatoonDir;
-                } else {
-                    _group setFormDir _platoonLeaderDir;
-                };
+                _group setFormDir _targetFacing;
+                _lastTargetPos = _targetPos;
             };
 
             _alignedOnStop = true;
+            _facingAppliedOnReady = false;
         };
 
         // Once units arrive at final stopped position (unitReady), apply facing strictly ONCE
         if (!_facingAppliedOnReady && {unitReady (leader _group)}) then 
         {
-            private _targetFacing = if (_mode == "FOLLOWING_COMMANDER_REL") then { _curPlatoonDir } else { _platoonLeaderDir };
             _group setFormDir _targetFacing;
             if (!isPlayer _leader) then {
                 (group _leader) setFormDir _targetFacing;
