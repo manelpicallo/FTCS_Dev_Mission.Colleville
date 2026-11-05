@@ -28,10 +28,12 @@ private _lastTargetPos = [0, 0, 0];
 // Identify if the reference leader is the main platoon commander (player or platoon HQ leader)
 private _isPlatoonCommander = (isPlayer _leader || {_leader == (leader (missionNamespace getVariable ["FTCS_Group_Commander", grpNull]))} || {_leader == (missionNamespace getVariable ["FTCS_Platoon_Leader_Unit", objNull])} || {(vehicleVarName _leader) find "LEADER" >= 0 && {(vehicleVarName _leader) find "SQD_" < 0}});
 
-// If the commander is actively moving or giving the order, initialize/update advance direction in relative mode only
+// Only initialize advance direction if not previously defined by a formation order or active march
 if (_isPlatoonCommander && {_mode != "FOLLOWING_COMMANDER_ABS"}) then {
-    missionNamespace setVariable ["FTCS_Last_Commander_Dir", getDir _leader];
-    missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", getDir _leader];
+    if (isNil { missionNamespace getVariable "FTCS_Platoon_Advance_Direction" }) then {
+        missionNamespace setVariable ["FTCS_Last_Commander_Dir", getDir _leader];
+        missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", getDir _leader];
+    };
 };
 
 [ _groupID, "movingMode", _mode ] call FTCS_fnc_registrySet;

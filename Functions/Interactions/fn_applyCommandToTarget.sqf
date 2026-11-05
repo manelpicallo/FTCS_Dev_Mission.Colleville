@@ -48,8 +48,8 @@ private _targetName = if (!isNull _targetUnit) then { name _targetUnit } else { 
 private _crosshairPos = missionNamespace getVariable ["FTCS_ActiveMenu_Pos", screenToWorld [0.5, 0.5]];
 private _crosshairObj = missionNamespace getVariable ["FTCS_ActiveMenu_CursorObject", cursorObject];
 
-// Helper to retrieve specific platoon squad group
-private _fnc_getPlatoonSquad = {
+// Helper to retrieve specific platoon squad group and its actual leader unit
+private _fnc_getPlatoonSquadInfo = {
     params ["_squadSuffix"];
     private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
     private _pltKey = format ["PLT_%1", _pltId];
@@ -58,7 +58,32 @@ private _fnc_getPlatoonSquad = {
     private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
     private _sqdKey = format ["SQD_%1_%2", _pltId, _squadSuffix];
     private _sData = _parsedSquads getOrDefault [_sqdKey, createHashMap];
-    _sData getOrDefault ["group", grpNull]
+
+    private _sqdGroup = _sData getOrDefault ["group", grpNull];
+    private _sqdLeader = _sData getOrDefault ["leader", objNull];
+    private _sqdName = _sData getOrDefault ["name", format ["Squad %1", _squadSuffix]];
+
+    // If multi-team squad, resolve Team 1 group and leader
+    private _teams = _sData getOrDefault ["tacticalTeams", createHashMap];
+    private _tKeys = keys _teams;
+    _tKeys sort true;
+    if (count _tKeys > 0) then {
+        private _t1 = _teams get (_tKeys select 0);
+        if (isNull _sqdLeader) then { _sqdLeader = _t1 getOrDefault ["leader", objNull]; };
+        if (isNull _sqdGroup) then { _sqdGroup = _t1 getOrDefault ["group", grpNull]; };
+    };
+
+    if (isNull _sqdLeader && {!isNull _sqdGroup}) then {
+        _sqdLeader = leader _sqdGroup;
+    };
+
+    [_sqdGroup, _sqdLeader, _sqdName, _sqdKey]
+};
+
+// Helper to retrieve specific platoon squad group (legacy compatibility)
+private _fnc_getPlatoonSquad = {
+    params ["_squadSuffix"];
+    ([_squadSuffix] call _fnc_getPlatoonSquadInfo) select 0
 };
 
 // Helper to retrieve all subordinate groups & fireteams in current platoon
@@ -181,6 +206,61 @@ switch (_commandCode) do {
     };
 
     // =========================================================================
+    // 0.1 SQUAD CONTEXT SELECTION (Remote directives via Platoon Sergeant)
+    // =========================================================================
+    case "SELECT_SQUAD_1";
+    case "SELECT_SQUAD_2";
+    case "SELECT_SQUAD_3";
+    case "SELECT_SQUAD_4": {
+        private _sqdNum = switch (_commandCode) do {
+            case "SELECT_SQUAD_1": { "1" };
+            case "SELECT_SQUAD_2": { "2" };
+            case "SELECT_SQUAD_3": { "3" };
+            case "SELECT_SQUAD_4": { "4" };
+            default { "1" };
+        };
+
+        private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltKey = format ["PLT_%1", _pltId];
+        private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+        private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+        private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+        private _sqdKey = format ["SQD_%1_%2", _pltId, _sqdNum];
+        private _sData = _parsedSquads getOrDefault [_sqdKey, createHashMap];
+
+        private _targetSqdGroup = _sData getOrDefault ["group", grpNull];
+        private _targetSqdLeader = _sData getOrDefault ["leader", objNull];
+        private _targetSqdName = _sData getOrDefault ["name", format ["Squad %1", _sqdNum]];
+
+        // Fallback to Team 1 leader if multi-team squad
+        if (isNull _targetSqdLeader) then {
+            private _teams = _sData getOrDefault ["tacticalTeams", createHashMap];
+            private _tKeys = keys _teams;
+            _tKeys sort true;
+            if (count _tKeys > 0) then {
+                private _t1 = _teams get (_tKeys select 0);
+                _targetSqdLeader = _t1 getOrDefault ["leader", objNull];
+                if (isNull _targetSqdGroup) then { _targetSqdGroup = _t1 getOrDefault ["group", grpNull]; };
+            };
+        };
+        if (isNull _targetSqdLeader && {!isNull _targetSqdGroup}) then {
+            _targetSqdLeader = leader _targetSqdGroup;
+        };
+
+        if (!isNull _targetSqdLeader) then {
+            // Set active menu context to the selected squad leader and open its squad menu after commandingMenu closes
+            systemChat format ["[SQUAD SELECTION] Direct command active for %1.", _targetSqdName];
+            [_targetSqdLeader, _targetSqdName] spawn {
+                params ["_ldr", "_name"];
+                sleep 0.05;
+                [_ldr, player, 0, ["SQUAD", _name, true]] call FTCS_fnc_openSubordinateMenu;
+            };
+        } else {
+            systemChat format ["[SQUAD SELECTION] Warning: %1 not found or unavailable.", _targetSqdName];
+        };
+    };
+
+    // =========================================================================
     // 1. TACTICAL STANCE (Common across all phases)
     // =========================================================================
     case "STANCE_AUTO": {
@@ -212,6 +292,31 @@ switch (_commandCode) do {
             [_targetGroup, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance;
             systemChat format ["[ORDER] %1 (%2): Stance synced to Commander (Mirroring).", _targetName, _targetRole];
         };
+    };
+
+    // =========================================================================
+    // 1.1 PLATOON-WIDE TACTICAL STANCE (Directly from Platoon Sergeant)
+    // =========================================================================
+    case "PLT_STANCE_AUTO";
+    case "PLT_STANCE_UP";
+    case "PLT_STANCE_MIDDLE";
+    case "PLT_STANCE_DOWN";
+    case "PLT_STANCE_FOLLOW_COMMANDER": {
+        private _stanceType = switch (_commandCode) do {
+            case "PLT_STANCE_AUTO": { "AUTO" };
+            case "PLT_STANCE_UP": { "FORCE_UP" };
+            case "PLT_STANCE_MIDDLE": { "FORCE_MIDDLE" };
+            case "PLT_STANCE_DOWN": { "FORCE_DOWN" };
+            case "PLT_STANCE_FOLLOW_COMMANDER": { "FOLLOW_COMMANDER_STANCE" };
+            default { "AUTO" };
+        };
+
+        private _squads = call _fnc_getAllPlatoonSquads;
+        {
+            [_x, _stanceType] call FTCS_fnc_groupSetStance;
+        } forEach _squads;
+
+        systemChat format ["[PLATOON DIRECTIVE] Entire platoon stance set to: %1.", _stanceType];
     };
 
     // =========================================================================
@@ -450,8 +555,91 @@ switch (_commandCode) do {
     };
     case "TASK_FOLLOW_COMMANDER": {
         if (!isNull _targetGroup) then {
-            [_targetGroup, group player] call FTCS_fnc_formationsGroupDoFollowCommander;
-            systemChat format ["[SQUAD ORDER] %1: Regrouping on Commander.", _targetRole];
+            private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+            private _pltKey = format ["PLT_%1", _pltId];
+            private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+            private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+            private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+            private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+
+            // 1. Identify which squad this targetGroup belongs to
+            private _targetSquadData = createHashMap;
+            private _targetSquadId = "";
+            {
+                private _sId = _x;
+                private _sData = _y;
+                private _grp = _sData getOrDefault ["group", grpNull];
+                private _teams = _sData getOrDefault ["tacticalTeams", createHashMap];
+                if (_grp == _targetGroup) exitWith { _targetSquadData = _sData; _targetSquadId = _sId; };
+                {
+                    if ((_y getOrDefault ["group", grpNull]) == _targetGroup) exitWith {
+                        _targetSquadData = _sData;
+                        _targetSquadId = _sId;
+                    };
+                } forEach _teams;
+                if (_targetSquadId != "") exitWith {};
+            } forEach _parsedSquads;
+
+            // 2. Check if any detached outer slot (5, 6, 7, 8, 11, 12) belongs to this squad
+            private _tacticalTeams = _targetSquadData getOrDefault ["tacticalTeams", createHashMap];
+            private _slotsToRemove = [];
+            {
+                private _sIdx = _x;
+                private _tKey = _y;
+                if (_sIdx in [5, 6, 7, 8, 11, 12]) then {
+                    if (_tKey in _tacticalTeams || (_targetSquadId != "" && {_tKey find _targetSquadId == 0})) then {
+                        _slotsToRemove pushBack _sIdx;
+                    };
+                };
+            } forEach _formationSlotsMap;
+
+            if (count _slotsToRemove > 0) then {
+                // Clear the detached scout slot assignments
+                {
+                    _formationSlotsMap deleteAt _x;
+                    // Clear the dynamic debug marker for the vacated slot
+                    deleteMarkerLocal format ["FTCS_DEBUG_DYNAMIC_SLOT_%1", _x];
+                    if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > _x}) then {
+                        (Platoon_Formation_Position_List select _x) set [2, grpNull];
+                    };
+                } forEach _slotsToRemove;
+                _pltData set ["formationSlots", _formationSlotsMap];
+
+                // 3. Rejoin strictly at the squad's CURRENT real-world position without re-triggering platoon formation
+                // Gather all fireteams of this squad
+                private _teamKeys = keys _tacticalTeams;
+                _teamKeys sort true;
+                private _squadElements = [];
+                {
+                    private _tGrp = (_tacticalTeams get _x) getOrDefault ["group", grpNull];
+                    if (!isNull _tGrp) then { _squadElements pushBack _tGrp; };
+                } forEach _teamKeys;
+
+                if (count _squadElements > 1) then {
+                    private _leadTeamGrp = _squadElements select 0;
+                    private _leadTeamLeader = leader _leadTeamGrp;
+                    private _squadFormType = [_targetSquadId, "formationType"] call FTCS_fnc_registryGet;
+                    if (isNil "_squadFormType" || {!(_squadFormType isEqualType "")}) then { _squadFormType = "WEDGE"; };
+
+                    // Recalculate local squad formation relative to the Squad Leader's CURRENT heading
+                    [_squadElements, _squadFormType, 4, 0] call FTCS_fnc_formationsTypeSquadSet;
+
+                    // Re-launch follow-commander threads for the rejoined sub-teams to follow their Squad Leader
+                    private _subTeamsToFollow = +_squadElements;
+                    _subTeamsToFollow deleteAt 0; // Exclude Squad Leader team
+                    private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
+                    {
+                        if (!isNull _x) then {
+                            [_x, _followMode, _leadTeamLeader] spawn FTCS_fnc_formationsGroupDoFollowCommander;
+                        };
+                    } forEach _subTeamsToFollow;
+                };
+
+                systemChat format ["[SCOUT REJOIN] %1: Scouts rejoined parent squad at current position.", _targetRole];
+            } else {
+                [_targetGroup, group player] call FTCS_fnc_formationsGroupDoFollowCommander;
+                systemChat format ["[SQUAD ORDER] %1: Regrouping on Commander.", _targetRole];
+            };
         };
     };
     case "SQUAD_SITREP": {
@@ -535,12 +723,311 @@ switch (_commandCode) do {
         systemChat "[LDA PROTOCOL] Remainder of Platoon executing LEAPFROG CROSSING under security coverage.";
     };
 
-    case "SQD_RECON_AHEAD": {
+    case "SQD_RECON_AHEAD";
+    case "SQD_SCOUT_FLANK";
+    case "SQD_SCOUT_FRONT";
+    case "SQD_SCOUT_REAR";
+    case "SQD_SCOUT_SLOT_11";
+    case "SQD_SCOUT_SLOT_12";
+    case "SQD_SCOUT_SLOT_6";
+    case "SQD_SCOUT_SLOT_7";
+    case "SQD_SCOUT_SLOT_8";
+    case "SQD_SCOUT_SLOT_5": {
         if (!isNull _targetGroup) then {
-            _targetGroup setSpeedMode "LIMITED";
-            [_targetGroup, "FORCE_MIDDLE"] call FTCS_fnc_groupSetStance;
-            systemChat format ["[SCOUT DIRECTIVE] %1: Scouts probing ahead across danger area.", _targetRole];
+            private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+            private _pltKey = format ["PLT_%1", _pltId];
+            private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+            private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+            private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+
+            // 1. Resolve target squad and its tactical teams
+            private _targetSquadData = createHashMap;
+            private _targetSquadId = "";
+            {
+                private _sId = _x;
+                private _sData = _y;
+                private _grp = _sData getOrDefault ["group", grpNull];
+                private _teams = _sData getOrDefault ["tacticalTeams", createHashMap];
+                if (_grp == _targetGroup) exitWith { _targetSquadData = _sData; _targetSquadId = _sId; };
+                {
+                    if ((_y getOrDefault ["group", grpNull]) == _targetGroup) exitWith {
+                        _targetSquadData = _sData;
+                        _targetSquadId = _sId;
+                    };
+                } forEach _teams;
+                if (_targetSquadId != "") exitWith {};
+            } forEach _parsedSquads;
+
+            // 2. Identify the macro slot where the parent squad is assigned (Slot 0, 1, 2, 3...)
+            private _parentMacroSlot = 0;
+            private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+            {
+                private _sIdx = _x;
+                private _mappedId = _y;
+                if (_sIdx in [0, 1, 2, 3] && {_mappedId == _targetSquadId || (_mappedId find _targetSquadId == 0)}) exitWith {
+                    _parentMacroSlot = _sIdx;
+                };
+            } forEach _formationSlotsMap;
+
+            // Fallback: deduce macro slot from squad suffix if not explicitly mapped
+            if (_parentMacroSlot == 0 && {_targetSquadId != ""}) then {
+                if (_targetSquadId find "_1" >= 0) then { _parentMacroSlot = 0; };
+                if (_targetSquadId find "_2" >= 0) then { _parentMacroSlot = 1; };
+                if (_targetSquadId find "_3" >= 0) then { _parentMacroSlot = 2; };
+                if (_targetSquadId find "_4" >= 0) then { _parentMacroSlot = 3; };
+            };
+
+            // 3. Determine which sub-team acts as scouts (prefer Team 2 / Scouts)
+            private _tacticalTeams = _targetSquadData getOrDefault ["tacticalTeams", createHashMap];
+            private _teamKeys = keys _tacticalTeams;
+            _teamKeys sort true;
+
+            private _scoutGroup = _targetGroup;
+            private _scoutTeamKey = "";
+            if (count _teamKeys > 1) then {
+                _scoutTeamKey = _teamKeys select 1; // Team 2 (Scouts / Maneuver)
+                _scoutGroup = (_tacticalTeams get _scoutTeamKey) getOrDefault ["group", _targetGroup];
+            } else {
+                if (count _teamKeys == 1) then {
+                    _scoutTeamKey = _teamKeys select 0;
+                    _scoutGroup = (_tacticalTeams get _scoutTeamKey) getOrDefault ["group", _targetGroup];
+                };
+            };
+
+            if (_scoutTeamKey == "") exitWith {
+                systemChat format ["[SCOUT DETACHMENT] Warning: %1 has no separate scout fireteam to detach.", _targetRole];
+            };
+
+            // 4. Determine destination slot strictly based on Parent Squad Slot or explicit slot command:
+            private _destSlot = 6;
+            switch (_commandCode) do {
+                case "SQD_SCOUT_SLOT_11": { _destSlot = 11; };
+                case "SQD_SCOUT_SLOT_12": { _destSlot = 12; };
+                case "SQD_SCOUT_SLOT_6":  { _destSlot = 6; };
+                case "SQD_SCOUT_SLOT_7":  { _destSlot = 7; };
+                case "SQD_SCOUT_SLOT_8":  { _destSlot = 8; };
+                case "SQD_SCOUT_SLOT_5":  { _destSlot = 5; };
+                case "SQD_SCOUT_FRONT": {
+                    _destSlot = switch (_parentMacroSlot) do {
+                        case 1: { 7 };
+                        case 0: { 6 };
+                        case 2: { 8 };
+                        default { 6 };
+                    };
+                };
+                case "SQD_SCOUT_FLANK": {
+                    _destSlot = switch (_parentMacroSlot) do {
+                        case 1: { 11 };
+                        case 2: { 12 };
+                        default { 11 };
+                    };
+                };
+                case "SQD_SCOUT_REAR": {
+                    _destSlot = 5;
+                };
+                default {
+                    // Default SQD_RECON_AHEAD
+                    _destSlot = switch (_parentMacroSlot) do {
+                        case 1: { 11 };
+                        case 2: { 12 };
+                        case 0: { 6 };
+                        default { 6 };
+                    };
+                };
+            };
+
+            // 5. Dynamic hot-shift: Check if this scout team was already deployed in an outer slot
+            // If already in another slot (e.g. was in 11, now moving to 7), free the old slot cleanly
+            private _previousSlot = -1;
+            {
+                private _sIdx = _x;
+                private _val = _y;
+                if (_sIdx in [5, 6, 7, 8, 11, 12] && {_val == _scoutTeamKey}) exitWith {
+                    _previousSlot = _sIdx;
+                };
+            } forEach _formationSlotsMap;
+
+            if (_previousSlot >= 0 && {_previousSlot != _destSlot}) then {
+                _formationSlotsMap deleteAt _previousSlot;
+                deleteMarkerLocal format ["FTCS_DEBUG_DYNAMIC_SLOT_%1", _previousSlot];
+                if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > _previousSlot}) then {
+                    (Platoon_Formation_Position_List select _previousSlot) set [2, grpNull];
+                };
+                systemChat format ["[SCOUT SHIFT] %1: Scouts dynamically reallocated from Slot %2 -> Slot %3.", _targetRole, _previousSlot, _destSlot];
+            };
+
+            // 6. Assign new slot mapping in platoon data
+            _formationSlotsMap set [_destSlot, _scoutTeamKey];
+            _pltData set ["formationSlots", _formationSlotsMap];
+
+            // 7. Dispatch scouts LOCALLY to the target slot without recalculating or disturbing the rest of the platoon
+            private _ldr = call _fnc_getPlatoonLeaderUnit;
+            private _ldrGroup = group _ldr;
+
+            if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > _destSlot}) then {
+                private _slotTemplate = Platoon_Formation_Position_List select _destSlot;
+                if (count _slotTemplate >= 2) then {
+                    private _slotDist = _slotTemplate select 0;
+                    private _slotBearing = _slotTemplate select 1;
+
+                    // Bind scout group object into the slot position buffer
+                    Platoon_Formation_Position_List set [_destSlot, [_slotDist, _slotBearing, _scoutGroup]];
+
+                    // Register coordinates in FTCS_Groups_Registry_Table anchored directly to Platoon Leader [X]
+                    private _scoutGroupId = groupId _scoutGroup;
+                    [_scoutGroupId, "allocationSlot", _destSlot] call FTCS_fnc_registrySet;
+                    [_scoutGroupId, "formationPosition", [_slotDist, _slotBearing, _ldrGroup]] call FTCS_fnc_registrySet;
+                    [_scoutGroupId, "relPosition", [_slotDist, _slotBearing, _ldrGroup]] call FTCS_fnc_registrySet;
+
+                    // Launch follow-commander thread strictly for this scout group
+                    private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
+                    [_scoutGroup, _followMode, _ldr] spawn FTCS_fnc_formationsGroupDoFollowCommander;
+                };
+            };
+
+            // 8. Re-compact the parent squad's internal formation locally without the detached scouts
+            // Preserve Squad Leader and remaining members in place without forward leaps
+            private _parentRemainingTeams = [];
+            {
+                private _tKey = _x;
+                if (_tKey != _scoutTeamKey) then {
+                    private _tGrp = (_tacticalTeams get _tKey) getOrDefault ["group", grpNull];
+                    if (!isNull _tGrp) then { _parentRemainingTeams pushBack _tGrp; };
+                };
+            } forEach _teamKeys;
+
+            if (count _parentRemainingTeams > 1) then {
+                private _leadParentGrp = _parentRemainingTeams select 0;
+                private _squadFormType = [_targetSquadId, "formationType"] call FTCS_fnc_registryGet;
+                if (isNil "_squadFormType" || {!(_squadFormType isEqualType "")}) then { _squadFormType = "WEDGE"; };
+                [_parentRemainingTeams, _squadFormType, 4, 0] call FTCS_fnc_formationsTypeSquadSet;
+            };
+
+            systemChat format ["[SCOUT DIRECTIVE] %1: Scouts deployed to Platoon Slot %2. Screening under direct Platoon Leader [X] tracking.", _targetRole, _destSlot];
         };
+    };
+
+    // =========================================================================
+    // 4.1 PLATOON-WIDE SCOUT SCREEN DIRECTIVES (Directly from Platoon Sergeant)
+    // =========================================================================
+    case "PLT_SCOUT_FLANK_L": {
+        // Left Flank Screen: Automatically provided by Squad in Slot 1
+        private _info = ["2"] call _fnc_getPlatoonSquadInfo; // SQD_X_2 is Slot 1
+        if (isNull (_info select 1)) then { _info = ["1"] call _fnc_getPlatoonSquadInfo; };
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_11'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+    case "PLT_SCOUT_FLANK_R": {
+        // Right Flank Screen: Automatically provided by Squad in Slot 2
+        private _info = ["3"] call _fnc_getPlatoonSquadInfo; // SQD_X_3 is Slot 2
+        if (isNull (_info select 1)) then { _info = ["2"] call _fnc_getPlatoonSquadInfo; };
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_12'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+    case "PLT_SCOUT_FRONT_L": {
+        // Front Left Screen (Slot 7): Provided by Squad in Slot 1
+        private _info = ["2"] call _fnc_getPlatoonSquadInfo;
+        if (isNull (_info select 1)) then { _info = ["1"] call _fnc_getPlatoonSquadInfo; };
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_7'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+    case "PLT_SCOUT_FRONT_C": {
+        // Front Center Screen (Slot 6): Provided by Squad in Slot 0
+        private _info = ["1"] call _fnc_getPlatoonSquadInfo;
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_6'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+    case "PLT_SCOUT_FRONT_R": {
+        // Front Right Screen (Slot 8): Provided by Squad in Slot 2
+        private _info = ["3"] call _fnc_getPlatoonSquadInfo;
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_8'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+    case "PLT_SCOUT_REAR": {
+        // Rear Reserve Screen (Slot 5): Provided by Squad in Slot 0
+        private _info = ["1"] call _fnc_getPlatoonSquadInfo;
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_5'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+    case "PLT_SCOUT_REJOIN_ALL": {
+        // Rejoin all detached scouts across all squads back to their parent elements
+        private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltKey = format ["PLT_%1", _pltId];
+        private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+        private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+        private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+        private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+
+        private _detachedSlots = [5, 6, 7, 8, 11, 12];
+        {
+            if (_x in _formationSlotsMap) then {
+                _formationSlotsMap deleteAt _x;
+                deleteMarkerLocal format ["FTCS_DEBUG_DYNAMIC_SLOT_%1", _x];
+                if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > _x}) then {
+                    (Platoon_Formation_Position_List select _x) set [2, grpNull];
+                };
+            };
+        } forEach _detachedSlots;
+
+        _pltData set ["formationSlots", _formationSlotsMap];
+
+        // Trigger local rejoin for each squad
+        {
+            private _sqdKey = _x;
+            if (_sqdKey find "_0" < 0) then {
+                private _sData = _y;
+                private _tacticalTeams = _sData getOrDefault ["tacticalTeams", createHashMap];
+                private _teamKeys = keys _tacticalTeams;
+                _teamKeys sort true;
+                private _squadElements = [];
+                {
+                    private _tGrp = (_tacticalTeams get _x) getOrDefault ["group", grpNull];
+                    if (!isNull _tGrp) then { _squadElements pushBack _tGrp; };
+                } forEach _teamKeys;
+
+                if (count _squadElements > 1) then {
+                    private _leadTeamLeader = leader (_squadElements select 0);
+                    private _squadFormType = [_sqdKey, "formationType"] call FTCS_fnc_registryGet;
+                    if (isNil "_squadFormType" || {!(_squadFormType isEqualType "")}) then { _squadFormType = "WEDGE"; };
+                    [_squadElements, _squadFormType, 4, 0] call FTCS_fnc_formationsTypeSquadSet;
+
+                    private _subTeams = +_squadElements;
+                    _subTeams deleteAt 0;
+                    private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
+                    {
+                        if (!isNull _x) then {
+                            [_x, _followMode, _leadTeamLeader] spawn FTCS_fnc_formationsGroupDoFollowCommander;
+                        };
+                    } forEach _subTeams;
+                };
+            };
+        } forEach _parsedSquads;
+
+        systemChat "[SCOUT REJOIN] All detached platoon scouts recalled and rejoined with parent squads.";
     };
     case "SQD_SET_OVERWATCH": {
         if (!isNull _targetGroup) then {

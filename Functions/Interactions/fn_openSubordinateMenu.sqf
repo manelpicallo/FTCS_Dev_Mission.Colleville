@@ -43,7 +43,8 @@ if (isNull _targetUnit) exitWith {};
 
 _arguments params [
     ["_menuType", "SQUAD"],
-    ["_roleLabel", "Subordinate"]
+    ["_roleLabel", "Subordinate"],
+    ["_bypassDistance", false]
 ];
 
 // Ensure commanding menus are compiled and initialized in memory
@@ -80,7 +81,7 @@ private _isSelf = (_targetUnit == player);
 // Select appropriate commandingMenu according to role, operational phase, and distance
 private _menuName = switch (_menuType) do {
     case "SQUAD": {
-        if (_distance <= 20 || _isSelf) then {
+        if (_distance <= 20 || _isSelf || _bypassDistance) then {
             switch (_curPhase) do {
                 case 1: { "#USER:FTCS_MENU_Squad_Phase1" };
                 case 2: { "#USER:FTCS_MENU_Squad_Phase2" };
@@ -93,7 +94,7 @@ private _menuName = switch (_menuType) do {
     };
     case "PLATOON_SERGEANT";
     case "PLATOON": {
-        if (_distance <= 20 || _isSelf) then {
+        if (_distance <= 20 || _isSelf || _bypassDistance) then {
             switch (_curPhase) do {
                 case 0: { "#USER:FTCS_MENU_PhaseTransition" }; // Force phase selection if troops still in deployment inspection
                 case 1: { "#USER:FTCS_MENU_Sgt_Phase1" };
@@ -145,6 +146,72 @@ if (_currentFollowMode == "FOLLOWING_COMMANDER_REL") then {
 } else {
     (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "1"]; // Relative enabled (white)
     (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"]; // Absolute disabled (gray)
+};
+
+// Dynamically evaluate combat effectiveness of detached scout slots (Slots 11, 12, 7, 6, 8, 5)
+// Gray out (disable) options if a combat-effective team already occupies that slot.
+// If all soldiers in that team are dead or incapacitated, re-enable ("1", "1") so fresh scouts can reinforce it.
+private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+private _activePltKey = format ["PLT_%1", _pltId];
+private _activePltData = _platoonsMap getOrDefault [_activePltKey, createHashMap];
+private _activeSlotsMap = _activePltData getOrDefault ["formationSlots", createHashMap];
+
+private _fnc_isSlotOccupiedAndEffective = {
+    params ["_slotNum"];
+    private _isOccupied = false;
+    if (_slotNum in _activeSlotsMap) then {
+        private _grpCandidate = grpNull;
+        if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > _slotNum}) then {
+            _grpCandidate = (Platoon_Formation_Position_List select _slotNum) select 2;
+        };
+        if (isNull _grpCandidate && {!isNil "FTCS_Groups_Registry_Table"}) then {
+            {
+                if ((_y getOrDefault ["allocationSlot", -1]) == _slotNum) exitWith {
+                    private _cand = missionNamespace getVariable [_x, grpNull];
+                    if (!isNull _cand) then { _grpCandidate = _cand; };
+                };
+            } forEach FTCS_Groups_Registry_Table;
+        };
+        if (!isNull _grpCandidate) then {
+            private _effectiveCount = { alive _x && {lifeState _x != "INCAPACITATED"} } count (units _grpCandidate);
+            _isOccupied = (_effectiveCount > 0);
+        };
+    };
+    _isOccupied
+};
+
+// Update Platoon Scout Directives Menu (FTCS_MENU_Platoon_Scouts)
+if (!isNil "FTCS_MENU_Platoon_Scouts") then {
+    private _occ11 = [11] call _fnc_isSlotOccupiedAndEffective;
+    private _occ12 = [12] call _fnc_isSlotOccupiedAndEffective;
+    private _occ7  = [7] call _fnc_isSlotOccupiedAndEffective;
+    private _occ6  = [6] call _fnc_isSlotOccupiedAndEffective;
+    private _occ8  = [8] call _fnc_isSlotOccupiedAndEffective;
+    private _occ5  = [5] call _fnc_isSlotOccupiedAndEffective;
+
+    (FTCS_MENU_Platoon_Scouts select 1) set [6, if (_occ11) then { "0" } else { "1" }]; // Left Flank (Slot 11)
+    (FTCS_MENU_Platoon_Scouts select 2) set [6, if (_occ12) then { "0" } else { "1" }]; // Right Flank (Slot 12)
+    (FTCS_MENU_Platoon_Scouts select 3) set [6, if (_occ7)  then { "0" } else { "1" }]; // Front Left (Slot 7)
+    (FTCS_MENU_Platoon_Scouts select 4) set [6, if (_occ6)  then { "0" } else { "1" }]; // Front Center (Slot 6)
+    (FTCS_MENU_Platoon_Scouts select 5) set [6, if (_occ8)  then { "0" } else { "1" }]; // Front Right (Slot 8)
+    (FTCS_MENU_Platoon_Scouts select 6) set [6, if (_occ5)  then { "0" } else { "1" }]; // Rear (Slot 5)
+};
+
+// Update Squad-Level Scout Screen Menu (FTCS_MENU_ScoutScreen_Deploy)
+if (!isNil "FTCS_MENU_ScoutScreen_Deploy") then {
+    private _occ11 = [11] call _fnc_isSlotOccupiedAndEffective;
+    private _occ12 = [12] call _fnc_isSlotOccupiedAndEffective;
+    private _occ6  = [6] call _fnc_isSlotOccupiedAndEffective;
+    private _occ7  = [7] call _fnc_isSlotOccupiedAndEffective;
+    private _occ8  = [8] call _fnc_isSlotOccupiedAndEffective;
+    private _occ5  = [5] call _fnc_isSlotOccupiedAndEffective;
+
+    (FTCS_MENU_ScoutScreen_Deploy select 1) set [6, if (_occ11) then { "0" } else { "1" }]; // Slot 11
+    (FTCS_MENU_ScoutScreen_Deploy select 2) set [6, if (_occ12) then { "0" } else { "1" }]; // Slot 12
+    (FTCS_MENU_ScoutScreen_Deploy select 3) set [6, if (_occ6)  then { "0" } else { "1" }]; // Slot 6
+    (FTCS_MENU_ScoutScreen_Deploy select 4) set [6, if (_occ7)  then { "0" } else { "1" }]; // Slot 7
+    (FTCS_MENU_ScoutScreen_Deploy select 5) set [6, if (_occ8)  then { "0" } else { "1" }]; // Slot 8
+    (FTCS_MENU_ScoutScreen_Deploy select 6) set [6, if (_occ5)  then { "0" } else { "1" }]; // Slot 5
 };
 
 showCommandingMenu _menuName;

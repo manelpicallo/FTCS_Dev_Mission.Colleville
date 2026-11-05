@@ -232,8 +232,11 @@ Doctrinal Data Template (HashMap devuelto por cada fichero SQF)
 │     ├── 2  : "SQD_X_3"         (3rd Rifle Squad -> Right Flank)
 │     ├── 3  : "SQD_X_4"         (4th Squad / Mortar Section)
 │     ├── 4  : "SQD_X_0_TEAM_2"  (Platoon Sergeant & Support)
+│     ├── 5  : "SQD_X_Y_TEAM_Z"  (Opcional: Detached Scout / Rear Reserve)
+│     ├── 6..8: "SQD_X_Y_TEAM_Z" (Opcional: Forward Advanced Scout Screen)
 │     ├── 9  : "SQD_X_0_TEAM_1"  (Attached HQ Command Group / Escort)
-│     └── 10 : "HQ_ATTACHED"     (Company HQ Attached Liaison / Runners)
+│     ├── 10 : "SQD_X_0_TEAM_3"  (Platoon Sergeant / Platoon Guide)
+│     └── 11..12: "SQD_X_Y_TEAM_Z" (Opcional: Outer Flank Security Screens)
 │
 └── "entities"                : ARRAY of TUPLES (Tupla estándar de 7 u 8 campos por soldado/vehículo):
       │

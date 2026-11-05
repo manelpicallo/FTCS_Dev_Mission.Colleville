@@ -117,8 +117,8 @@ switch (_formation_type) do {
         _direction_4 = 180;
 
         _formation_0 = "WEDGE";
-        _formation_1 = "ECHELON LEFT";
-        _formation_2 = "ECHELON RIGHT";
+        _formation_1 = "ECH LEFT";
+        _formation_2 = "ECH RIGHT";
         _formation_3 = "COLUMN";
         _formation_4 = "COLUMN";
     };
@@ -211,8 +211,8 @@ switch (_formation_type) do {
 
         _formation_0 = "COLUMN";
         _formation_1 = "WEDGE";
-        _formation_2 = "ECHELON LEFT";
-        _formation_3 = "ECHELON RIGHT";
+        _formation_2 = "ECH LEFT";
+        _formation_3 = "ECH RIGHT";
         _formation_4 = "COLUMN";
     };
 

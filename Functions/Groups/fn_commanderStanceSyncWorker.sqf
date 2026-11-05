@@ -48,7 +48,11 @@ FTCS_StanceSyncWorker_Active = true;
                 private _grpId = _x;
                 private _grpEntry = _y;
                 if ((_grpEntry getOrDefault ["stance", ""]) == "FOLLOW_COMMANDER_STANCE") then {
-                    private _grpObj = missionNamespace getVariable [_grpId, grpNull];
+                    private _grpObj = _grpEntry getOrDefault ["groupObj", grpNull];
+                    if (isNull _grpObj) then {
+                        private _matching = allGroups select { groupId _x == _grpId };
+                        if (count _matching > 0) then { _grpObj = _matching select 0; };
+                    };
                     if (!isNull _grpObj) then {
                         {
                             if (unitPos _x != _targetUnitPos) then {

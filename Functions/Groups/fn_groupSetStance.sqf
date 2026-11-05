@@ -43,7 +43,7 @@ switch (_stance) do {
         [_groupID, "stance", "AUTO"] call FTCS_fnc_registrySet;
     };
 
-    case "FORCE_LOW":
+    case "FORCE_LOW";
     case "FORCE_DOWN": {
         { _x setUnitPos "DOWN"; } forEach (units _group);
         [_groupID, "stance", "FORCE_DOWN"] call FTCS_fnc_registrySet;
@@ -61,6 +61,7 @@ switch (_stance) do {
 
     case "FOLLOW_COMMANDER_STANCE": {
         [_groupID, "stance", "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_registrySet;
+        [_groupID, "groupObj", _group] call FTCS_fnc_registrySet;
         // Launch central stance worker (Option A) if not active
         call FTCS_fnc_commanderStanceSyncWorker;
     };

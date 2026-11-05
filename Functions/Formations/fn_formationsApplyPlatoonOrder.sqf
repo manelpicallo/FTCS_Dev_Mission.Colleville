@@ -149,7 +149,11 @@ private _mortarElements = [];
             _teamKeys sort true;
             {
                 private _tGrp = (_tacticalTeams get _x) getOrDefault ["group", grpNull];
-                if (!isNull _tGrp) then { _elementGroups pushBack _tGrp; };
+                if (!isNull _tGrp) then {
+                    _elementGroups pushBack _tGrp;
+                    // Register individual team key as well for sub-team detachment (e.g. "SQD_1_1_TEAM_2")
+                    _squadElementsMap set [_x, [_tGrp]];
+                };
             } forEach _teamKeys;
         } else {
             if (!isNull _squadGroup) then { _elementGroups pushBack _squadGroup; };
@@ -221,10 +225,24 @@ if (count _extraHqGrps > 0) then { _slottedElements set [10, [_extraHqGrps selec
 // Apply pre-configured formation slots from doctrine if defined
 {
     private _slotIdx = _x;
-    private _resolvedKey = _y; // e.g. "SQD_1_1", "SQD_1_0_TEAM_2"
+    private _resolvedKey = _y; // e.g. "SQD_1_1", "SQD_1_0_TEAM_2", "SQD_1_1_TEAM_2"
     if (_slotIdx >= 0 && _slotIdx < 13) then {
         if (_resolvedKey in _squadElementsMap) then {
-            _slottedElements set [_slotIdx, _squadElementsMap get _resolvedKey];
+            private _assignedGroups = _squadElementsMap get _resolvedKey;
+            _slottedElements set [_slotIdx, _assignedGroups];
+
+            // If a specific sub-team was detached to an outer/scout slot (e.g. Slot 11, 12, 6, 7, 8),
+            // remove that detached sub-team from its parent squad element list so its parent squad leader
+            // does not drag it in internal squad formation geometry
+            if (_slotIdx in [5, 6, 7, 8, 11, 12] && {_resolvedKey find "_TEAM_" >= 0}) then {
+                private _detachedGrp = _assignedGroups select 0;
+                for "_sI" from 0 to 3 do {
+                    private _parentSquadList = _slottedElements select _sI;
+                    if (_detachedGrp in _parentSquadList && {count _parentSquadList > 1}) then {
+                        _slottedElements set [_sI, _parentSquadList - [_detachedGrp]];
+                    };
+                };
+            };
         };
     };
 } forEach _formationSlotsMap;
@@ -242,6 +260,8 @@ private _allSubordinateGroups = [];
 // Build final formation elements list: Index 0 is strictly Leader Group [X], followed by Slots 0 to 12
 private _formationElements = [[_leaderGroup]] + _slottedElements;
 // 5. Two-tier formation geometry calculation:
+missionNamespace setVariable ["FTCS_Platoon_Formation_Type", _formationType];
+
 // Set platoon advance direction strictly to the leader's current heading at the moment the formation order is issued
 private _advanceDir = getDir _platoonLeaderUnit;
 missionNamespace setVariable ["FTCS_Platoon_Fixed_Abs_Dir", _advanceDir];
