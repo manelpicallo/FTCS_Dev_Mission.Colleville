@@ -97,7 +97,11 @@ private _hqTeams = _hqSquadData getOrDefault ["tacticalTeams", createHashMap];
         private _tLeader = leader _tGrp;
         if (!isNull _tLeader) then {
             private _tDist = _tLeader distance2D _platoonLeaderUnit;
-            private _tAngle = if (_isRelative) then { _platoonLeaderUnit getRelDir _tLeader } else { _platoonLeaderUnit getDir _tLeader };
+            private _tAngle = if (_isRelative) then {
+                _platoonLeaderUnit getRelDir _tLeader
+            } else {
+                ((_platoonLeaderUnit getDir _tLeader) - _advanceDir + 360) % 360
+            };
             private _gId = groupId _tGrp;
 
             [_gId, "formationPosition", [_tDist, _tAngle, _leaderGroup]] call FTCS_fnc_registrySet;
@@ -126,7 +130,11 @@ _squadKeys sort true;
 
         if (!isNull _squadAnchorObj) then {
             private _sqdDist = _squadAnchorObj distance2D _platoonLeaderUnit;
-            private _sqdAngle = if (_isRelative) then { _platoonLeaderUnit getRelDir _squadAnchorObj } else { _platoonLeaderUnit getDir _squadAnchorObj };
+            private _sqdAngle = if (_isRelative) then {
+                _platoonLeaderUnit getRelDir _squadAnchorObj
+            } else {
+                ((_platoonLeaderUnit getDir _squadAnchorObj) - _advanceDir + 360) % 360
+            };
 
             // If unified squad (no multi-teams), anchor the base squad group to Platoon Leader
             if (count _tacticalTeams == 0 && {!isNull _squadGroup}) then {
@@ -149,7 +157,11 @@ _squadKeys sort true;
                 if (!isNull _team1Grp) then {
                     private _t1Leader = leader _team1Grp;
                     private _t1Dist = _t1Leader distance2D _platoonLeaderUnit;
-                    private _t1Angle = if (_isRelative) then { _platoonLeaderUnit getRelDir _t1Leader } else { _platoonLeaderUnit getDir _t1Leader };
+                    private _t1Angle = if (_isRelative) then {
+                        _platoonLeaderUnit getRelDir _t1Leader
+                    } else {
+                        ((_platoonLeaderUnit getDir _t1Leader) - _advanceDir + 360) % 360
+                    };
                     private _gId = groupId _team1Grp;
 
                     [_gId, "formationPosition", [_t1Dist, _t1Angle, _leaderGroup]] call FTCS_fnc_registrySet;
@@ -166,7 +178,11 @@ _squadKeys sort true;
                             private _subLeader = leader _subTeamGrp;
                             if (!isNull _subLeader) then {
                                 private _subDist = _subLeader distance2D _t1Leader;
-                                private _subAngle = if (_isRelative) then { _t1Leader getRelDir _subLeader } else { _t1Leader getDir _subLeader };
+                                private _subAngle = if (_isRelative) then {
+                                    _t1Leader getRelDir _subLeader
+                                } else {
+                                    ((_t1Leader getDir _subLeader) - _advanceDir + 360) % 360
+                                };
                                 private _subGId = groupId _subTeamGrp;
 
                                 [_subGId, "formationPosition", [_subDist, _subAngle, _team1Grp]] call FTCS_fnc_registrySet;

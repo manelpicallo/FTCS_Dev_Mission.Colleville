@@ -101,6 +101,31 @@ private _fnc_getAllPlatoonSquads = {
     _result
 };
 
+// Helper to retrieve the actual platoon leader unit (player or NPC lieutenant)
+private _fnc_getPlatoonLeaderUnit = {
+    private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+    private _pltKey = format ["PLT_%1", _pltId];
+    private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+    private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+    private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+    private _hqSquadId = format ["SQD_%1_0", _pltId];
+    private _hqData = _parsedSquads getOrDefault [_hqSquadId, createHashMap];
+    private _roles = _hqData getOrDefault ["assignedRoles", createHashMap];
+    private _pltLeaderRole = format ["PLT_%1_LEADER", _pltId];
+    private _leader = _roles getOrDefault [_pltLeaderRole, objNull];
+    if (isNull _leader) then {
+        _leader = missionNamespace getVariable ["FTCS_Platoon_Leader_Unit", objNull];
+    };
+    if (isNull _leader) then {
+        if (!isNull _targetUnit && {!((vehicleVarName _targetUnit) find "SERGEANT" >= 0)}) then {
+            _leader = _targetUnit;
+        } else {
+            _leader = player;
+        };
+    };
+    _leader
+};
+
 // -----------------------------------------------------------------------------
 // COMMAND DISPATCH SWITCH
 // -----------------------------------------------------------------------------
@@ -193,34 +218,33 @@ switch (_commandCode) do {
     // 2. FASE 1: PLATOON FORMATIONS & MARCH CONTROL
     // =========================================================================
     case "PLT_FORM_COLUMN": {
-        [_targetUnit, "COLUMN", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        [call _fnc_getPlatoonLeaderUnit, "COLUMN", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to COLUMN (Trail / Road March).";
     };
     case "PLT_FORM_FILE": {
         // Reserved for special terrain / single file march (Road / Dense Vegetation)
-        [_targetUnit, "COLUMN", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        [call _fnc_getPlatoonLeaderUnit, "COLUMN", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to FILE (Single File / Narrow Trail).";
     };
     case "PLT_FORM_WEDGE": {
-        [_targetUnit, "WEDGE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        [call _fnc_getPlatoonLeaderUnit, "WEDGE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to WEDGE (Cross-country Security).";
     };
     case "PLT_FORM_VEE": {
-        [_targetUnit, "VEE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        [call _fnc_getPlatoonLeaderUnit, "VEE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to VEE (Flexible Front).";
     };
     case "PLT_FORM_LINE": {
-        [_targetUnit, "LINE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        [call _fnc_getPlatoonLeaderUnit, "LINE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to LINE (Maximum Frontage).";
     };
     case "PLT_FORM_DIAMOND": {
-        [_targetUnit, "DIAMOND", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        [call _fnc_getPlatoonLeaderUnit, "DIAMOND", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to DIAMOND (All-Round Security / Open Terrain).";
     };
 
     case "PLT_FORM_LOCK_GROUND": {
-        private _ldr = if (!isNull _targetUnit) then { _targetUnit } else { player };
-        [_ldr] call FTCS_fnc_formationsCurrentPositionSet;
+        [call _fnc_getPlatoonLeaderUnit] call FTCS_fnc_formationsCurrentPositionSet;
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
     };
 
@@ -229,21 +253,9 @@ switch (_commandCode) do {
         (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "0"];
         (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "1"];
         
-        private _squads = call _fnc_getAllPlatoonSquads;
-
-        // Restore relative formation geometry from formationPosition to relPosition
-        {
-            private _gId = groupId _x;
-            private _formPos = [_gId, "formationPosition"] call FTCS_fnc_registryGet;
-            if (!isNil "_formPos" && {_formPos isEqualType []}) then {
-                [_gId, "relPosition", +_formPos] call FTCS_fnc_registrySet;
-            };
-        } forEach _squads;
-
-        if (count _squads > 0) then {
-            [_squads, "FOLLOWING_COMMANDER_REL"] spawn FTCS_fnc_formationsGroupListFollowCommander;
-        };
-        systemChat "[FOLLOW MODE] Platoon follow mode set to RELATIVE (Turn with Leader).";
+        // Adopt current ground positions dynamically and engage relative follow mode
+        [call _fnc_getPlatoonLeaderUnit, "FOLLOWING_COMMANDER_REL"] call FTCS_fnc_formationsCurrentPositionSet;
+        systemChat "[FOLLOW MODE] Platoon follow mode set to RELATIVE (Turn with Leader). Current ground layout locked.";
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
     };
 
@@ -252,27 +264,16 @@ switch (_commandCode) do {
         (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "1"];
         (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"];
         
-        // Ensure absolute formation heading is locked to current leader heading if not already set
-        private _ldr = if (!isNull _targetUnit) then { _targetUnit } else { player };
-        if (isNil {missionNamespace getVariable "FTCS_Platoon_Fixed_Abs_Dir"}) then {
-            missionNamespace setVariable ["FTCS_Platoon_Fixed_Abs_Dir", getDir _ldr];
-        };
+        // Ensure absolute formation heading is locked to current platoon leader heading
+        private _ldr = call _fnc_getPlatoonLeaderUnit;
+        private _lockDir = getDir _ldr;
+        missionNamespace setVariable ["FTCS_Platoon_Fixed_Abs_Dir", _lockDir];
+        missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", _lockDir];
+        missionNamespace setVariable ["FTCS_Last_Commander_Dir", _lockDir];
         
-        private _squads = call _fnc_getAllPlatoonSquads;
-
-        // Ensure relative formation geometry is clean in relPosition
-        {
-            private _gId = groupId _x;
-            private _formPos = [_gId, "formationPosition"] call FTCS_fnc_registryGet;
-            if (!isNil "_formPos" && {_formPos isEqualType []}) then {
-                [_gId, "relPosition", +_formPos] call FTCS_fnc_registrySet;
-            };
-        } forEach _squads;
-
-        if (count _squads > 0) then {
-            [_squads, "FOLLOWING_COMMANDER_ABS"] spawn FTCS_fnc_formationsGroupListFollowCommander;
-        };
-        systemChat "[FOLLOW MODE] Platoon follow mode set to ABSOLUTE (Fixed Compass).";
+        // Adopt current ground positions dynamically and engage absolute follow mode
+        [_ldr, "FOLLOWING_COMMANDER_ABS"] call FTCS_fnc_formationsCurrentPositionSet;
+        systemChat "[FOLLOW MODE] Platoon follow mode set to ABSOLUTE (Fixed Compass). Current ground layout locked.";
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
     };
 

@@ -42,7 +42,7 @@ private _platoonDir = if (_mode == "FOLLOWING_COMMANDER_ABS") then {
 if (_mode == "FOLLOWING_COMMANDER_REL") then 
 {
     private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
-    if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2}) then {
+    if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2} && {(_relPos select 0) >= 0}) then {
         private _dist = _relPos select 0;
         private _relAngle = _relPos select 1;
         // When stopped, anchor strictly along the platoon advance direction
@@ -56,7 +56,7 @@ if (_mode == "FOLLOWING_COMMANDER_REL") then
 if (_mode == "FOLLOWING_COMMANDER_ABS") then 
 {
     private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
-    if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2}) then {
+    if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2} && {(_relPos select 0) >= 0}) then {
         _group move ((getPosATL _leader) getPos [_relPos select 0, _platoonDir + (_relPos select 1)]);
         _group setFormDir _platoonDir;
     };
@@ -101,7 +101,7 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
         };
 
         private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
-        if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2}) then {
+        if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2} && {(_relPos select 0) >= 0}) then {
             if (_mode == "FOLLOWING_COMMANDER_REL") then {
                 _group move (_leader getRelPos [_relPos select 0, _relPos select 1]);
             } else {
@@ -156,7 +156,7 @@ while {(([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == _mode) ||
             };
 
             private _relPos = [ _groupID, "relPosition" ] call FTCS_fnc_registryGet;
-            if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2}) then {
+            if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos >= 2} && {(_relPos select 0) >= 0}) then {
                 private _dist = _relPos select 0;
                 private _relAngle = _relPos select 1;
 

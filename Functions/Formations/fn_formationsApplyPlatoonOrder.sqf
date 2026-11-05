@@ -77,13 +77,23 @@ if (_currentPhase == 0) exitWith {
 };
 
 // 3. Identify the Platoon Leader's group as the formation anchor [X]
-private _leaderGroup = group _platoonLeaderUnit;
-
-// Gather Platoon HQ sub-teams (Team 1: Command Element / RTO, Team 2: Support Element / Sergeant, Runner, Medic)
 private _pltIdx = parseNumber ((_pltKey splitString "_") select 1);
 private _hqSquadId = format ["SQD_%1_0", _pltIdx];
 private _hqSquadData = _parsedSquads getOrDefault [_hqSquadId, createHashMap];
 private _hqTeams = _hqSquadData getOrDefault ["tacticalTeams", createHashMap];
+
+// Ensure _platoonLeaderUnit is resolved to the actual Platoon Leader (Lieutenant), not the Sergeant
+private _hqRoles = _hqSquadData getOrDefault ["assignedRoles", createHashMap];
+private _resolvedLeader = _hqRoles getOrDefault [format ["PLT_%1_LEADER", _pltIdx], objNull];
+if (!isNull _resolvedLeader) then {
+    _platoonLeaderUnit = _resolvedLeader;
+} else {
+    if (isNull _platoonLeaderUnit || {(vehicleVarName _platoonLeaderUnit) find "SERGEANT" >= 0}) then {
+        _platoonLeaderUnit = player;
+    };
+};
+private _leaderGroup = group _platoonLeaderUnit;
+missionNamespace setVariable ["FTCS_Platoon_Leader_Unit", _platoonLeaderUnit];
 
 // Isolate HQ sub-teams distinctly:
 // - Command Element remaining group (Team 1 without isolated Leader) -> Slot 9 (HQ Command Attachments)

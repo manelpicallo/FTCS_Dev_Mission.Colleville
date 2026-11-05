@@ -32,6 +32,9 @@ FTCS_LiveSlotsWorker_Active = true;
     while {missionNamespace getVariable ["FTCS_Debug_Mode", true]} do {
         private _leaderUnit = missionNamespace getVariable ["FTCS_Formation_Visualizer_Leader", objNull];
         if (isNull _leaderUnit) then {
+            _leaderUnit = missionNamespace getVariable ["FTCS_Platoon_Leader_Unit", objNull];
+        };
+        if (isNull _leaderUnit) then {
             private _commanderGrp = missionNamespace getVariable ["FTCS_Group_Commander", grpNull];
             _leaderUnit = if (!isNull _commanderGrp) then { leader _commanderGrp } else { player };
         };
