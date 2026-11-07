@@ -47,7 +47,7 @@ Compañía (PLT_0 / SQD_0_0)
 | Estructura | Variable de grupo | Grupos físicos | Notas |
 |---|---|---|---|
 | HQ de Compañía | `SQD_0_0_TEAM_1` ... `SQD_0_0_TEAM_3` | 2–3 grupos | Team 1: Mando y Comunicaciones · Team 2: Liderazgo, Estafetas y Sanidad · Team 3 (opcional): Logística/Especializado |
-| HQ de Pelotón X | `SQD_X_0_TEAM_1`, `SQD_X_0_TEAM_2` | 2 grupos | Team 1: Elemento de Mando (líder + RTO) · Team 2: Elemento de Apoyo (sargento + estafeta + médico) |
+| HQ de Pelotón X | `SQD_X_0_TEAM_1` ... `SQD_X_0_TEAM_3` | 2–3 grupos | Team 1: Elemento de Mando (líder + RTO) · Team 2: Elemento de Apoyo (sargento + estafeta + médico) · Team 3 (opcional): Guía de pelotón y seguridad/estafetas |
 | Escuadra X_Y | `SQD_X_Y_TEAM_1` ... `SQD_X_Y_TEAM_4` | 1–4 grupos | Máximo 4 teams por escuadra, más el sargento independiente si la doctrina lo define |
 | Escuadra mono-team (morteros/apoyo) | `SQD_X_Y_TEAM_1` (único) | 1 grupo | Sección unificada; el backend NO la subdivide |
 
@@ -87,7 +87,7 @@ Compañía (PLT_0 / SQD_0_0)
 | Mensajero B | Team 2 | `HQ_MESSENGER_2` | PRIVATE |
 | Médico de compañía | Team 2 | `HQ_MEDIC` | PRIVATE |
 
-### 3.2 HQ de Pelotón (teams `SQD_X_0_TEAM_1/2`)
+### 3.2 HQ de Pelotón (teams `SQD_X_0_TEAM_1/2/3`)
 
 | Rol | Team | Variable de unidad | Rango |
 |---|---|---|---|
@@ -96,6 +96,8 @@ Compañía (PLT_0 / SQD_0_0)
 | Sargento de pelotón | Team 2 | `PLT_X_SERGEANT` | SERGEANT |
 | Corredor / estafeta | Team 2 | `PLT_X_1RUNNER` | PRIVATE |
 | Médico de pelotón | Team 2 | `PLT_MEDIC_X` | PRIVATE |
+| Guía de pelotón (opcional) | Team 3 | `PLT_X_GUIDE` | SERGEANT / CORPORAL |
+| Mensajero / Seguridad de HQ (opcional) | Team 3 | `PLT_X_2RUNNER` | PRIVATE |
 
 > En modo Pelotón el jugador ocupa el slot `PLT_1_LEADER`. Los HQ de pelotones 2 y 3 solo se despliegan en modo Compañía.
 

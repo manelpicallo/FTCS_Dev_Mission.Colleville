@@ -98,9 +98,11 @@ missionNamespace setVariable ["FTCS_Platoon_Leader_Unit", _platoonLeaderUnit];
 // Isolate HQ sub-teams distinctly:
 // - Command Element remaining group (Team 1 without isolated Leader) -> Slot 9 (HQ Command Attachments)
 // - Support Element group (Team 2: Platoon Sergeant, Runner, Medic) -> Slot 4 (Platoon Sergeant)
-// - Any secondary attached elements (e.g. attached Company messenger / liaison) -> Slot 10
+// - Guide / Security Element group (Team 3: Platoon Guide, Messenger / Security) -> Slot 10
+// - Any secondary attached elements (e.g. attached Company messenger / liaison) -> Slot 10 fallback
 private _team1Grp = grpNull;
 private _team2Grp = grpNull;
+private _team3Grp = grpNull;
 private _extraHqGrps = [];
 
 {
@@ -113,7 +115,11 @@ private _extraHqGrps = [];
             if (_tKey find "TEAM_2" >= 0 || _tKey find "SUPPORT" >= 0) then {
                 if (isNull _team2Grp) then { _team2Grp = _hGrp; } else { _extraHqGrps pushBack _hGrp; };
             } else {
-                _extraHqGrps pushBack _hGrp;
+                if (_tKey find "TEAM_3" >= 0 || _tKey find "GUIDE" >= 0 || _tKey find "SECURITY" >= 0) then {
+                    if (isNull _team3Grp) then { _team3Grp = _hGrp; } else { _extraHqGrps pushBack _hGrp; };
+                } else {
+                    _extraHqGrps pushBack _hGrp;
+                };
             };
         };
     };
@@ -132,8 +138,18 @@ if (!isNull _baseHqGroup && {_baseHqGroup != _leaderGroup}) then {
 };
 
 // 4. Resolve subordinate combat squads (Squad 1, Squad 2, Squad 3, Squad 4 / Mortars)
-private _squadElementsMap = createHashMap; // Key: squad ID suffix (e.g. "SQD_1_1", "SQD_1_2") -> groups array
+// and map Platoon HQ sub-teams to allow explicit doctrinal slot overrides (e.g. SQD_X_0_TEAM_1/2/3)
+private _squadElementsMap = createHashMap; // Key: squad ID or team ID (e.g. "SQD_1_1", "SQD_1_0_TEAM_3") -> groups array
 private _mortarElements = [];
+
+// Register Platoon HQ sub-teams into _squadElementsMap so doctrine formationSlots overrides can target them
+{
+    private _tKey = _x;
+    private _hGrp = (_y) getOrDefault ["group", grpNull];
+    if (!isNull _hGrp && {_hGrp != _leaderGroup}) then {
+        _squadElementsMap set [_tKey, [_hGrp]];
+    };
+} forEach _hqTeams;
 
 {
     private _sqdKey = _x;
@@ -219,8 +235,12 @@ if (!isNull _team2Grp) then { _slottedElements set [4, [_team2Grp]]; };
 // Slot 9: Company HQ Command Group Attachments (Team 1 escort / runners / RTO)
 if (!isNull _team1Grp) then { _slottedElements set [9, [_team1Grp]]; };
 
-// Slot 10: Additional HQ liaison / company messenger attachments
-if (count _extraHqGrps > 0) then { _slottedElements set [10, [_extraHqGrps select 0]]; };
+// Slot 10: Platoon Guide / Security Element (Team 3) or secondary HQ liaison attachments
+if (!isNull _team3Grp) then {
+    _slottedElements set [10, [_team3Grp]];
+} else {
+    if (count _extraHqGrps > 0) then { _slottedElements set [10, [_extraHqGrps select 0]]; };
+};
 
 // Apply pre-configured formation slots from doctrine if defined
 {

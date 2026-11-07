@@ -121,6 +121,7 @@ $groupCenters = @{
     "SQUAD_1_3_TEAM_4" = @( -40.0, 0.0 )  # BAR Support
     "SQUAD_1_0_TEAM_1" = @( -55.0, -12.0 )  # Plt 1 HQ - Mando
     "SQUAD_1_0_TEAM_2" = @( -55.0, -20.0 )  # Plt 1 HQ - Apoyo
+    "SQUAD_1_0_TEAM_3" = @( -55.0, -26.0 )  # Plt 1 HQ - Guia & Seguridad
     "SQUAD_1_4_TEAM_1" = @( -55.0, -32.0 )  # Mortero 1er Plt
 
     # 2º PELOTÓN (Centro, X = 0m)
@@ -138,6 +139,7 @@ $groupCenters = @{
     "SQUAD_2_3_TEAM_4" = @( +15.0, 0.0 )
     "SQUAD_2_0_TEAM_1" = @(   0.0, -12.0 )
     "SQUAD_2_0_TEAM_2" = @(   0.0, -20.0 )
+    "SQUAD_2_0_TEAM_3" = @(   0.0, -26.0 )
     "SQUAD_2_4_TEAM_1" = @(   0.0, -32.0 )
 
     # 3er PELOTÓN (Flanco Derecho, X = +55m)
@@ -155,6 +157,7 @@ $groupCenters = @{
     "SQUAD_3_3_TEAM_4" = @( +70.0, 0.0 )
     "SQUAD_3_0_TEAM_1" = @( +55.0, -12.0 )
     "SQUAD_3_0_TEAM_2" = @( +55.0, -20.0 )
+    "SQUAD_3_0_TEAM_3" = @( +55.0, -26.0 )
     "SQUAD_3_4_TEAM_1" = @( +55.0, -32.0 )
 
     # 4º PELOTÓN - WEAPONS PLATOON (Apoyo Pesado Orgánico, Flanco Derecho Separado)

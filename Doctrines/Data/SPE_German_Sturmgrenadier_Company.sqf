@@ -21,8 +21,8 @@ createHashMapFromArray [
     ["isMechanized", false],
     ["transportAsset", ""],
     ["companyHQRoles", ["CO_CAPTAIN", "XO_LIEUTENANT", "FIRST_SERGEANT", "COMM_SERGEANT", "RADIO_OPERATOR", "MESSENGER_1", "MESSENGER_2", "COMPANY_MEDIC"]],
-    ["platoonHQRoles", ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC"]],
-    ["platoonHQTeamStructure", [["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]], ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]]]],
+    ["platoonHQRoles", ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC", "PLATOON_GUIDE", "PLATOON_MESSENGER"]],
+    ["platoonHQTeamStructure", [["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]], ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]], ["Guide & Security Element", ["PLATOON_GUIDE", "PLATOON_MESSENGER"]]]],
     ["squadDesignations", createHashMapFromArray [
         ["SQD_1_1", "1st Rifle Squad"],
         ["SQD_1_2", "2nd Rifle Squad"],
@@ -45,6 +45,7 @@ createHashMapFromArray [
     // =========================================================================
     // Maps subordinate platoon elements into macro tactical formation slots.
     // The Platoon Leader (Lieutenant) always acts as the central anchor [X].
+    // Edit this map to customize squad/team placement per formation order.
     //
     //   - Slots 0, 1, 2 : Primary combat rifle squads (Vanguard/Center, Left Wing, Right Wing).
     //   - Slot 3        : 4th Rifle Squad or Heavy Weapons / Mortar Section.
@@ -60,15 +61,9 @@ createHashMapFromArray [
         [2, "SQD_X_3"],
         [3, "SQD_X_4"],
         [4, "SQD_X_0_TEAM_2"],
-        [9, "SQD_X_0_TEAM_1"]
+        [9, "SQD_X_0_TEAM_1"],
+        [10, "SQD_X_0_TEAM_3"]
     ]],
-
-    // =========================================================================
-    // SQUAD FORMATIONS PER PLATOON FORMATION ORDER
-    // =========================================================================
-    // Defines what local formation each squad takes under a given platoon order.
-    // e.g. In Platoon LINE, rifle squads (0, 1, 2) deploy in LINE abreast,
-    // while mortars/weapons (3) maintain COLUMN march posture.
     ["entities", [
         ["SPE_GER_SquadLead", [0, -4, 0], 0, "HQ_FIRST_SERGEANT", "SQUAD_0_0", "SERGEANT", false],
         ["SPE_GER_radioman", [0, -8, 0], 0, "HQ_RADIO_OPERATOR", "SQUAD_0_0", "PRIVATE", false],
@@ -194,6 +189,12 @@ createHashMapFromArray [
         ["SPE_GER_Assist_SquadLead", [70, 63, 0], 0, "", "SQUAD_3_3_TEAM_3", "CORPORAL", false],
         ["SPE_GER_rifleman", [70, 57, 0], 0, "", "SQUAD_3_3_TEAM_3", "PRIVATE", false],
         ["SPE_GER_rifleman", [70, 59, 0], 0, "", "SQUAD_3_3_TEAM_3", "PRIVATE", false],
-        ["SPE_GER_medic", [70, 61, 0], 0, "", "SQUAD_3_3_TEAM_3", "PRIVATE", false]
+        ["SPE_GER_medic", [70, 61, 0], 0, "", "SQUAD_3_3_TEAM_3", "PRIVATE", false],
+        ["SPE_GER_SquadLead", [-55, 22, 0], 0, "PLT_1_GUIDE", "SQUAD_1_0_TEAM_3", "SERGEANT", false],
+        ["SPE_GER_rifleman", [-55, 20, 0], 0, "PLT_1_2RUNNER", "SQUAD_1_0_TEAM_3", "PRIVATE", false],
+        ["SPE_GER_SquadLead", [0, 22, 0], 0, "PLT_2_GUIDE", "SQUAD_2_0_TEAM_3", "SERGEANT", false],
+        ["SPE_GER_rifleman", [0, 20, 0], 0, "PLT_2_2RUNNER", "SQUAD_2_0_TEAM_3", "PRIVATE", false],
+        ["SPE_GER_SquadLead", [55, 22, 0], 0, "PLT_3_GUIDE", "SQUAD_3_0_TEAM_3", "SERGEANT", false],
+        ["SPE_GER_rifleman", [55, 20, 0], 0, "PLT_3_2RUNNER", "SQUAD_3_0_TEAM_3", "PRIVATE", false]
     ]]
 ];

@@ -103,7 +103,8 @@ private _teamStructureNames = _doctrine getOrDefault ["teamStructure", ["Assault
 private _teamRoles = _doctrine getOrDefault ["teamRoles", []];
 private _platoonHQStructure = _doctrine getOrDefault ["platoonHQTeamStructure", [
     ["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]],
-    ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]]
+    ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]],
+    ["Guide & Security Element", ["PLATOON_GUIDE", "PLATOON_MESSENGER"]]
 ]];
 
 // Pre-configured macro formation slot allocations (Slots 0 to 12)
@@ -113,7 +114,8 @@ private _platoonFormationSlots = _doctrine getOrDefault ["platoonFormationSlots"
     [2, "SQD_X_3"],
     [3, "SQD_X_4"],
     [4, "SQD_X_0_TEAM_2"],
-    [9, "SQD_X_0_TEAM_1"]
+    [9, "SQD_X_0_TEAM_1"],
+    [10, "SQD_X_0_TEAM_3"]
 ]];
 
 // 2. Update Company Identifier in structural data

@@ -16,36 +16,36 @@ createHashMapFromArray [
     // The composition encodes hierarchy (SQD_X_Y_TEAM_N group variables) and
     // unit roles. Semantic identity of squads/platoons/teams is declared here:
     // edit these values after conversion; they feed FTCS_fnc_applyDoctrine directly.
-    ["platoonNames", ["Company HQ", "1st Rifle Platoon", "2nd Rifle Platoon", "3rd Rifle Platoon", "Weapons Platoon"]],
+    ["platoonNames", ["Company HQ", "1st Platoon", "2nd Platoon", "3rd Platoon"]],
     ["squadsPerPlatoon", 4],
     ["isMechanized", false],
     ["transportAsset", ""],
-    ["companyHQRoles", ["CO_CAPTAIN", "XO_LIEUTENANT", "FIRST_SERGEANT", "COMM_SERGEANT", "RADIO_OPERATOR", "MESSENGER_1", "MESSENGER_2", "MESSENGER_3", "COMPANY_MEDIC"]],
-    ["platoonHQRoles", ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC"]],
-    ["platoonHQTeamStructure", [["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]], ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]]]],
+    ["companyHQRoles", ["CO_CAPTAIN", "XO_LIEUTENANT", "FIRST_SERGEANT", "COMM_SERGEANT", "RADIO_OPERATOR", "MESSENGER_1", "MESSENGER_2", "COMPANY_MEDIC"]],
+    ["platoonHQRoles", ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC", "PLATOON_GUIDE", "PLATOON_MESSENGER"]],
+    ["platoonHQTeamStructure", [["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]], ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]], ["Guide & Security Element", ["PLATOON_GUIDE", "PLATOON_MESSENGER"]]]],
     ["squadDesignations", createHashMapFromArray [
         ["SQD_1_1", "1st Rifle Squad"],
         ["SQD_1_2", "2nd Rifle Squad"],
         ["SQD_1_3", "3rd Rifle Squad"],
+        ["SQD_1_4", "Mortar Section"],
         ["SQD_2_1", "1st Rifle Squad"],
         ["SQD_2_2", "2nd Rifle Squad"],
         ["SQD_2_3", "3rd Rifle Squad"],
+        ["SQD_2_4", "Mortar Section"],
         ["SQD_3_1", "1st Rifle Squad"],
         ["SQD_3_2", "2nd Rifle Squad"],
         ["SQD_3_3", "3rd Rifle Squad"],
-        ["SQD_4_1", "1st Mortar Section"],
-        ["SQD_4_2", "2nd Mortar Section"],
-        ["SQD_4_3", "1st Machine Gun Section"],
-        ["SQD_4_4", "2nd Machine Gun Section"]
+        ["SQD_3_4", "Mortar Section"]
     ]],
-    ["teamStructure", ["Able Team (Scouts)", "Baker Team (Base of Fire)", "Charlie Team (Maneuver)"]],
-    ["teamRoles", ["ASSAULT", "SUPPORT", "ASSAULT"]],
+    ["teamStructure", ["Rifle Team A", "Scout Team", "Rifle Team B", "BAR Support Team"]],
+    ["teamRoles", ["ASSAULT", "ASSAULT", "ASSAULT", "SUPPORT"]],
 
     // =========================================================================
     // PLATOON FORMATION MACRO SLOTS ALLOCATION (Slots 0 to 12)
     // =========================================================================
     // Maps subordinate platoon elements into macro tactical formation slots.
     // The Platoon Leader (Lieutenant) always acts as the central anchor [X].
+    // Edit this map to customize squad/team placement per formation order.
     //
     //   - Slots 0, 1, 2 : Primary combat rifle squads (Vanguard/Center, Left Wing, Right Wing).
     //   - Slot 3        : 4th Rifle Squad or Heavy Weapons / Mortar Section.
@@ -61,15 +61,9 @@ createHashMapFromArray [
         [2, "SQD_X_3"],
         [3, "SQD_X_4"],
         [4, "SQD_X_0_TEAM_2"],
-        [9, "SQD_X_0_TEAM_1"]
+        [9, "SQD_X_0_TEAM_1"],
+        [10, "SQD_X_0_TEAM_3"]
     ]],
-
-    // =========================================================================
-    // SQUAD FORMATIONS PER PLATOON FORMATION ORDER
-    // =========================================================================
-    // Defines what local formation each squad takes under a given platoon order.
-    // e.g. In Platoon LINE, rifle squads (0, 1, 2) deploy in LINE abreast,
-    // while mortars/weapons (3) maintain COLUMN march posture.
     ["entities", [
         ["SPE_US_Captain", [0, 0, 0], 0, "HQ_CO_CAPTAIN", "SQUAD_0_0", "CAPTAIN", false],
         ["SPE_US_First_Lieutenant", [0, -2, 0], 0, "HQ_XO_LIEUTENANT", "SQUAD_0_0", "LIEUTENANT", false],
@@ -225,6 +219,12 @@ createHashMapFromArray [
         ["SPE_US_HMGunner_M2", [125, 62, 0], 0, "", "SQUAD_4_4_TEAM_1", "PRIVATE", false],
         ["SPE_US_AHMGunner_M2", [125, 60, 0], 0, "", "SQUAD_4_4_TEAM_1", "PRIVATE", false],
         ["SPE_US_HMG_AmmoBearer_M2", [125, 66, 0], 0, "", "SQUAD_4_4_TEAM_1", "PRIVATE", false],
-        ["SPE_US_HMG_AmmoBearer_M2", [125, 64, 0], 0, "", "SQUAD_4_4_TEAM_1", "PRIVATE", false]
+        ["SPE_US_HMG_AmmoBearer_M2", [125, 64, 0], 0, "", "SQUAD_4_4_TEAM_1", "PRIVATE", false],
+        ["SPE_US_SquadLead", [-55, 22, 0], 0, "PLT_1_GUIDE", "SQUAD_1_0_TEAM_3", "SERGEANT", false],
+        ["SPE_US_Rifleman", [-55, 20, 0], 0, "PLT_1_2RUNNER", "SQUAD_1_0_TEAM_3", "PRIVATE", false],
+        ["SPE_US_SquadLead", [0, 22, 0], 0, "PLT_2_GUIDE", "SQUAD_2_0_TEAM_3", "SERGEANT", false],
+        ["SPE_US_Rifleman", [0, 20, 0], 0, "PLT_2_2RUNNER", "SQUAD_2_0_TEAM_3", "PRIVATE", false],
+        ["SPE_US_SquadLead", [55, 22, 0], 0, "PLT_3_GUIDE", "SQUAD_3_0_TEAM_3", "SERGEANT", false],
+        ["SPE_US_Rifleman", [55, 20, 0], 0, "PLT_3_2RUNNER", "SQUAD_3_0_TEAM_3", "PRIVATE", false]
     ]]
 ];

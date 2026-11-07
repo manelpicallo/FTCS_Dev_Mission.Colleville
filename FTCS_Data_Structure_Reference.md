@@ -75,10 +75,11 @@ FTCS_Company_Data (HashMap)
                   │     ├── "platoonID"     : STRING   -> "PLT_X"
                   │     ├── "group"         : GROUP    -> Grupo de mando (SQUAD_X_0_TEAM_1)
                   │     ├── "leader"        : OBJECT   -> Teniente (PLT_X_LEADER)
-                  │     ├── "assignedRoles" : HashMap  -> [PLT_X_LEADER, PLT_X_SERGEANT, PLT_X_RADIO_OPERATOR, PLT_X_RUNNER, PLT_X_MEDIC]
+                  │     ├── "assignedRoles" : HashMap  -> [PLT_X_LEADER, PLT_X_SERGEANT, PLT_X_RADIO_OPERATOR, PLT_X_RUNNER, PLT_X_MEDIC, PLT_X_GUIDE]
                   │     └── "tacticalTeams" : HashMap (Sub-equipos de Platoon HQ)
                   │           ├── "SQD_X_0_TEAM_1" -> [name: "Command Element", leader: Teniente, units: [Teniente, RTO]]
-                  │           └── "SQD_X_0_TEAM_2" -> [name: "Support Element", leader: Sargento Plt, units: [Sargento, Runner, Medic]]
+                  │           ├── "SQD_X_0_TEAM_2" -> [name: "Support Element", leader: Sargento Plt, units: [Sargento, Runner, Medic]]
+                  │           └── "SQD_X_0_TEAM_3" -> [name: "Guide & Security Element", leader: Guía Plt, units: [Guía, Estafeta/Seguridad]]
                   │
                   ├── "SQD_X_1" .. "SQD_X_3" : HashMap (Escuadras de Fusileros con Multi-Team)
                   │     ├── "name"          : STRING   -> "1st Rifle Squad", "2nd Rifle Squad", etc.
@@ -209,10 +210,11 @@ Doctrinal Data Template (HashMap devuelto por cada fichero SQF)
 │                                                   "COMM_SERGEANT", "RADIO_OPERATOR", "MESSENGER_1..6", "COMPANY_MEDIC"]
 │
 ├── "platoonHQRoles"          : ARRAY of STRINGS -> Roles asignados en SQD_X_0:
-│                                                  ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC"]
+│                                                  ["PLATOON_LEADER", "PLATOON_SERGEANT", "PLATOON_RTO", "PLATOON_RUNNER", "PLATOON_MEDIC", "PLATOON_GUIDE", "PLATOON_MESSENGER"]
 │
 ├── "platoonHQTeamStructure"  : ARRAY of ARRAYS  -> [["Command Element", ["PLATOON_LEADER", "PLATOON_RTO"]],
-│                                                   ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]]]
+│                                                   ["Support Element", ["PLATOON_SERGEANT", "PLATOON_RUNNER", "PLATOON_MEDIC"]],
+│                                                   ["Guide & Security Element", ["PLATOON_GUIDE", "PLATOON_MESSENGER"]]]
 │
 ├── "squadDesignations"       : HashMap          -> Mapeo semántico de escuadras ("SQD_X_Y" -> Nombre):
 │     ├── "SQD_1_1" : "1st Rifle Squad"
@@ -235,7 +237,7 @@ Doctrinal Data Template (HashMap devuelto por cada fichero SQF)
 │     ├── 5  : "SQD_X_Y_TEAM_Z"  (Opcional: Detached Scout / Rear Reserve)
 │     ├── 6..8: "SQD_X_Y_TEAM_Z" (Opcional: Forward Advanced Scout Screen)
 │     ├── 9  : "SQD_X_0_TEAM_1"  (Attached HQ Command Group / Escort)
-│     ├── 10 : "SQD_X_0_TEAM_3"  (Platoon Sergeant / Platoon Guide)
+│     ├── 10 : "SQD_X_0_TEAM_3"  (Platoon Guide / HQ Security / Rear Anchor)
 │     └── 11..12: "SQD_X_Y_TEAM_Z" (Opcional: Outer Flank Security Screens)
 │
 └── "entities"                : ARRAY of TUPLES (Tupla estándar de 7 u 8 campos por soldado/vehículo):
