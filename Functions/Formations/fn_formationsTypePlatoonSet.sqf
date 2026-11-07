@@ -89,7 +89,7 @@ private _paces_left = [0,0,0,0,0,0,0,0,0,0,0,0,0];
         private _type_form = if (_forEachIndex < count _squad_formations_in && {(_squad_formations_in select _forEachIndex) != ""}) then {
             _squad_formations_in select _forEachIndex
         } else {
-            if (_formation_type == "LINE") then {
+            if (_formation_type in ["LINE", "ECHELON_RIGHT", "ECHELON_LEFT"]) then {
                 if (_forEachIndex in [0, 1, 2]) then { "LINE" } else { "COLUMN" };
             } else {
                 "COLUMN"
@@ -507,7 +507,7 @@ switch (_formation_type) do {
         _separate_dis_8 = _leader distance2D _pos8;
     };
 
-    case "DIAMOND": {
+    case "ECHELON_RIGHT": {
         /*
             Doctrinal Slot Allocation:
             - Slots 0, 1, 2: Dedicated to main combat rifle squads.
@@ -517,74 +517,251 @@ switch (_formation_type) do {
             - Slot 9: Dedicated to Company HQ Command Group Attachment Left.
             - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide.
 
-            DIAMOND Layout (Platoon Level):
-            [X]     = Platoon Leader / Commander (Anchor point & Center Axis)
-            0       = Vanguard Point (Ahead of Leader)
-            1,2     = Left / Right Flank Guards (Flanking Leader)
-            3       = Rear Guard (Directly behind Leader)
-            4       = Platoon Sergeant & Escort (midway between 3 and 5)
-            5       = Command Reserve / Tail
-            6       = Forward Advanced Scout
-            7, 8    = Outer Forward Screen
-            9       = Company HQ Command Group Attachment Left
-            10      = Platoon Sergeant / Platoon Guide (Flanking Leader Right)
-            11,12   = Extended Outer Flank Guards (Central Axis Screen)
+            ECHELON RIGHT Layout (Platoon Level - Right Flank Refused / Screen):
+            [X]     = Platoon Leader / Commander (Anchor centered laterally between Slot 1 and Slot 0)
+            9       = Company HQ Command Group Attachment Left (Flanking Leader [X])
+            6,7,8   = Forward Advanced Scout Screen (50m ahead of Leader [X], standardized)
+            1       = 2nd Rifle Squad (Squad Left - Abreast at line distance, left of [X] by half spread)
+            4       = Platoon Sergeant & Support (Directly behind Slot 1 lane, pace + 5m)
+            0       = 1st Rifle Squad (Center Squad - 10m further back than in Line, right of [X] by half spread)
+            2       = 3rd Rifle Squad (Squad Right - 20m further back than in Line, right of Slot 0 by half spread)
+            10      = Platoon Sergeant / Platoon Guide (Halfway lateral between 0 and 2, 4m behind Slot 2 pace)
+            3       = 4th Squad / Weapons Section (Aligned behind Slot 0 lane)
+            5       = Deep Rear Reserve / Tail Security (Behind Slot 3 lane)
+            11,12   = Outer Flank Guards (Aligned with wings 1 and 2, 50m outward beyond pace)
 
-                      7 ----------- 6 ----------- 8
-                                   |
-                                  (0)
-                               .       .
-                        (1)       [X]       (2)
-            11 -----------+--------+--------+----------- 12
-                                 9-|-10              <-- 9: HQ Attach | 10: Platoon Guide
-                                  (3)
-                                   |
-                                  (4)
-                                   |
-                                  (5)
+                              7 ----------- 6 ----------- 8  <-- Forward Scout Screen (+50m, standardized)
+                                           |
+                                          [X]                <-- Platoon Leader (Anchor centered between 1 & 0)
+                                        9 -|-                <-- 9: HQ Command Attachment Left
+                                           |
+    11 (50m out from 1) -- 1 (Squad Left) -+                 <-- Slot 1 (Abreast, half lateral spread left of [X])
+                                 |         |
+                                 4 (Plt Sgt)
+                                           | (10m further back)
+                                           +------- (0)      <-- Slot 0 (Center, half lateral spread right of [X])
+                                           |         |
+                                           |        (3)      <-- Slot 3 (Mortars / Support aligned behind 0)
+                                           |         |
+                                           |        (5)      <-- Slot 5 (Tail Security aligned behind 3)
+                                           |
+                                           | (20m further back)
+                                           +-------------- 2 -- 12  <-- Slot 2 & Flank Guard 12
+                                                           |
+                                                          (10)      <-- Slot 10 (Plt Guide: halfway lat 0-2, 4m behind 2)
         */
-        _separate_dis_0 = _separate_dis * 2;
-        _direction_0 = 0;
+        // Slot 9: Company HQ Command Group Attachment (Flanking Platoon Leader [X] on the left)
+        private _separate_lat_9 = 2;
+        private _separate_long_9 = 2;
+        _direction_9 = (_leader getRelDir ((_leader getRelPos [_separate_lat_9, 270]) getPos [_separate_long_9, (getDir _leader) - 180]));
+        _separate_dis_9 = _leader distance2D ((_leader getRelPos [_separate_lat_9, 270]) getpos [_separate_long_9, getDir _leader]);
 
-        _separate_dis_1 = _separate_dis * 1.5;
-        _direction_1 = 270;
+        // Standard lateral lanes from Line formation
+        private _sep_lat_1 = _separate_dis + (_paces_left select 0) + (_paces_right select 1);
+        private _sep_lat_2 = _separate_dis + (_paces_right select 0) + (_paces_left select 2);
 
-        _separate_dis_2 = _separate_dis * 1.5;
-        _direction_2 = 90;
+        // [X] is positioned laterally halfway between Slot 1 and Slot 0:
+        // Slot 1 is laterally to the left of [X] by _half_x
+        // Slot 0 is laterally to the right of [X] by _half_x
+        private _sep_dist_1_0 = _sep_lat_1 / 2;
+        private _half_x = _sep_dist_1_0 / 2;
 
-        _separate_dis_3 = _separate_dis * 1.5;
-        _direction_3 = 180;
+        // Slot 1: Left wing (Squad Left), abreast at original Line distance behind [X], positioned _half_x left of [X]
+        private _long_dist_1 = 10 + (_paces_front select 0);
+        private _pos1 = ((_leader getRelPos [_half_x, 270]) getPos [_long_dist_1, (getDir _leader) - 180]);
+        _direction_1 = _leader getRelDir _pos1;
+        _separate_dis_1 = _leader distance2D _pos1;
 
-        _separate_dis_5 = _separate_dis * 2.5;
-        _direction_5 = 180;
+        // Slot 4: Platoon Sergeant & Support, directly behind Slot 1 lane with corresponding pace + 5m back
+        private _long_dist_4 = _long_dist_1 + (_paces_rear select 1) + (_paces_front select 4) + 5;
+        private _pos4 = ((_leader getRelPos [_half_x, 270]) getPos [_long_dist_4, (getDir _leader) - 180]);
+        _direction_4 = _leader getRelDir _pos4;
+        _separate_dis_4 = _leader distance2D _pos4;
 
-        // Slot 4: Platoon Sergeant & Escort troops, positioned midway between Slot 3 and Slot 5
-        _separate_dis_4 = (_separate_dis_3 + _separate_dis_5) / 2;
-        _direction_4 = 180;
+        // Slot 0: Center Squad, displaced 10m further back than in Line, positioned _half_x right of [X]
+        private _long_dist_0 = 20 + (_paces_front select 0);
+        private _pos0 = ((_leader getRelPos [_half_x, 90]) getPos [_long_dist_0, (getDir _leader) - 180]);
+        _direction_0 = _leader getRelDir _pos0;
+        _separate_dis_0 = _leader distance2D _pos0;
 
-        _separate_dis_6 = _separate_dis * 3;
+        // Slot 2: Right wing (Squad Right), displaced 20m further back than Line
+        // Lateral distance from Slot 0 is half of Line's sep_lat_2, so from [X] it is _half_x + (_sep_lat_2 / 2)
+        private _long_dist_2 = 30 + (_paces_front select 0);
+        private _lat_x_2 = _half_x + (_sep_lat_2 / 2);
+        private _pos2 = ((_leader getRelPos [_lat_x_2, 90]) getPos [_long_dist_2, (getDir _leader) - 180]);
+        _direction_2 = _leader getRelDir _pos2;
+        _separate_dis_2 = _leader distance2D _pos2;
+
+        // Slot 10: Platoon Sergeant / Platoon Guide, positioned halfway laterally between Slot 0 and Slot 2
+        // Lateral from [X]: _half_x + (_sep_lat_2 / 4), and 4m behind Slot 2 rear pace
+        private _lat_x_10 = _half_x + (_sep_lat_2 / 4);
+        private _long_dist_10 = _long_dist_2 + (_paces_rear select 2) + (_paces_front select 10) + 4;
+        private _pos10 = ((_leader getRelPos [_lat_x_10, 90]) getPos [_long_dist_10, (getDir _leader) - 180]);
+        _direction_10 = _leader getRelDir _pos10;
+        _separate_dis_10 = _leader distance2D _pos10;
+
+        // Slot 3: 4th Squad / Weapons Section, aligned behind Slot 0 lane
+        private _long_dist_3 = _long_dist_0 + (_paces_rear select 0) + (_paces_front select 3) + 5;
+        private _pos3 = ((_leader getRelPos [_half_x, 90]) getPos [_long_dist_3, (getDir _leader) - 180]);
+        _direction_3 = _leader getRelDir _pos3;
+        _separate_dis_3 = _leader distance2D _pos3;
+
+        // Slot 5: Deep Rear Reserve / Tail Security, aligned behind Slot 3 lane
+        private _long_dist_5 = _long_dist_3 + _separate_dis + (_paces_rear select 3) + (_paces_front select 5);
+        private _pos5 = ((_leader getRelPos [_half_x, 90]) getPos [_long_dist_5, (getDir _leader) - 180]);
+        _direction_5 = _leader getRelDir _pos5;
+        _separate_dis_5 = _leader distance2D _pos5;
+
+        // Slots 6, 7 & 8: Forward Scout Screens, advanced 50m forward ahead of Leader [X] (standardized)
         _direction_6 = 0;
+        _separate_dis_6 = 50;
 
-        private _separate_lat_diamond = _separate_dis * 3;
-        private _separate_long_diamond = _separate_dis_6;
-
-        private _pos7 = ((_leader getRelPos [_separate_lat_diamond, 270]) getPos [_separate_long_diamond, getDir _leader]);
+        private _pos7 = ((_leader getRelPos [_sep_lat_1, 270]) getPos [_separate_dis_6, getDir _leader]);
         _direction_7 = _leader getRelDir _pos7;
         _separate_dis_7 = _leader distance2D _pos7;
 
-        private _pos8 = ((_leader getRelPos [_separate_lat_diamond, 90]) getPos [_separate_long_diamond, getDir _leader]);
+        private _pos8 = ((_leader getRelPos [_sep_lat_2, 90]) getPos [_separate_dis_6, getDir _leader]);
         _direction_8 = _leader getRelDir _pos8;
         _separate_dis_8 = _leader distance2D _pos8;
 
-        // Slots 9 & 10: Company HQ Command Group Attachments (Messengers/Medical, 2m flanking Leader)
-        _separate_dis_9 = 2;
-        _direction_9 = 270;
-        _separate_dis_10 = 2;
-        _direction_10 = 90;
-        _separate_dis_11 = _separate_dis * 4;
-        _direction_11 = 270;
-        _separate_dis_12 = _separate_dis * 4;
-        _direction_12 = 90;
+        // Slots 11 & 12: Outer Wings / Flank Protection screens, positioned 50m outward beyond wings after pace
+        private _sep_lat_11 = _half_x + (_paces_left select 1) + 50;
+        private _pos11 = ((_leader getRelPos [_sep_lat_11, 270]) getPos [_long_dist_1, (getDir _leader) - 180]);
+        _direction_11 = _leader getRelDir _pos11;
+        _separate_dis_11 = _leader distance2D _pos11;
+
+        private _sep_lat_12 = _lat_x_2 + (_paces_right select 2) + 50;
+        private _pos12 = ((_leader getRelPos [_sep_lat_12, 90]) getPos [_long_dist_2, (getDir _leader) - 180]);
+        _direction_12 = _leader getRelDir _pos12;
+        _separate_dis_12 = _leader distance2D _pos12;
+    };
+
+    case "ECHELON_LEFT": {
+        /*
+            Doctrinal Slot Allocation:
+            - Slots 0, 1, 2: Dedicated to main combat rifle squads.
+            - Slot 3: Dedicated to a 4th main rifle squad (when present in certain doctrines)
+              or an additional weapons section (mortars or heavy machine guns).
+            - Slot 4: Dedicated to the Platoon Sergeant and accompanying support/escort troops.
+            - Slot 9: Dedicated to Company HQ Command Group Attachment Left.
+            - Slot 10: Dedicated to Platoon Sergeant / Platoon Guide.
+
+            ECHELON LEFT Layout (Platoon Level - Left Flank Refused / Screen - Mirror of Echelon Right):
+            [X]     = Platoon Leader / Commander (Anchor centered laterally between Slot 2 and Slot 0)
+            9       = Company HQ Command Group Attachment Left (Flanking Leader [X])
+            6,7,8   = Forward Advanced Scout Screen (50m ahead of Leader [X], standardized)
+            2       = 3rd Rifle Squad (Squad Right - Abreast at line distance, right of [X] by half spread)
+            4       = Platoon Sergeant & Support (Directly behind Slot 2 lane, pace + 5m)
+            0       = 1st Rifle Squad (Center Squad - 10m further back than in Line, left of [X] by half spread)
+            1       = 2nd Rifle Squad (Squad Left - 20m further back than in Line, left of Slot 0 by half spread)
+            10      = Platoon Sergeant / Platoon Guide (Halfway lateral between 0 and 1, 4m behind Slot 1 pace)
+            3       = 4th Squad / Weapons Section (Aligned behind Slot 0 lane)
+            5       = Deep Rear Reserve / Tail Security (Behind Slot 3 lane)
+            11,12   = Outer Flank Guards (Aligned with wings 1 and 2, 50m outward beyond pace)
+
+                              7 ----------- 6 ----------- 8  <-- Forward Scout Screen (+50m, standardized)
+                                           |
+                                          [X]                <-- Platoon Leader (Anchor centered between 2 & 0)
+                                        9 -|-                <-- 9: HQ Command Attachment Left
+                                           |
+                                           +- 2 (Squad Right) -- 12  <-- Slot 2 (Abreast, half spread right of [X])
+                                           |  |
+                                           |  4 (Plt Sgt)    <-- Slot 4 (Aligned behind 2 lane)
+                                           |
+                       (0) ----------------+                 <-- Slot 0 (Center, half spread left of [X], 10m back)
+                        |                  |
+                       (3)                 |                 <-- Slot 3 (Mortars / Support aligned behind 0)
+                        |                  |
+                       (5)                 |                 <-- Slot 5 (Tail Security aligned behind 3)
+                                           |
+    11 -- 1 -------------------------------+                 <-- Slot 1 (Squad Left, 20m back from Line)
+          |
+         (10)                                                <-- Slot 10 (Plt Guide: halfway lat 0-1, 4m behind 1)
+        */
+        // Slot 9: Company HQ Command Group Attachment (Flanking Platoon Leader [X] on the left)
+        private _separate_lat_9 = 2;
+        private _separate_long_9 = 2;
+        _direction_9 = (_leader getRelDir ((_leader getRelPos [_separate_lat_9, 270]) getPos [_separate_long_9, (getDir _leader) - 180]));
+        _separate_dis_9 = _leader distance2D ((_leader getRelPos [_separate_lat_9, 270]) getpos [_separate_long_9, getDir _leader]);
+
+        // Standard lateral lanes from Line formation
+        private _sep_lat_1 = _separate_dis + (_paces_left select 0) + (_paces_right select 1);
+        private _sep_lat_2 = _separate_dis + (_paces_right select 0) + (_paces_left select 2);
+
+        // [X] is positioned laterally halfway between Slot 2 and Slot 0:
+        // Slot 2 is laterally to the right of [X] by _half_x
+        // Slot 0 is laterally to the left of [X] by _half_x
+        private _sep_dist_2_0 = _sep_lat_2 / 2;
+        private _half_x = _sep_dist_2_0 / 2;
+
+        // Slot 2: Right wing (Squad Right), abreast at original Line distance behind [X], positioned _half_x right of [X]
+        private _long_dist_2 = 10 + (_paces_front select 0);
+        private _pos2 = ((_leader getRelPos [_half_x, 90]) getPos [_long_dist_2, (getDir _leader) - 180]);
+        _direction_2 = _leader getRelDir _pos2;
+        _separate_dis_2 = _leader distance2D _pos2;
+
+        // Slot 4: Platoon Sergeant & Support, directly behind Slot 2 lane with corresponding pace + 5m back
+        private _long_dist_4 = _long_dist_2 + (_paces_rear select 2) + (_paces_front select 4) + 5;
+        private _pos4 = ((_leader getRelPos [_half_x, 90]) getPos [_long_dist_4, (getDir _leader) - 180]);
+        _direction_4 = _leader getRelDir _pos4;
+        _separate_dis_4 = _leader distance2D _pos4;
+
+        // Slot 0: Center Squad, displaced 10m further back than in Line, positioned _half_x left of [X]
+        private _long_dist_0 = 20 + (_paces_front select 0);
+        private _pos0 = ((_leader getRelPos [_half_x, 270]) getPos [_long_dist_0, (getDir _leader) - 180]);
+        _direction_0 = _leader getRelDir _pos0;
+        _separate_dis_0 = _leader distance2D _pos0;
+
+        // Slot 1: Left wing (Squad Left), displaced 20m further back than Line
+        // Lateral distance from Slot 0 is half of Line's sep_lat_1, so from [X] it is _half_x + (_sep_lat_1 / 2)
+        private _long_dist_1 = 30 + (_paces_front select 0);
+        private _lat_x_1 = _half_x + (_sep_lat_1 / 2);
+        private _pos1 = ((_leader getRelPos [_lat_x_1, 270]) getPos [_long_dist_1, (getDir _leader) - 180]);
+        _direction_1 = _leader getRelDir _pos1;
+        _separate_dis_1 = _leader distance2D _pos1;
+
+        // Slot 10: Platoon Sergeant / Platoon Guide, positioned halfway laterally between Slot 0 and Slot 1
+        // Lateral from [X]: _half_x + (_sep_lat_1 / 4), and 4m behind Slot 1 rear pace
+        private _lat_x_10 = _half_x + (_sep_lat_1 / 4);
+        private _long_dist_10 = _long_dist_1 + (_paces_rear select 1) + (_paces_front select 10) + 4;
+        private _pos10 = ((_leader getRelPos [_lat_x_10, 270]) getPos [_long_dist_10, (getDir _leader) - 180]);
+        _direction_10 = _leader getRelDir _pos10;
+        _separate_dis_10 = _leader distance2D _pos10;
+
+        // Slot 3: 4th Squad / Weapons Section, aligned behind Slot 0 lane
+        private _long_dist_3 = _long_dist_0 + (_paces_rear select 0) + (_paces_front select 3) + 5;
+        private _pos3 = ((_leader getRelPos [_half_x, 270]) getPos [_long_dist_3, (getDir _leader) - 180]);
+        _direction_3 = _leader getRelDir _pos3;
+        _separate_dis_3 = _leader distance2D _pos3;
+
+        // Slot 5: Deep Rear Reserve / Tail Security, aligned behind Slot 3 lane
+        private _long_dist_5 = _long_dist_3 + _separate_dis + (_paces_rear select 3) + (_paces_front select 5);
+        private _pos5 = ((_leader getRelPos [_half_x, 270]) getPos [_long_dist_5, (getDir _leader) - 180]);
+        _direction_5 = _leader getRelDir _pos5;
+        _separate_dis_5 = _leader distance2D _pos5;
+
+        // Slots 6, 7 & 8: Forward Scout Screens, advanced 50m forward ahead of Leader [X] (standardized)
+        _direction_6 = 0;
+        _separate_dis_6 = 50;
+
+        private _pos7 = ((_leader getRelPos [_sep_lat_1, 270]) getPos [_separate_dis_6, getDir _leader]);
+        _direction_7 = _leader getRelDir _pos7;
+        _separate_dis_7 = _leader distance2D _pos7;
+
+        private _pos8 = ((_leader getRelPos [_sep_lat_2, 90]) getPos [_separate_dis_6, getDir _leader]);
+        _direction_8 = _leader getRelDir _pos8;
+        _separate_dis_8 = _leader distance2D _pos8;
+
+        // Slots 11 & 12: Outer Wings / Flank Protection screens, positioned 50m outward beyond wings after pace
+        private _sep_lat_11 = _lat_x_1 + (_paces_left select 1) + 50;
+        private _pos11 = ((_leader getRelPos [_sep_lat_11, 270]) getPos [_long_dist_1, (getDir _leader) - 180]);
+        _direction_11 = _leader getRelDir _pos11;
+        _separate_dis_11 = _leader distance2D _pos11;
+
+        private _sep_lat_12 = _half_x + (_paces_right select 2) + 50;
+        private _pos12 = ((_leader getRelPos [_sep_lat_12, 90]) getPos [_long_dist_2, (getDir _leader) - 180]);
+        _direction_12 = _leader getRelDir _pos12;
+        _separate_dis_12 = _leader distance2D _pos12;
     };
 
     default { 
@@ -673,6 +850,14 @@ private _list = [];
             switch (_formation_type) do {
                 case "LINE": {
                     // Por defecto en LINE de pelotón: los squads 0, 1 y 2 en "LINE"; el 3 (morteros/armas) en "COLUMN"
+                    if (_forEachIndex in [0, 1, 2]) then { "LINE" } else { "COLUMN" };
+                };
+                case "ECHELON_RIGHT": {
+                    // Mismo tipo de formación de squads que en LINE de pelotón: squads 0, 1 y 2 en "LINE"; el 3 en "COLUMN"
+                    if (_forEachIndex in [0, 1, 2]) then { "LINE" } else { "COLUMN" };
+                };
+                case "ECHELON_LEFT": {
+                    // Mismo tipo de formación de squads que en LINE de pelotón: squads 0, 1 y 2 en "LINE"; el 3 en "COLUMN"
                     if (_forEachIndex in [0, 1, 2]) then { "LINE" } else { "COLUMN" };
                 };
                 case "WEDGE": {

@@ -20,10 +20,10 @@ Las fases doctrinales (FM 3-21.8) se estructuran en 3 grandes etapas:
 - Motor de transición modular: Gobernado por FTCS_fnc_platoonSetOperationalPhase, el cual aplica postura física, conciencia (CARELESS/AWARE/COMBAT), velocidad y ROE a todas las escuadras orgánicas. En Fase 1 (APPROACH) los soldados adoptan comportamiento CARELESS (armas bajadas / sin estado de combate), reservándose SAFE para marchas seguras.
 - Opciones activas / habilitadas en UI (seleccionables / texto blanco):
   * FASE 1 -> 1.A. Operational Phase Transition (a1, a2, a3)
-  * FASE 1 -> 1.B. Platoon-Wide Orders (Column, Wedge, Vee, Line, Diamond, Relative/Absolute Follow Modes)
+  * FASE 1 -> 1.B. Platoon-Wide Orders (Column, Wedge, Vee, Line, Echelon Right, Echelon Left, Relative/Absolute Follow Modes)
   * FASE 1 -> 1.C. Movement Techniques (Traveling, Traveling Overwatch)
   * FASE 2 -> 1.A. Operational Phase Transition (a1, a2, a3)
-  * FASE 2 -> 1.B. Platoon Formations (Column, Wedge, Vee, Line, Diamond, Relative/Absolute Follow Modes)
+  * FASE 2 -> 1.B. Platoon Formations (Column, Wedge, Vee, Line, Echelon Right, Echelon Left, Relative/Absolute Follow Modes)
 - Formaciones de Escuadra: Soportadas hasta 5 sub-equipos (1 Líder + hasta 4 grupos subordinados). En Fase 1 (APPROACH) los flancos de cuña/Vee adoptan dinámicamente ECHELON_RIGHT y ECHELON_LEFT para escalonamiento de marcha en columna relajada. En Fase 2 (CONTACT LIKELY / OVERWATCH) las escuadras recuperan su geometría táctica abierta completa (WEDGE/LINE) en disciplina estricta AWARE.
 - Resto de opciones: Visibles en UI pero desactivadas (gris claro / enable="0") hasta su implementación.
 
@@ -41,11 +41,12 @@ FASE 1: APPROACH PHASE (Desplazamiento / Sin Contacto) [FASE ACTIVA POR DEFECTO]
 │   ├── b2. Platoon Wedge (Security / Cross-country) [ACTIVO]
 │   ├── b3. Platoon Vee (Flexible Front) [ACTIVO]
 │   ├── b4. Platoon Line (Full Frontage Assault) [ACTIVO]
-│   ├── b5. Platoon Diamond (All-Round Security / Open) [ACTIVO]
-│   ├── b6. Platoon File (Dense Vegetation / Narrow Trail) [DESACTIVADO]
-│   ├── b7. Adopt Ground Layout (Lock Positions) [ACTIVO]
-│   ├── b8. Follow Mode: Relative (Turn with Leader) [ACTIVO - Por defecto / En gris al estar activo]
-│   └── b9. Follow Mode: Absolute (Fixed Compass) [ACTIVO - Seleccionable para alternar]
+│   ├── b5. Platoon Echelon Right (Right Flank Refused) [ACTIVO]
+│   ├── b6. Platoon Echelon Left (Left Flank Refused) [ACTIVO]
+│   ├── b7. Platoon File (Dense Vegetation / Narrow Trail) [DESACTIVADO]
+│   ├── b8. Adopt Ground Layout (Lock Positions) [ACTIVO]
+│   ├── b9. Follow Mode: Relative (Turn with Leader) [ACTIVO - Por defecto / En gris al estar activo]
+│   └── b10. Follow Mode: Absolute (Fixed Compass) [ACTIVO - Seleccionable para alternar]
 ├── C. Movement Techniques (Traveling, Traveling Overwatch) [ACTIVO]
 │   ├── c1. Traveling (Standard March Speed) [ACTIVO]
 │   └── c2. Traveling Overwatch (Cautious Advance) [ACTIVO]
@@ -105,7 +106,7 @@ o Zona de Peligro Lineal [LDA: carreteras, ríos, claros], o manualmente por el 
 │   ├── a1. Set Phase 1: APPROACH [ACTIVO]
 │   ├── a2. Set Phase 2: CONTACT LIKELY / OVERWATCH [ACTIVO]
 │   └── a3. Set Phase 3: COMBAT & ASSAULT [ACTIVO]
-├── B. Platoon Formations (Formaciones de Pelotón: Column, Wedge, Vee, Line, Diamond) [ACTIVO]
+├── B. Platoon Formations (Formaciones de Pelotón: Column, Wedge, Vee, Line, Echelon Right, Echelon Left) [ACTIVO]
 ├── C. Transition to Bounding Overwatch (Preparar saltos por fuego y movimiento) [ACTIVO]
 │   ├── c1. Successive Bounds (Alternate) [ACTIVO]
 │   ├── c2. Continuous Bounds [ACTIVO]

@@ -111,11 +111,12 @@ FTCS_MENU_PlatoonFormations_P1 = [
     ["2. Platoon Wedge (Security / Cross-country)", [3], "", -5, [["expression", "['PLT_FORM_WEDGE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["3. Platoon Vee (Flexible Front)", [4], "", -5, [["expression", "['PLT_FORM_VEE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["4. Platoon Line (Full Frontage Assault)", [5], "", -5, [["expression", "['PLT_FORM_LINE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["5. Platoon Diamond (All-Round Security / Open)", [6], "", -5, [["expression", "['PLT_FORM_DIAMOND'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["6. Platoon File (Dense Vegetation / Narrow Trail)", [7], "", -5, [["expression", "['PLT_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["7. Adopt Ground Layout (Lock Positions)", [8], "", -5, [["expression", "['PLT_FORM_LOCK_GROUND'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["8. Follow Mode: Relative (Turn with Leader)", [9], "", -5, [["expression", "['PLT_MODE_RELATIVE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["9. Follow Mode: Absolute (Fixed Compass)", [10], "", -5, [["expression", "['PLT_MODE_ABSOLUTE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
+    ["5. Platoon Echelon Right (Right Flank Refused)", [6], "", -5, [["expression", "['PLT_FORM_ECHELON_RIGHT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["6. Platoon Echelon Left (Left Flank Refused)", [7], "", -5, [["expression", "['PLT_FORM_ECHELON_LEFT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["7. Platoon File (Dense Vegetation / Narrow Trail)", [8], "", -5, [["expression", "['PLT_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["8. Adopt Ground Layout (Lock Positions)", [9], "", -5, [["expression", "['PLT_FORM_LOCK_GROUND'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["9. Follow Mode: Relative (Turn with Leader)", [10], "", -5, [["expression", "['PLT_MODE_RELATIVE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["10. Follow Mode: Absolute (Fixed Compass)", [11], "", -5, [["expression", "['PLT_MODE_ABSOLUTE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
 ];
 
 // 1.2 Movement Techniques Submenu (Phase 1) - [ACTIVE]

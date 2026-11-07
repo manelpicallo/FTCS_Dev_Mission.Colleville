@@ -137,15 +137,15 @@ private _menuName = switch (_menuType) do {
 // Synchronize Follow Mode options in Platoon Formations menu:
 // The currently active mode appears in gray / disabled ("1", "0") so the alternative is selectable ("1", "1")
 // Indices in FTCS_MENU_PlatoonFormations_P1:
-//   select 8 -> Option 8: Relative
-//   select 9 -> Option 9: Absolute
+//   select 9 -> Option 9: Relative
+//   select 10 -> Option 10: Absolute
 private _currentFollowMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
 if (_currentFollowMode == "FOLLOWING_COMMANDER_REL") then {
-    (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "0"]; // Relative disabled (gray)
-    (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "1"]; // Absolute enabled (white)
+    (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"]; // Relative disabled (gray)
+    (FTCS_MENU_PlatoonFormations_P1 select 10) set [6, "1"]; // Absolute enabled (white)
 } else {
-    (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "1"]; // Relative enabled (white)
-    (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"]; // Absolute disabled (gray)
+    (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "1"]; // Relative enabled (white)
+    (FTCS_MENU_PlatoonFormations_P1 select 10) set [6, "0"]; // Absolute disabled (gray)
 };
 
 // Dynamically evaluate combat effectiveness of detached scout slots (Slots 11, 12, 7, 6, 8, 5)

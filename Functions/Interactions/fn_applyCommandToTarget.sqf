@@ -343,11 +343,14 @@ switch (_commandCode) do {
         [call _fnc_getPlatoonLeaderUnit, "LINE", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
         systemChat "[PLATOON ORDER] Platoon Formation set to LINE (Maximum Frontage).";
     };
-    case "PLT_FORM_DIAMOND": {
-        [call _fnc_getPlatoonLeaderUnit, "DIAMOND", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
-        systemChat "[PLATOON ORDER] Platoon Formation set to DIAMOND (All-Round Security / Open Terrain).";
+    case "PLT_FORM_ECHELON_RIGHT": {
+        [call _fnc_getPlatoonLeaderUnit, "ECHELON_RIGHT", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        systemChat "[PLATOON ORDER] Platoon Formation set to ECHELON RIGHT (Right Flank Refused / Screen).";
     };
-
+    case "PLT_FORM_ECHELON_LEFT": {
+        [call _fnc_getPlatoonLeaderUnit, "ECHELON_LEFT", 15] call FTCS_fnc_formationsApplyPlatoonOrder;
+        systemChat "[PLATOON ORDER] Platoon Formation set to ECHELON LEFT (Left Flank Refused / Screen).";
+    };
     case "PLT_FORM_LOCK_GROUND": {
         [call _fnc_getPlatoonLeaderUnit] call FTCS_fnc_formationsCurrentPositionSet;
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
@@ -355,8 +358,8 @@ switch (_commandCode) do {
 
     case "PLT_MODE_RELATIVE": {
         missionNamespace setVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
-        (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "0"];
-        (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "1"];
+        (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"];
+        (FTCS_MENU_PlatoonFormations_P1 select 10) set [6, "1"];
         
         // Adopt current ground positions dynamically and engage relative follow mode
         [call _fnc_getPlatoonLeaderUnit, "FOLLOWING_COMMANDER_REL"] call FTCS_fnc_formationsCurrentPositionSet;
@@ -366,8 +369,8 @@ switch (_commandCode) do {
 
     case "PLT_MODE_ABSOLUTE": {
         missionNamespace setVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_ABS"];
-        (FTCS_MENU_PlatoonFormations_P1 select 8) set [6, "1"];
-        (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"];
+        (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "1"];
+        (FTCS_MENU_PlatoonFormations_P1 select 10) set [6, "0"];
         
         // Ensure absolute formation heading is locked to current platoon leader heading
         private _ldr = call _fnc_getPlatoonLeaderUnit;
