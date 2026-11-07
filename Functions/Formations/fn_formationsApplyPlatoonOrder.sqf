@@ -279,6 +279,12 @@ private _allSubordinateGroups = [];
 
 // Build final formation elements list: Index 0 is strictly Leader Group [X], followed by Slots 0 to 12
 private _formationElements = [[_leaderGroup]] + _slottedElements;
+
+// Reset platoon movement technique to open cross-country formation (releasing road march mode cleanly)
+_pltData set ["movementTechnique", "CROSS_COUNTRY"];
+_pltData set ["roadPath", []];
+_platoonsMap set [_pltKey, _pltData];
+
 // 5. Two-tier formation geometry calculation:
 missionNamespace setVariable ["FTCS_Platoon_Formation_Type", _formationType];
 

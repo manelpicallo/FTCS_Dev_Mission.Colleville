@@ -62,6 +62,15 @@ class CfgFunctions
             class formationsSetAdvanceDirection {};
             class formationsApplyPlatoonOrder {};
             class formationsLiveSlotsDebugWorker {};
+            class formationsRoadColumnSet {};
+            class formationsGroupFollowRoad {};
+        };
+
+        class Roads
+        {
+            class roadFindSegment {};
+            class roadBuildPath {};
+            class roadGetPointsBehind {};
         };
 
         class Interactions

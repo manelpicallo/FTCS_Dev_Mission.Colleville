@@ -61,12 +61,14 @@ FTCS_Company_Data (HashMap)
       ├── "PLT_0" : Pelotón de Mando (Apunta internamente a la estructura de Company HQ)
       │
       └── "PLT_1" .. "PLT_4" : HashMap (Pelotones Tácticos de Combate y Apoyo)
-            ├── "name"           : STRING      -> Nombre semántico (ej. "1st Rifle Platoon", "Weapons Platoon")
-            ├── "currentPhase"   : NUMBER      -> Fase operacional activa del pelotón (1: APPROACH, 2: OVERWATCH, 3: COMBAT)
-            ├── "isMechanized"   : BOOLEAN     -> true / false
-            ├── "transportAsset" : STRING      -> Classname de transporte de pelotón o ""
-            ├── "squads"         : ARRAY of ID -> Lista de IDs de escuadras: ["SQD_1_0", "SQD_1_1", "SQD_1_2", "SQD_1_3"]
-            ├── "formationSlots" : HashMap     -> Mapeo pre-resuelto de slots doctrinales (Slot 0..12 -> ID escuadra/team)
+            ├── "name"              : STRING      -> Nombre semántico (ej. "1st Rifle Platoon", "Weapons Platoon")
+            ├── "currentPhase"      : NUMBER      -> Fase operacional activa del pelotón (1: APPROACH, 2: OVERWATCH, 3: COMBAT)
+            ├── "movementTechnique" : STRING      -> "CROSS_COUNTRY" (táctico a campo través) | "ROAD_COLUMN" (carretera) | "TRAIL_FILE"
+            ├── "roadPath"          : ARRAY       -> Polilínea de carretera activa [[posATL, tangentDir, roadWidth], ...] o []
+            ├── "isMechanized"      : BOOLEAN     -> true / false
+            ├── "transportAsset"    : STRING      -> Classname de transporte de pelotón o ""
+            ├── "squads"            : ARRAY of ID -> Lista de IDs de escuadras: ["SQD_1_0", "SQD_1_1", "SQD_1_2", "SQD_1_3"]
+            ├── "formationSlots"    : HashMap     -> Mapeo pre-resuelto de slots doctrinales (Slot 0..12 -> ID escuadra/team)
             │
             └── "parsedSquads"   : HashMap (Escuadras resueltas en el motor)
                   │
@@ -182,8 +184,14 @@ FTCS_Groups_Registry_Table (HashMap)
       │     Posición relativa teórica asignada dentro de la formación respecto a su líder guía.
       │     Ejemplo: [25, 180, Group_Platoon_Leader] (a 25 metros a retaguardia del líder).
       │
-      └── "relPosition"       : ARRAY [Distance: SCALAR, Direction: SCALAR, LeaderRef: OBJECT/GROUP]
-            Vector de posición relativa real instantáneo en el terreno para corregir desvíos.
+      ├── "relPosition"       : ARRAY [Distance: SCALAR, Direction: SCALAR, LeaderRef: OBJECT/GROUP]
+      │     Vector de posición relativa real instantáneo en el terreno para corregir desvíos.
+      │
+      ├── "roadTargetPos"     : ARRAY [x, y, z]  -> Posición objetivo instantánea en la carretera (modo marcha en carretera).
+      ├── "roadTangentDir"    : SCALAR           -> Rumbo/tangente de la carretera en la posición objetivo asignada.
+      ├── "roadOffsetDist"    : SCALAR           -> Distancia lineal acumulada a lo largo de la carretera desde el líder guía.
+      ├── "roadShoulderOffset": SCALAR           -> Desplazamiento lateral perpendicular al eje de la calzada (-1 babor / +1 estribor / 0 centro).
+      └── "roadTeamIndex"     : SCALAR           -> Índice numérico ordinal del sub-equipo/fireteam dentro de la escuadra (1, 2, 3...).
 ```
 
 ---

@@ -283,7 +283,9 @@ private _tacticalPlatoonIndex = 1;
             ["formationSlots", _resolvedFormationSlots],
             ["isMechanized", _isMechanized],
             ["transportAsset", _transportAsset],
-            ["currentPhase", 0]
+            ["currentPhase", 0],
+            ["movementTechnique", "CROSS_COUNTRY"],
+            ["roadPath", []]
         ]];
 
         missionNamespace setVariable [format ["FTCS_Platoon_Phase_%1", _tacticalPlatoonIndex], 0];

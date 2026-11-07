@@ -417,6 +417,134 @@ switch (_commandCode) do {
         { _x setSpeedMode "FULL"; } forEach _squads;
         systemChat "[MARCH CONTROL] Platoon pace set to FAST (Rush / Quick Bound).";
     };
+    case "PLT_ROAD_COLUMN": {
+        private _ldr = call _fnc_getPlatoonLeaderUnit;
+        private _roadScan = [_ldr, 30] call FTCS_fnc_roadFindSegment;
+        _roadScan params ["_roadSeg", "_roadWidth", "_roadDir", "_roadCategory"];
+
+        if (isNull _roadSeg || _roadCategory == "NONE") exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD MARCH FAILED]</t><br/>No road or trail detected under crosshair or within 30m of Platoon Leader.<br/><t color='#AAAAAA'>Position leader on or look at a road segment.</t>";
+            systemChat "[ROAD MARCH] Error: No road segment detected in proximity.";
+        };
+
+        // Build continuous rearward road path (200m depth for platoon)
+        private _roadPath = [_roadSeg, 200, getDir _ldr] call FTCS_fnc_roadBuildPath;
+        if (count _roadPath == 0) exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD MARCH FAILED]</t><br/>Could not map connected road segments.";
+            systemChat "[ROAD MARCH] Error: Could not construct road path.";
+        };
+
+        // Gather all subordinate platoon elements structured for macro slots
+        private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltKey = format ["PLT_%1", _pltId];
+        private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+        private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+        private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+        private _leaderGroup = group _ldr;
+
+        // Collect elements identical to macro slot hierarchy
+        private _slottedElements = [[], [], [], [], [], [], [], [], [], [], [], [], []];
+        private _allSubordinates = [];
+
+        // Check if platoon or doctrine defines custom formation slots overrides
+        private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+        private _squadElementsMap = createHashMap;
+
+        {
+            private _sqdKey = _x;
+            private _sData = _y;
+            private _tacticalTeams = _sData getOrDefault ["tacticalTeams", createHashMap];
+            private _sqdGroup = _sData getOrDefault ["group", grpNull];
+
+            if (_sqdKey find "_0" >= 0) then {
+                // HQ sub-teams
+                {
+                    private _tKey = toUpper _x;
+                    private _hGrp = (_y) getOrDefault ["group", grpNull];
+                    if (!isNull _hGrp && {_hGrp != _leaderGroup}) then {
+                        _squadElementsMap set [_x, [_hGrp]];
+                        if (_tKey find "TEAM_1" >= 0) then { _slottedElements set [9, [_hGrp]]; };
+                        if (_tKey find "TEAM_2" >= 0) then { _slottedElements set [4, [_hGrp]]; };
+                        if (_tKey find "TEAM_3" >= 0) then { _slottedElements set [10, [_hGrp]]; };
+                    };
+                } forEach _tacticalTeams;
+            } else {
+                // Combat squads
+                private _elementGroups = [];
+                if (count _tacticalTeams > 0) then {
+                    private _tKeys = keys _tacticalTeams;
+                    _tKeys sort true;
+                    {
+                        private _tGrp = (_tacticalTeams get _x) getOrDefault ["group", grpNull];
+                        if (!isNull _tGrp) then {
+                            _elementGroups pushBack _tGrp;
+                            _squadElementsMap set [_x, [_tGrp]];
+                        };
+                    } forEach _tKeys;
+                } else {
+                    if (!isNull _sqdGroup) then { _elementGroups pushBack _sqdGroup; };
+                };
+                if (count _elementGroups > 0) then {
+                    _squadElementsMap set [_sqdKey, _elementGroups];
+                    // Default slot assignments: S1 -> Slot 0, S2 -> Slot 1, S3 -> Slot 2, S4 -> Slot 3
+                    if (_sqdKey select [count _sqdKey - 2] == "_1") then { _slottedElements set [0, _elementGroups]; };
+                    if (_sqdKey select [count _sqdKey - 2] == "_2") then { _slottedElements set [1, _elementGroups]; };
+                    if (_sqdKey select [count _sqdKey - 2] == "_3") then { _slottedElements set [2, _elementGroups]; };
+                    if (_sqdKey select [count _sqdKey - 2] == "_4") then { _slottedElements set [3, _elementGroups]; };
+                };
+            };
+        } forEach _parsedSquads;
+
+        // Apply pre-configured formation slots from doctrine if defined
+        {
+            private _slotIdx = _x;
+            private _resolvedKey = _y;
+            if (_slotIdx >= 0 && _slotIdx < 13) then {
+                if (_resolvedKey in _squadElementsMap) then {
+                    private _assignedGroups = _squadElementsMap get _resolvedKey;
+                    _slottedElements set [_slotIdx, _assignedGroups];
+                };
+            };
+        } forEach _formationSlotsMap;
+
+        private _formationElements = [[_leaderGroup]] + _slottedElements;
+
+        // Persist structured state into this platoon's Data-Driven model (encapsulated for multi-platoon)
+        _pltData set ["movementTechnique", "ROAD_COLUMN"];
+        _pltData set ["roadPath", _roadPath];
+        _platoonsMap set [_pltKey, _pltData];
+
+        // Calculate staggered shoulder positions along road and launch debug visualizer if active
+        private _followerGroups = [_formationElements, _roadPath, 8] call FTCS_fnc_formationsRoadColumnSet;
+
+        // Awaken AI and release assembly area frozen state with standardized march awareness
+        {
+            if (!isNull _x) then {
+                (leader _x) enableAI "PATH";
+                (leader _x) enableAI "MOVE";
+                {
+                    _x enableAI "PATH";
+                    _x enableAI "MOVE";
+                } forEach (units _x);
+
+                // Configure standardized platoon march posture and micro-AI features
+                [_x, "SAFE"] call FTCS_fnc_groupSetAwareMode;
+                [_x, "NORMAL"] call FTCS_fnc_groupSetSpeed;
+                [_x, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+
+                // Launch dedicated road navigation thread for this group
+                [_x, _ldr] spawn FTCS_fnc_formationsGroupFollowRoad;
+            };
+        } forEach _followerGroups;
+
+        // Launch real-time dynamic formation slots visualizer on map
+        missionNamespace setVariable ["FTCS_Debug_Mode", true];
+        [_ldr] spawn FTCS_fnc_formationsLiveSlotsDebugWorker;
+
+        private _modeStr = if (_roadCategory == "ROAD") then { "STAGGERED COLUMN (Dual Shoulder)" } else { "TRAIL COLUMN (Single File)" };
+        systemChat format ["[ROAD MARCH] Platoon deployed in %1 along %2 (Width %3m).", _modeStr, _roadCategory, round _roadWidth];
+        hint parseText format ["<t color='#00FFCC'>[ROAD MARCH ACTIVATED]</t><br/><t color='#FFFFFF'>Technique:</t> %1<br/><t color='#FFAA00'>Road Width:</t> %2m<br/><t color='#AAAAAA'>Troops staggered on shoulders and following route.</t>", _modeStr, round _roadWidth];
+    };
     case "CHECK_WAYPOINT": {
         hint parseText "<t color='#00FFCC'>[NAVIGATION CHECK]</t><br/><t color='#FFFFFF'>Route Status:</t> On designated Axis of Advance.<br/><t color='#FFAA00'>Heading:</t> Bearing locked towards Objective.";
         systemChat "[NAVIGATION] Platoon Leader checking route & checkpoints.";

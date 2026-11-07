@@ -50,18 +50,20 @@ FTCS_Group_Commander = _companyHQ getOrDefault ["group", group player];
 // 3. Registry access helper closures (global, engine-agnostic)
 // ---------------------------------------------------------------------------
 
-FTCS_fnc_registryGet = {
-    params ["_groupID", "_key"];
-    private _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
-    _entry getOrDefault [_key, nil];
-};
-
 FTCS_fnc_registrySet = {
     params ["_groupID", "_key", "_value"];
-    private _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
+    private _entryKey = if (_groupID isEqualType grpNull) then { groupId _groupID } else { _groupID };
+    private _entry = FTCS_Groups_Registry_Table getOrDefault [_entryKey, createHashMap];
     _entry set [_key, _value];
-    FTCS_Groups_Registry_Table set [_groupID, _entry];
+    FTCS_Groups_Registry_Table set [_entryKey, _entry];
     true;
+};
+
+FTCS_fnc_registryGet = {
+    params ["_groupID", "_key"];
+    private _entryKey = if (_groupID isEqualType grpNull) then { groupId _groupID } else { _groupID };
+    private _entry = FTCS_Groups_Registry_Table getOrDefault [_entryKey, createHashMap];
+    _entry getOrDefault [_key, nil];
 };
 
 // -------------------------------------------------------
