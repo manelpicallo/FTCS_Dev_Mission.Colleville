@@ -214,4 +214,17 @@ if (!isNil "FTCS_MENU_ScoutScreen_Deploy") then {
     (FTCS_MENU_ScoutScreen_Deploy select 6) set [6, if (_occ5)  then { "0" } else { "1" }]; // Slot 5
 };
 
+// Update Road March Column Layout Menu: Compact option is enabled ONLY while a
+// road march column is active (live anchor) AND the current layout is STAGGERED.
+// Once compacted, the option disables itself; re-ordering Staggered re-enables it.
+if (!isNil "FTCS_MENU_RoadMarchLayout") then {
+    private _pltIdM = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+    private _anchorM = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdM], createHashMap];
+    private _roadActive = count (_anchorM getOrDefault ["roadPath", []]) >= 2;
+    private _layout = _anchorM getOrDefault ["columnLayout", "STAGGERED"];
+    private _compactAllowed = _roadActive && { _layout == "STAGGERED" };
+    // Row 2 = Compact Column (rows: 0=title, 1=staggered, 2=compact)
+    (FTCS_MENU_RoadMarchLayout select 2) set [6, if (_compactAllowed) then { "1" } else { "0" }];
+};
+
 showCommandingMenu _menuName;

@@ -342,6 +342,15 @@ if (!isNull _leaderGroup) then {
 // and recursively calls FTCS_fnc_formationsTypeSquadSet for internal squad teams
 private _followerGroups = [_formationElements, _formationType, _separationDistance, _squadFormationsOverride] call FTCS_fnc_formationsTypePlatoonSet;
 
+// Default stance for every cross-country formation order: FOLLOW_COMMANDER_STANCE
+// ("Copy My Stance") - subordinate units mirror the leader's posture while marching.
+// The road march path (PLT_ROAD_COLUMN) applies the same default separately.
+{
+    if (!isNull _x) then {
+        [_x, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance;
+    };
+} forEach _allSubordinateGroups;
+
 // 6. Launch concurrent follow-commander movement threads for all subordinate groups
 if (count _allSubordinateGroups > 0) then {
     private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];

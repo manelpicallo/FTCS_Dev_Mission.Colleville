@@ -575,6 +575,7 @@ switch (_commandCode) do {
         _anchor set ["roadPath", _roadPath];
         _anchor set ["headDist", _headStart];
         _anchor set ["lastAnchorMovePos", getPosATL _ldr];
+        _anchor set ["columnLayout", "STAGGERED"]; // (re)enables the Compact option in the menu
         missionNamespace setVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltId], _anchor];
 
         // Generation counter: each new road march order invalidates previous anchor threads
@@ -619,7 +620,7 @@ switch (_commandCode) do {
                 [_x, "AWARE"] call FTCS_fnc_groupSetAwareMode;
                 [_x, "NORMAL"] call FTCS_fnc_groupSetSpeed;
                 [_x, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
-                [_x, "FORCE_UP"] call FTCS_fnc_groupSetStance;
+                [_x, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance; // Copy My Stance (formation default)
             };
         } forEach _allGroupsToConfigure;
 
@@ -637,6 +638,23 @@ switch (_commandCode) do {
         private _modeStr = if (_roadCategory == "ROAD") then { "STAGGERED COLUMN (Dual Shoulder)" } else { "TRAIL COLUMN (Single File)" };
         systemChat format ["[ROAD MARCH] Platoon deployed in %1 along %2 (Width %3m).", _modeStr, _roadCategory, round _roadWidth];
         hint parseText format ["<t color='#00FFCC'>[ROAD MARCH ACTIVATED]</t><br/><t color='#FFFFFF'>Technique:</t> %1<br/><t color='#FFAA00'>Road Width:</t> %2m<br/><t color='#AAAAAA'>Troops staggered on shoulders and following route.</t>", _modeStr, round _roadWidth];
+    };
+
+    // =========================================================================
+    // ROAD MARCH SUBMENU: COMPACT COLUMN (Close Ranks, no stagger stepping)
+    // Requires an already-formed road march column (live anchor): validated here
+    // at runtime, since commanding menus are static arrays built once at init.
+    // =========================================================================
+    case "PLT_ROAD_COMPACT": {
+        private _pltIdC = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _anchorC = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdC], createHashMap];
+        if (count (_anchorC getOrDefault ["roadPath", []]) < 2) exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD COMPACT FAILED]</t><br/>No active road march column.<br/><t color='#AAAAAA'>Form the platoon in Staggered Column first, then compact.</t>";
+            systemChat "[ROAD COMPACT] Error: road march not active. Form the column first.";
+        };
+
+        [_pltIdC, "BOTH"] call FTCS_fnc_formationsRoadCompactColumn;
+        hint parseText "<t color='#00FFCC'>[ROAD COMPACT]</t><br/><t color='#FFFFFF'>Staggering removed.</t><br/><t color='#AAAAAA'>Left and right shoulder teams march at matching distances (pace + 2m gap).</t>";
     };
     case "CHECK_WAYPOINT": {
         hint parseText "<t color='#00FFCC'>[NAVIGATION CHECK]</t><br/><t color='#FFFFFF'>Route Status:</t> On designated Axis of Advance.<br/><t color='#FFAA00'>Heading:</t> Bearing locked towards Objective.";

@@ -64,6 +64,7 @@ class CfgFunctions
             class formationsLiveSlotsDebugWorker {};
             class formationsRoadColumnSet {};
             class formationsGroupFollowRoad {};
+            class formationsRoadCompactColumn {};
         };
 
         class Roads

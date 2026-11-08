@@ -90,12 +90,15 @@ if (count _frontPath < 2) exitWith { false };
 _frontPath deleteAt 0;
 { _rearPath pushBack _x; } forEach _frontPath;
 
-// Swap the anchor geometry in-place: consumers re-sample transparently next tick
+// Swap the anchor geometry in-place: consumers re-sample transparently next tick.
+// columnLayout is PRESERVED: if the column was compacted, the re-anchored column
+// stays compact (only an explicit Staggered order changes the layout back).
 _anchor set ["roadPath", _rearPath];
 _anchor set ["headDist", _headStart];
 _anchor set ["advanceDir", _newBearing];
 _anchor set ["anchorPos", _leaderPos];
 _anchor set ["lastAnchorMovePos", _leaderPos];
 _anchor set ["devStart", -1];
+_anchor set ["devAccumDist", 0];
 
 true

@@ -28,6 +28,7 @@ $files = @(
     "Functions\Formations\fn_formationsLiveSlotsDebugWorker.sqf",
     "Functions\Formations\fn_formationsRoadColumnSet.sqf",
     "Functions\Formations\fn_formationsGroupFollowRoad.sqf",
+    "Functions\Formations\fn_formationsRoadCompactColumn.sqf",
     "Functions\Roads\fn_roadFindSegment.sqf",
     "Functions\Roads\fn_roadBuildPath.sqf",
     "Functions\Roads\fn_roadGetPointsBehind.sqf",

@@ -132,8 +132,20 @@ FTCS_MENU_RouteControl_P1 = [
     ["1. Normal March Pace", [2], "", -5, [["expression", "['PACE_NORMAL'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["2. Limited (Slow / Patrol) Pace", [3], "", -5, [["expression", "['PACE_LIMITED'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["3. Fast / Rush Pace", [4], "", -5, [["expression", "['PACE_FAST'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["4. Road / Trail March (Staggered Column)", [5], "", -5, [["expression", "['PLT_ROAD_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["4. Road / Trail March", [5], "#USER:FTCS_MENU_RoadMarchLayout", -5, [["expression", ""]], "1", "1"],
     ["5. Check Route & Checkpoints on Map", [6], "", -5, [["expression", "['CHECK_WAYPOINT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
+];
+
+// 1.3.1 Road March Column Layout Submenu (Phase 1) - [ACTIVE]
+// Staggered: forms the road column. Compact: requires an already-formed road
+// march column (validated at runtime in applyCommandToTarget). Left/Right single
+// shoulder columns are placeholders reserved for future implementation.
+FTCS_MENU_RoadMarchLayout = [
+    ["Road March Column Layout", false],
+    ["1. Staggered Column (Dual Shoulder)", [2], "", -5, [["expression", "['PLT_ROAD_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["2. Compact Column (Close Ranks)", [3], "", -5, [["expression", "['PLT_ROAD_COMPACT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"], // enabled at runtime while a road column is active (fn_openSubordinateMenu)
+    ["3. Column Left (Single Shoulder)", [4], "", -5, [["expression", ""]], "1", "0"],
+    ["4. Column Right (Single Shoulder)", [5], "", -5, [["expression", ""]], "1", "0"]
 ];
 
 // 1.4 Weapons Control Status Submenu (Phase 1) - [ACTIVE]
@@ -235,14 +247,14 @@ FTCS_MENU_Sgt_Phase2 = [
     ["Platoon Command (Phase 2: Overwatch)", false],
     ["1. Operational Phase Transition", [2], "#USER:FTCS_MENU_PhaseTransition", -5, [["expression", ""]], "1", "1"],
     ["2. Platoon Formations (Trail / Cross-country)", [3], "#USER:FTCS_MENU_PlatoonFormations_P1", -5, [["expression", ""]], "1", "1"],
-    ["3. Road / Trail March (Staggered Column)", [4], "", -5, [["expression", "['PLT_ROAD_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["3. Road / Trail March", [4], "#USER:FTCS_MENU_RoadMarchLayout", -5, [["expression", ""]], "1", "1"],
     ["4. Bounding Overwatch", [5], "#USER:FTCS_MENU_BoundingOverwatch_P2", -5, [["expression", ""]], "1", "1"],
     ["5. Halt & 360 Security", [6], "", -5, [["expression", "['P2_HALT_360'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["6. Tactical Stance", [7], "#USER:FTCS_MENU_PlatoonStance_Common", -5, [["expression", ""]], "1", "1"],
     ["7. LDA Crossing Protocols", [8], "#USER:FTCS_MENU_LDACrossing_P2", -5, [["expression", ""]], "1", "1"],
     ["8. Weapons Readiness", [9], "#USER:FTCS_MENU_WeaponsReadiness_P2", -5, [["expression", ""]], "1", "1"],
     ["9. Regroup on Commander", [10], "", -5, [["expression", "['PLT_FOLLOW_COMMANDER'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["10. More Directives (Scouts / Squads)", [11], "#USER:FTCS_MENU_RouteControl_P1", -5, [["expression", ""]], "1", "1"]
+    ["10. More Directives (Scouts / Squads)", [11], "#USER:FTCS_MENU_Platoon_Scouts", -5, [["expression", ""]], "1", "1"]
 ];
 
 // Submenu: Platoon-Wide Scout & Screen Deployments - [ACTIVE]

@@ -60,7 +60,7 @@ private _leaderArcLen = 0;
 for "_li" from 0 to (_leaderArc - 1) do {
     _leaderArcLen = _leaderArcLen + (((_roadPath select _li) select 0) distance2D ((_roadPath select (_li + 1)) select 0));
 };
-private _currentPathDistance = _leaderArcLen + 1.0; // HQ Escort (slot 9) starts 1m behind the LEADER
+private _currentPathDistance = _leaderArcLen + 2.0; // HQ Escort (slot 9) starts 2m behind the LEADER
 private _currentSide = -1; // Starts on left shoulder
 
 private _roadSlotsMap = createHashMap; // slotIndex -> [worldPos, tangentDir, shoulderOffset]
