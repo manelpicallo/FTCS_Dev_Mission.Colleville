@@ -298,6 +298,46 @@ missionNamespace setVariable ["FTCS_Last_Commander_Dir", _advanceDir];
 systemChat format ["[FORMATION ANCHOR SLOT 0] %1 -> (Heading %2° | Leader: %3)", groupId _leaderGroup, round _advanceDir, name (leader _leaderGroup)];
 _leaderGroup setGroupIconParams [[0.55, 0.55, 0.55, 1.0], format ["[Slot 0 Anchor] %1", groupId _leaderGroup], 1.0, true];
 
+// -------------------------------------------------------------------------
+// Doctrinal State & AI Synchronization for Platoon Leader Anchor Group (_leaderGroup / HQ)
+// -------------------------------------------------------------------------
+if (!isNull _leaderGroup) then {
+    private _platoonPhase = missionNamespace getVariable [format ["FTCS_Platoon_Phase_%1", _pltIdx], 1];
+
+    switch (_platoonPhase) do {
+        case 1: {
+            [_leaderGroup, "CARELESS"] call FTCS_fnc_groupSetAwareMode;
+            [_leaderGroup, "NORMAL"] call FTCS_fnc_groupSetSpeed;
+            [_leaderGroup, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+            [_leaderGroup, "AUTO"] call FTCS_fnc_groupSetStance;
+        };
+        case 2: {
+            [_leaderGroup, "AWARE"] call FTCS_fnc_groupSetAwareMode;
+            [_leaderGroup, "LIMITED"] call FTCS_fnc_groupSetSpeed;
+            [_leaderGroup, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+            [_leaderGroup, "AUTO"] call FTCS_fnc_groupSetStance;
+        };
+        case 3: {
+            [_leaderGroup, "COMBAT"] call FTCS_fnc_groupSetAwareMode;
+            [_leaderGroup, "FULL"] call FTCS_fnc_groupSetSpeed;
+            [_leaderGroup, "FIRE_AT_WILL"] call FTCS_fnc_groupSetROE;
+            [_leaderGroup, "AUTO"] call FTCS_fnc_groupSetStance;
+        };
+    };
+
+    if (_platoonPhase < 3) then {
+        {
+            if (_x != _platoonLeaderUnit) then {
+                _x disableAI "AUTOCOMBAT";
+                _x disableAI "COVER";
+                _x enableAI "PATH";
+                _x enableAI "MOVE";
+                _x doFollow _platoonLeaderUnit;
+            };
+        } forEach (units _leaderGroup);
+    };
+};
+
 // FTCS_fnc_formationsTypePlatoonSet calculates macro platoon slots (0 to 12)
 // and recursively calls FTCS_fnc_formationsTypeSquadSet for internal squad teams
 private _followerGroups = [_formationElements, _formationType, _separationDistance, _squadFormationsOverride] call FTCS_fnc_formationsTypePlatoonSet;

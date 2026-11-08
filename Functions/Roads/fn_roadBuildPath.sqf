@@ -16,7 +16,7 @@
     ================================================================================
 */
 
-params ["_startRoad", ["_requiredDistance", 200], ["_forwardHeading", 0]];
+params ["_startRoad", ["_requiredDistance", 200], ["_forwardHeading", 0], ["_roadWidthOverride", -1]];
 
 if (isNull _startRoad) exitWith { [] };
 
@@ -66,8 +66,23 @@ while {_accumulatedDist < _requiredDistance} do {
 
 // Interpolate waypoints into densely sampled points (~3m spacing) with tangents and road widths
 private _sampledPath = [];
-private _startInfo = getRoadInfo _startRoad;
-private _defaultWidth = if (count _startInfo > 1) then { _startInfo select 1 } else { 3.5 };
+private _defaultWidth = 4.5;
+
+if (_roadWidthOverride isEqualType 0 && {_roadWidthOverride > 0}) then {
+    _defaultWidth = _roadWidthOverride;
+} else {
+    private _startInfo = getRoadInfo _startRoad;
+    private _rawW = if (count _startInfo > 1) then { _startInfo select 1 } else { 0 };
+    if (_rawW isEqualType 0 && {_rawW > 0}) then {
+        _defaultWidth = _rawW;
+    } else {
+        private _bb = boundingBoxReal _startRoad;
+        private _dx = abs (((_bb select 1) select 0) - ((_bb select 0) select 0));
+        private _dy = abs (((_bb select 1) select 1) - ((_bb select 0) select 1));
+        private _smaller = _dx min _dy;
+        _defaultWidth = if (_smaller > 0.5) then { _smaller } else { 4.5 };
+    };
+};
 
 if (_accumulatedDist < _requiredDistance) then {
     // Project along last rear heading to fulfill full requested distance

@@ -92,10 +92,13 @@ private _registeredGroupsCount = 0;
                 private _pathSample = [_currentPathDistance, _roadPath] call _fnc_getPosAtDistance;
                 _pathSample params ["_centerPos", "_tangentDir", "_roadWidth"];
 
-                // Staggered shoulder offset: if road is wide enough (> 1.0m), place on shoulder edge; if <= 1.0m, trail center
-                private _isStaggered = (_roadWidth > 1.0);
+                // Defensive type check: guarantee scalar road width across all terrain types
+                private _effectiveWidth = if (_roadWidth isEqualType 0 && {_roadWidth > 0}) then { _roadWidth } else { 4.5 };
+
+                // Staggered shoulder offset: if road is wide enough (> 1.5m), place on shoulder edge; if <= 1.5m, trail center
+                private _isStaggered = (_effectiveWidth > 1.5);
                 private _shoulderOffset = if (_isStaggered) then {
-                    (_roadWidth / 2.0) * 0.85 * _currentSide
+                    (_effectiveWidth / 2.0) * 0.85 * _currentSide
                 } else {
                     0
                 };

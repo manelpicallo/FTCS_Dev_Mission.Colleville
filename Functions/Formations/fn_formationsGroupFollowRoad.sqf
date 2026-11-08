@@ -8,8 +8,9 @@
                  - Continuous navigation: groups advance smoothly along road corridor
                    towards their assigned shoulder positions regardless of whether
                    the platoon leader is actively marching or temporarily stationary.
-                 - When marching (speed > 2 km/h): Groups pace their advance dynamically
-                   without forced formation facing (natural movement pathing).
+                 - When marching (speed > 2 km/h): Groups match the leader's pace exactly
+                   (no slot-chasing acceleration) with natural movement pathing.
+                   Road slot points are recomputed once per second.
                  - When leader is stopped (speed <= 2 km/h): Units continue moving until
                    reaching their assigned shoulder position, then hold and align strictly
                    once to the road tangent.
@@ -28,11 +29,11 @@ private _threadID = round (time * 1000) + floor (random 1000);
 _group setVariable ["FTCS_FollowThread_ID", _threadID];
 
 private _groupID = groupId _group;
-private _not_able_time = 1;
+private _not_able_time = 1.0;
 private _timer = time;
 private _alignedOnStop = false;
 private _facingAppliedOnReady = false;
-private _currentMoveTarget = [0, 0, 0];
+private _lastTargetPos = [0, 0, 0];
 private _last_spd = 10;
 
 // Helper to calculate exact position along a polyline at a specific distance from start
@@ -62,7 +63,7 @@ private _fnc_samplePathAtDistance = {
 };
 
 // Explicitly un-freeze and awaken AI units from assembly area doStop
-_group setFormation "COLUMN";
+
 {
     _x enableAI "PATH";
     _x enableAI "MOVE";
@@ -80,13 +81,14 @@ _group setFormation "COLUMN";
 (leader _group) disableAI "AUTOCOMBAT";
 (leader _group) disableAI "COVER";
 
-// An initial doMove command releases the native engine doStop freeze in Arma 3
+_group setFormation "COLUMN";
+
+// Initial deployment positioning
 private _initRoadPos = [ _groupID, "roadTargetPos" ] call FTCS_fnc_registryGet;
 if (!isNil "_initRoadPos" && {_initRoadPos isEqualType []} && {count _initRoadPos >= 2}) then {
-    (leader _group) doMove _initRoadPos;
     _group move _initRoadPos;
-    _currentMoveTarget = _initRoadPos;
 };
+units _group doFollow leader _group;
 
 [ _groupID, "movingMode", "FOLLOWING_ROAD" ] call FTCS_fnc_registrySet;
 
@@ -94,10 +96,10 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
        ((([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == "FOLLOWING_ROAD") || 
         (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) == "HALT"))} do
 {
+    _spd = speed _leader;
+
     // Terminate immediately if a newer follow thread was spawned for this group
     if ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) exitWith {};
-
-    private _spd = speed _leader;
 
     // -------------------------------------------------------------------------
     // 1. ACTIVE MARCH ALONG ROAD (leader speed > 2 km/h)
@@ -105,7 +107,6 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
     if (_spd > 2) then 
     {
         _last_spd = _spd;
-        { _x limitSpeed _spd; } forEach (units _group);
 
         _timer = time + _not_able_time;
 
@@ -151,16 +152,18 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
         [ _groupID, "roadTargetPos", _dynTargetPos ] call FTCS_fnc_registrySet;
         [ _groupID, "roadTangentDir", _dynTangentDir ] call FTCS_fnc_registrySet;
 
+        // Match group pace strictly to leader speed (no adaptive slot-chasing acceleration)
+        { _x limitSpeed _spd; } forEach (units _group);
+
         // Command group movement towards current road position
         _group move _dynTargetPos;
-        _currentMoveTarget = _dynTargetPos;
         units _group doFollow leader _group;
 
         _alignedOnStop = false;
         _facingAppliedOnReady = false;
     }
     // -------------------------------------------------------------------------
-    // 2. LEADER STOPPED (speed <= 2 km/h): Units continue advance until in place
+    // 2. STOPPED / STATIC (speed <= 2 km/h): Anchor formation along road slot
     // -------------------------------------------------------------------------
     else 
     {
@@ -171,10 +174,12 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
 
         private _curLeaderPos = getPosATL _leader;
         private _curLeaderDir = getDir _leader;
+        private _roadAdvanceDir = missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", _curLeaderDir];
 
-        private _stopPath = [_leader, (_offsetDist + 40)] call FTCS_fnc_roadGetPointsBehind;
+        // Sample static road path using the stable platoon advance heading
+        private _stopPath = [_curLeaderPos, (_offsetDist + 40), _roadAdvanceDir] call FTCS_fnc_roadGetPointsBehind;
         private _stopTargetPos = [0, 0, 0];
-        private _stopTangentDir = _curLeaderDir;
+        private _stopTangentDir = _roadAdvanceDir;
 
         if (count _stopPath >= 2) then {
             private _sample = [_offsetDist, _stopPath] call _fnc_samplePathAtDistance;
@@ -183,37 +188,32 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
             private _perpDir = (_stopTangentDir + 90) % 360;
             _stopTargetPos = _roadCenter getPos [abs _shoulderOffset, if (_shoulderOffset < 0) then { (_perpDir + 180) % 360 } else { _perpDir }];
         } else {
-            _stopTargetPos = _curLeaderPos getPos [_offsetDist, (_curLeaderDir + 180) % 360];
+            _stopTargetPos = _curLeaderPos getPos [_offsetDist, (_roadAdvanceDir + 180) % 360];
         };
 
         [ _groupID, "roadTargetPos", _stopTargetPos ] call FTCS_fnc_registrySet;
         [ _groupID, "roadTangentDir", _stopTangentDir ] call FTCS_fnc_registrySet;
 
-        private _leaderUnit = leader _group;
-        private _distToTarget = _leaderUnit distance2D _stopTargetPos;
-        private _isAtDestination = (unitReady _leaderUnit || _distToTarget < 3.5);
+        // Detect if target position shifted (identical to cross-country logic)
+        private _posChanged = ((_stopTargetPos distance2D _lastTargetPos) > 1.5);
 
-        // Keep driving movement until the group is physically at destination
-        if (!_isAtDestination) then {
-            { _x limitSpeed _last_spd; } forEach (units _group);
-            private _posShift = (_stopTargetPos distance2D _currentMoveTarget) > 1.5;
-            if (!_alignedOnStop || _posShift) then {
-                _group move _stopTargetPos;
-                _currentMoveTarget = _stopTargetPos;
-                _alignedOnStop = true;
-            };
-            units _group doFollow _leaderUnit;
+        if (!_alignedOnStop || _posChanged) then 
+        {
+            _group move _stopTargetPos;
+            _lastTargetPos = _stopTargetPos;
+            _alignedOnStop = true;
             _facingAppliedOnReady = false;
-        } else {
-            // Group has arrived at assigned shoulder slot: apply road tangent facing once
-            if (!_facingAppliedOnReady) then {
-                _group setFormDir _stopTangentDir;
-                _facingAppliedOnReady = true;
-            };
+        };
+
+        // Once units arrive at final stopped position (unitReady), apply facing strictly ONCE
+        if (!_facingAppliedOnReady && {unitReady (leader _group) || ((leader _group) distance2D _stopTargetPos < 3)}) then 
+        {
+            _group setFormDir _stopTangentDir;
+            _facingAppliedOnReady = true;
         };
 
         { _x disableAI "RADIOPROTOCOL"; } forEach (units _group);
         if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != "FOLLOWING_ROAD") exitWith {};
-        sleep 0.5;
+        sleep 1.0;
     };
 };

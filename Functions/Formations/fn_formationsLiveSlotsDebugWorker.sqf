@@ -5,7 +5,7 @@
     Author: FTCS Team
     Description: Real-time dynamic 2D map visualizer for platoon formation slots.
                  Active while FTCS_Debug_Mode is true.
-                 Updates every 0.5 seconds on the 2D map:
+                 Updates every 1 second on the 2D map:
                  - Assigned / Occupied slots: Drawn at the real-time physical position
                    that the assigned squad currently occupies on the terrain (Orange dot).
                  - Unassigned slots: Drawn at the theoretical formation position where that
@@ -70,7 +70,9 @@ FTCS_LiveSlotsWorker_Active = true;
 
         if (_isRoadMode && {!isNil "FTCS_Groups_Registry_Table"}) then {
             // In ROAD march mode: query live connected road segments backward from current leader position
-            private _livePath = [_leaderUnit, 250] call FTCS_fnc_roadGetPointsBehind;
+            // Use locked advance direction if stopped to prevent road path jitter from player mouse view/look
+            private _roadLookDir = if (speed _leaderUnit > 2) then { getDir _leaderUnit } else { _refHeading };
+            private _livePath = [_leaderUnit, 250, _roadLookDir] call FTCS_fnc_roadGetPointsBehind;
 
             // Helper to calculate exact position along polyline at distance
             private _fnc_sampleRoadDist = {
@@ -204,7 +206,7 @@ FTCS_LiveSlotsWorker_Active = true;
         _arrowMarkerName setMarkerPosLocal _playerPos;
         _arrowMarkerName setMarkerDirLocal (getDir player);
 
-        sleep 0.5;
+        sleep 1.0;
     };
 
     // Clean up dynamic slot markers and direction arrow when debug mode is deactivated

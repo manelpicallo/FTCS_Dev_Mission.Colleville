@@ -52,6 +52,11 @@
 14. **Aviso Obligatorio de Recompilación de `CfgFunctions` (`description.ext`):**
    - Cuando la IA genere o cree una nueva función y la añada al fichero `description.ext` (o modifique las clases de `CfgFunctions`), es **estrictamente obligatorio avisar al programador al final de la respuesta** con una línea destacada y clara indicando que se ha añadido una nueva función.
    - Debe advertirse explícitamente que es **imprescindible salir de la misión, pasar por el editor 3DEN y volver a entrar (o recargar)**, ya que un simple reinicio (*Restart*) in-game no recompila `description.ext` ni carga funciones nuevas en el motor de Arma 3.
+15. **Control Centralizado de IA, Órdenes y Reglas de Enfrentamiento (ROE):**
+   - Queda estrictamente prohibido aplicar mas de tres comandos nativos directos de Arma 3 que alteren el comportamiento de IA (movimiento, combate, posturas, velocidad, reglas de enfrentamiento / ROE o emisión de órdenes tácticas de líderes a unidades o grupos) de forma aislada o descontrolada.
+   - Cualquier cambio en la conducta, movimiento o directivas de unidades o grupos debe ejecutarse obligatoriamente a través de **funciones prefijadas/estandarizadas del proyecto**.
+   - Estas funciones son las únicas responsables de aplicar los comandos y registrar/sincronizar de manera consistente el estado operativo tanto a nivel de soldado individual como de grupo. 
+   Si se necesita alterar este punto, es obligatorio preguntar al programador antes de ejecutar cualquier modificacion de este supuesto.
 
 **Validación contra este documento:**
 

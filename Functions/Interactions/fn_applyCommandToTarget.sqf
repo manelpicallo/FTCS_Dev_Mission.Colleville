@@ -428,11 +428,15 @@ switch (_commandCode) do {
         };
 
         // Build continuous rearward road path (200m depth for platoon)
-        private _roadPath = [_roadSeg, 200, getDir _ldr] call FTCS_fnc_roadBuildPath;
+        private _roadPath = [_roadSeg, 200, getDir _ldr, _roadWidth] call FTCS_fnc_roadBuildPath;
         if (count _roadPath == 0) exitWith {
             hint parseText "<t color='#FF5555'>[ROAD MARCH FAILED]</t><br/>Could not map connected road segments.";
             systemChat "[ROAD MARCH] Error: Could not construct road path.";
         };
+
+        // Set platoon advance direction from road segment orientation to guarantee stable road tracking
+        missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", _roadDir];
+        missionNamespace setVariable ["FTCS_Last_Commander_Dir", _roadDir];
 
         // Gather all subordinate platoon elements structured for macro slots
         private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
@@ -517,22 +521,40 @@ switch (_commandCode) do {
         // Calculate staggered shoulder positions along road and launch debug visualizer if active
         private _followerGroups = [_formationElements, _roadPath, 8] call FTCS_fnc_formationsRoadColumnSet;
 
-        // Awaken AI and release assembly area frozen state with standardized march awareness
+        // Awaken AI and configure standardized march posture and blind follow micro-AI features for ALL groups
+        private _allGroupsToConfigure = +_followerGroups;
+        if (!isNull _leaderGroup && {!(_leaderGroup in _allGroupsToConfigure)}) then {
+            _allGroupsToConfigure pushBack _leaderGroup;
+        };
+
         {
             if (!isNull _x) then {
                 (leader _x) enableAI "PATH";
                 (leader _x) enableAI "MOVE";
+                (leader _x) disableAI "TARGET";
+                (leader _x) disableAI "AUTOCOMBAT";
+                (leader _x) disableAI "COVER";
+                (leader _x) disableAI "RADIOPROTOCOL";
+
                 {
                     _x enableAI "PATH";
                     _x enableAI "MOVE";
+                    _x disableAI "TARGET";
+                    _x disableAI "AUTOCOMBAT";
+                    _x disableAI "COVER";
+                    _x disableAI "RADIOPROTOCOL";
                 } forEach (units _x);
 
-                // Configure standardized platoon march posture and micro-AI features
-                [_x, "SAFE"] call FTCS_fnc_groupSetAwareMode;
+                [_x, "AWARE"] call FTCS_fnc_groupSetAwareMode;
                 [_x, "NORMAL"] call FTCS_fnc_groupSetSpeed;
                 [_x, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+                [_x, "FORCE_UP"] call FTCS_fnc_groupSetStance;
+            };
+        } forEach _allGroupsToConfigure;
 
-                // Launch dedicated road navigation thread for this group
+        // Launch dedicated road navigation thread for subordinate follower groups
+        {
+            if (!isNull _x) then {
                 [_x, _ldr] spawn FTCS_fnc_formationsGroupFollowRoad;
             };
         } forEach _followerGroups;

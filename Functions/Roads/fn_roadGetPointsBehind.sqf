@@ -15,10 +15,14 @@
     ================================================================================
 */
 
-params [["_leaderRef", player], ["_totalDepth", 220]];
+params [["_leaderRef", player], ["_totalDepth", 220], ["_dirOverride", -1]];
 
 private _leaderPos = if (_leaderRef isEqualType objNull) then { getPosATL _leaderRef } else { _leaderRef };
-private _leaderDir = if (_leaderRef isEqualType objNull) then { getDir _leaderRef } else { 0 };
+private _leaderDir = if (_dirOverride isEqualType 0 && {_dirOverride >= 0}) then {
+    _dirOverride
+} else {
+    if (_leaderRef isEqualType objNull) then { getDir _leaderRef } else { 0 }
+};
 
 // Find nearest road segment under or immediately behind leader
 private _nearRoads = _leaderPos nearRoads 20;
@@ -92,6 +96,20 @@ if (_accumDist < _totalDepth) then {
 // Interpolate waypoints into densely sampled points (~2m spacing) with forward tangents
 private _sampledPath = [];
 
+// Determine universal road width: check getRoadInfo first, fallback to boundingBoxReal geometry
+private _resolvedWidth = 4.5;
+private _startInfo = getRoadInfo _startRoad;
+private _rawW = if (count _startInfo > 1) then { _startInfo select 1 } else { 0 };
+if (_rawW isEqualType 0 && {_rawW > 0}) then {
+    _resolvedWidth = _rawW;
+} else {
+    private _bb = boundingBoxReal _startRoad;
+    private _dx = abs (((_bb select 1) select 0) - ((_bb select 0) select 0));
+    private _dy = abs (((_bb select 1) select 1) - ((_bb select 0) select 1));
+    private _smaller = _dx min _dy;
+    _resolvedWidth = if (_smaller > 0.5) then { _smaller } else { 4.5 };
+};
+
 for "_i" from 0 to (count _rawPoints - 2) do {
     private _pA = _rawPoints select _i;
     private _pB = _rawPoints select (_i + 1);
@@ -107,7 +125,7 @@ for "_i" from 0 to (count _rawPoints - 2) do {
             (_pA select 1) + ((_pB select 1) - (_pA select 1)) * _t,
             (_pA select 2) + ((_pB select 2) - (_pA select 2)) * _t
         ];
-        _sampledPath pushBack [_pt, _segDir, 4.0];
+        _sampledPath pushBack [_pt, _segDir, _resolvedWidth];
     };
 };
 
