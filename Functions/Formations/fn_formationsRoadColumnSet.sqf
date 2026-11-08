@@ -34,15 +34,33 @@ private _followerList = [];
 private _isDebug = missionNamespace getVariable ["FTCS_Debug_Mode", false];
 
 // Platoon sequence of slots along road column march:
-// Slot 0 (Vanguard / 1st Squad) -> Slot 4 (Platoon Sergeant) -> Slot 1 (2nd Squad) ->
-// Slot 2 (3rd Squad) -> Slot 3 (4th Squad / Mortars) -> Slot 10 (Platoon Guide) -> Slot 5 (Rear Reserve)
+// Slot 9 (HQ Escort) marches FIRST, attached closest behind the Leader, sized by
+// its own manpower footprint; then Slot 0 (Vanguard / 1st Squad) -> Slot 4 (Platoon
+// Sergeant) -> Slot 1 (2nd Squad) -> Slot 2 (3rd Squad) -> Slot 3 (4th Squad / Mortars)
+// -> Slot 10 (Platoon Guide) -> Slot 5 (Rear Reserve).
 // Slots 6, 7, 8 (Scouts) advance 40m forward along road.
-// Slots 9 (HQ escort) operates close behind Leader.
-private _slotOrder = [0, 4, 1, 2, 3, 10, 5];
+private _slotOrder = [9, 0, 4, 1, 2, 3, 10, 5];
 
 // Map slots to road progression distance and shoulder side:
 // Side alternates: -1 = Left Shoulder (babor), +1 = Right Shoulder (estribor), 0 = Center
-private _currentPathDistance = 6.0; // Starts 6m behind platoon leader
+// Vanguard march order: HQ Escort (slot 9) travels first, attached closest behind
+// the leader, consuming path distance by its own manpower footprint; following
+// squads then alternate left/right shoulders exactly like slot 9 does.
+// IMPORTANT: the rear path starts at the ROAD NODE nearest the leader, not at the
+// leader himself. Slot distances must be anchored to the leader's arclength within
+// the path, otherwise every slot appears shifted forward by that unaccounted gap.
+private _leaderArc = 0;
+private _bestLeaderDist = 1e10;
+{
+    private _d = (_x select 0) distance2D _leaderPos;
+    if (_d < _bestLeaderDist) then { _bestLeaderDist = _d; _leaderArc = _forEachIndex; };
+} forEach _roadPath;
+// Convert the nearest sample INDEX into its cumulative arclength from path origin
+private _leaderArcLen = 0;
+for "_li" from 0 to (_leaderArc - 1) do {
+    _leaderArcLen = _leaderArcLen + (((_roadPath select _li) select 0) distance2D ((_roadPath select (_li + 1)) select 0));
+};
+private _currentPathDistance = _leaderArcLen + 1.0; // HQ Escort (slot 9) starts 1m behind the LEADER
 private _currentSide = -1; // Starts on left shoulder
 
 private _roadSlotsMap = createHashMap; // slotIndex -> [worldPos, tangentDir, shoulderOffset]
@@ -167,26 +185,9 @@ private _registeredGroupsCount = 0;
     };
 } forEach _slotOrder;
 
-// Slot 9 (HQ Command Group Attachments): placed 2.5m behind leader on road
-private _sample9 = [2.5, _roadPath] call _fnc_getPosAtDistance;
-private _pos9 = _sample9 select 0;
-private _tangent9 = _sample9 select 1;
-if (count _formation_elements > 9 && {count (_formation_elements select 9) > 0}) then {
-    private _grp9 = (_formation_elements select 9) select 0;
-    if (!isNull _grp9) then {
-        private _eID9 = groupId _grp9;
-        private _entry9 = FTCS_Groups_Registry_Table getOrDefault [_eID9, createHashMap];
-        _entry9 set ["roadTargetPos", _pos9];
-        _entry9 set ["roadTangentDir", _tangent9];
-        _entry9 set ["roadOffsetDist", 2.5];
-        _entry9 set ["roadShoulderOffset", -1.0];
-        _entry9 set ["allocationSlot", 9];
-        _entry9 set ["formationType", "COLUMN"];
-        FTCS_Groups_Registry_Table set [_eID9, _entry9];
-        if !(_grp9 in _followerList) then { _followerList pushBack _grp9; };
-        Platoon_Formation_Position_List set [9, [_leader distance2D _pos9, _leader getRelDir _pos9, _grp9]];
-    };
-};
+// NOTE: Slot 9 (HQ Escort) is now processed FIRST inside the main _slotOrder loop
+// (see slot order array), consuming path distance by its own manpower footprint
+// and alternating shoulder sides like every other element. No special-case block.
 
 // Slots 6, 7, 8 (Forward Scouts Screen): advanced 40m forward along road
 private _scoutForwardPos = _leaderPos getPos [40, _leaderHeading];

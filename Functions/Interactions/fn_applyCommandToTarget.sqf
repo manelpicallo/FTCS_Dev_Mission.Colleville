@@ -516,10 +516,81 @@ switch (_commandCode) do {
         // Persist structured state into this platoon's Data-Driven model (encapsulated for multi-platoon)
         _pltData set ["movementTechnique", "ROAD_COLUMN"];
         _pltData set ["roadPath", _roadPath];
+        _pltData set ["roadAnchor", _anchor];
         _platoonsMap set [_pltKey, _pltData];
 
         // Calculate staggered shoulder positions along road and launch debug visualizer if active
         private _followerGroups = [_formationElements, _roadPath, 8] call FTCS_fnc_formationsRoadColumnSet;
+
+        // Extend mapped path rearward if total column depth exceeds the initially mapped road distance
+        private _maxAssignedDist = 0;
+        {
+            private _e = _y;
+            private _od = _e getOrDefault ["roadOffsetDist", 0];
+            if (_od > _maxAssignedDist) then { _maxAssignedDist = _od; };
+        } forEach FTCS_Groups_Registry_Table;
+        private _mappedDepth = 0;
+        for "_pi" from 0 to (count _roadPath - 2) do {
+            _mappedDepth = _mappedDepth + (((_roadPath select _pi) select 0) distance2D ((_roadPath select (_pi + 1)) select 0));
+        };
+        if (_maxAssignedDist + 40 > _mappedDepth) then {
+            _roadPath = [_roadPath, (_maxAssignedDist + 40 - _mappedDepth)] call FTCS_fnc_roadPathExtend;
+        };
+
+        // Build the MARCH-ORIENTED anchor path (index 0 = rearmost, last = frontmost):
+        // 1) reverse the rearward-mapped path so it runs from the column tail up to the leader
+        //    (its tangents already point tail->leader, i.e. along the march sense: keep them),
+        // 2) append a forward stretch ahead of the leader: roadGetPointsBehind traverses
+        //    rearwards, so passing _dirOverride = (advanceDir + 180) flips its internal rear
+        //    heading to map the road AHEAD in the march direction,
+        // 3) the leader sits at arclength = rear length; slots sample at (headDist - offset).
+        private _rearPath = +_roadPath;
+        reverse _rearPath;
+
+        // Forward stretch: map road ahead of the leader (rear heading inverted to march sense)
+        private _frontPath = [_ldr, 200, (_roadDir + 180) % 360] call FTCS_fnc_roadGetPointsBehind;
+        // Returned array runs leader -> forward with tangents pointing BACK at the leader:
+        // order already matches march sense, flip tangents to march orientation
+        { _x set [1, ((_x select 1) + 180) % 360]; } forEach _frontPath;
+        // Drop the duplicated joint point near the leader and append the front stretch
+        if (count _frontPath > 0) then { _frontPath deleteAt 0; };
+        { _rearPath pushBack _x; } forEach _frontPath;
+        _roadPath = _rearPath;
+
+        // Leader's starting arclength: walk the path until the first point near the leader
+        // (the joint between the rear stretch and the forward stretch) is reached
+        private _headStart = 0;
+        for "_pi" from 0 to (count _roadPath - 2) do {
+            private _nextPos = (_roadPath select (_pi + 1)) select 0;
+            if (_nextPos distance2D (getPosATL _ldr) < 12) exitWith {};
+            _headStart = _headStart + (((_roadPath select _pi) select 0) distance2D _nextPos);
+        };
+
+        // Freeze road march anchor: direction sense is fixed at order time and never
+        // re-decided at runtime (Option A). Anchor progression is owned exclusively by
+        // a single dedicated thread; followers and debug worker only READ headDist.
+        private _anchor = createHashMap;
+        _anchor set ["anchorPos", getPosATL _ldr];
+        _anchor set ["advanceDir", _roadDir];
+        _anchor set ["roadPath", _roadPath];
+        _anchor set ["headDist", _headStart];
+        _anchor set ["lastAnchorMovePos", getPosATL _ldr];
+        missionNamespace setVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltId], _anchor];
+
+        // Generation counter: each new road march order invalidates previous anchor threads
+        private _gen = (missionNamespace getVariable [format ["FTCS_Road_Anchor_Gen_PLT_%1", _pltId], 0]) + 1;
+        missionNamespace setVariable [format ["FTCS_Road_Anchor_Gen_PLT_%1", _pltId], _gen];
+
+        // Sole anchor progression thread: advances headDist once per second.
+        // Exits when superseded by a newer order (generation change).
+        [_ldr, _anchor, _pltId, _gen] spawn {
+            params ["_ldr", "_anchor", "_pltId", "_gen"];
+            while { !isNull _ldr &&
+                    { (missionNamespace getVariable [format ["FTCS_Road_Anchor_Gen_PLT_%1", _pltId], 0]) == _gen } } do {
+                [_ldr, _anchor, 2.0, 60] call FTCS_fnc_roadAdvanceAnchor;
+                sleep 1.0;
+            };
+        };
 
         // Awaken AI and configure standardized march posture and blind follow micro-AI features for ALL groups
         private _allGroupsToConfigure = +_followerGroups;

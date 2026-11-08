@@ -69,10 +69,13 @@ FTCS_LiveSlotsWorker_Active = true;
         private _isRoadMode = (_technique == "ROAD_COLUMN" && count _activePath >= 2);
 
         if (_isRoadMode && {!isNil "FTCS_Groups_Registry_Table"}) then {
-            // In ROAD march mode: query live connected road segments backward from current leader position
-            // Use locked advance direction if stopped to prevent road path jitter from player mouse view/look
-            private _roadLookDir = if (speed _leaderUnit > 2) then { getDir _leaderUnit } else { _refHeading };
-            private _livePath = [_leaderUnit, 250, _roadLookDir] call FTCS_fnc_roadGetPointsBehind;
+            // In ROAD march mode: sample slots from the FROZEN march anchor path
+            // (fixed sense set at order time). No runtime graph re-traversal, so
+            // junctions and leader head rotation can never invert the slot order.
+            private _pIdAnchor = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+            private _anchor = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pIdAnchor], createHashMap];
+            private _livePath = _anchor getOrDefault ["roadPath", _activePath];
+            private _headDist = _anchor getOrDefault ["headDist", 0];
 
             // Helper to calculate exact position along polyline at distance
             private _fnc_sampleRoadDist = {
@@ -112,7 +115,7 @@ FTCS_LiveSlotsWorker_Active = true;
                     private _slotPos = [0, 0, 0];
 
                     if (count _livePath >= 2) then {
-                        private _roadSample = [_offsetDist, _livePath] call _fnc_sampleRoadDist;
+                        private _roadSample = [(_headDist - _offsetDist) max 0, _livePath] call _fnc_sampleRoadDist;
                         private _roadCenter = _roadSample select 0;
                         private _tangent = _roadSample select 1;
                         private _sh = if (!isNil "_shoulderOffset") then { _shoulderOffset } else { 0 };

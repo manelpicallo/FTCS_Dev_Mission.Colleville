@@ -29,6 +29,7 @@ private _threadID = round (time * 1000) + floor (random 1000);
 _group setVariable ["FTCS_FollowThread_ID", _threadID];
 
 private _groupID = groupId _group;
+private _pltIdFor = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
 private _not_able_time = 1.0;
 private _timer = time;
 private _alignedOnStop = false;
@@ -133,13 +134,17 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
         private _curLeaderPos = getPosATL _leader;
         private _curLeaderDir = getDir _leader;
 
-        // Dynamic road slot position: query continuously sampled road waypoints behind the leader
-        private _dynPath = [_leader, (_offsetDist + 40)] call FTCS_fnc_roadGetPointsBehind;
+        // Road slot position: sampled from the FROZEN march-oriented anchor path.
+        // Slots sample at (headDist - offsetDist): as the leader advances, each slot
+        // slides FORWARD along the road, keeping the group offsetDist meters behind.
+        private _anchor = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdFor], createHashMap];
+        private _dynPath = _anchor getOrDefault ["roadPath", []];
+        private _headDist = _anchor getOrDefault ["headDist", 0];
         private _dynTargetPos = [0, 0, 0];
         private _dynTangentDir = _curLeaderDir;
 
         if (count _dynPath >= 2) then {
-            private _sample = [_offsetDist, _dynPath] call _fnc_samplePathAtDistance;
+            private _sample = [(_headDist - _offsetDist) max 0, _dynPath] call _fnc_samplePathAtDistance;
             private _roadCenter = _sample select 0;
             _dynTangentDir = _sample select 1;
             private _perpDir = (_dynTangentDir + 90) % 360;
@@ -174,15 +179,18 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
 
         private _curLeaderPos = getPosATL _leader;
         private _curLeaderDir = getDir _leader;
-        private _roadAdvanceDir = missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", _curLeaderDir];
 
-        // Sample static road path using the stable platoon advance heading
-        private _stopPath = [_curLeaderPos, (_offsetDist + 40), _roadAdvanceDir] call FTCS_fnc_roadGetPointsBehind;
+        // Stopped state samples slots from the FROZEN march-oriented anchor path too,
+        // keeping slot order strictly fixed regardless of leader head rotation
+        private _anchor = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdFor], createHashMap];
+        private _stopPath = _anchor getOrDefault ["roadPath", []];
+        private _headDist = _anchor getOrDefault ["headDist", 0];
+        private _roadAdvanceDir = _anchor getOrDefault ["advanceDir", missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", _curLeaderDir]];
         private _stopTargetPos = [0, 0, 0];
         private _stopTangentDir = _roadAdvanceDir;
 
         if (count _stopPath >= 2) then {
-            private _sample = [_offsetDist, _stopPath] call _fnc_samplePathAtDistance;
+            private _sample = [(_headDist - _offsetDist) max 0, _stopPath] call _fnc_samplePathAtDistance;
             private _roadCenter = _sample select 0;
             _stopTangentDir = _sample select 1;
             private _perpDir = (_stopTangentDir + 90) % 360;

@@ -35,18 +35,22 @@ while {_accumulatedDist < _requiredDistance} do {
 
     if (count _candidates == 0) exitWith {};
 
-    // Select candidate that best aligns with the rearward progression vector
+    // Select candidate that best aligns with the rearward progression vector,
+    // penalizing sharp heading changes to prefer straight continuation at junctions
     private _currentPos = getPosATL _currentSegment;
     private _bestCandidate = objNull;
-    private _bestDiff = 999;
+    private _bestScore = 999;
 
     {
         private _candPos = getPosATL _x;
         private _candBearing = _currentPos getDir _candPos;
-        // Compare with rear heading: smallest angular difference means continuing backwards along road
+        // Angular difference with rear heading: smallest means continuing backwards along road
         private _diff = abs ((_candBearing - _rearHeading + 180 + 360) % 360 - 180);
-        if (_diff < _bestDiff) then {
-            _bestDiff = _diff;
+        // Continuity penalty: extra cost for candidates deviating from the current segment tangent
+        private _tangentDiff = abs ((_candBearing - _rearHeading + 180 + 360) % 360 - 180);
+        private _score = _diff + (_tangentDiff * 0.5);
+        if (_score < _bestScore) then {
+            _bestScore = _score;
             _bestCandidate = _x;
         };
     } forEach _candidates;

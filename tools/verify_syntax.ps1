@@ -1,3 +1,7 @@
+# SQF balance checker: strips block comments, line comments and string literals
+# before counting braces/brackets/parens, avoiding false positives from prose
+# like "// 1) ..." or format strings "(S%1)".
+
 $files = @(
     "description.ext",
     "init.sqf",
@@ -27,6 +31,9 @@ $files = @(
     "Functions\Roads\fn_roadFindSegment.sqf",
     "Functions\Roads\fn_roadBuildPath.sqf",
     "Functions\Roads\fn_roadGetPointsBehind.sqf",
+    "Functions\Roads\fn_roadPathExtend.sqf",
+    "Functions\Roads\fn_roadAdvanceAnchor.sqf",
+    "Functions\Roads\fn_roadReanchor.sqf",
     "Functions\Core\fn_registryInit.sqf",
     "Functions\Groups\fn_groupSetAwareMode.sqf",
     "Functions\Groups\fn_groupSetStance.sqf",
@@ -45,24 +52,51 @@ $files = @(
     "Doctrines\Data\Support_Armor.sqf",
     "Doctrines\Data\Support_Armor_German.sqf",
     "Doctrines\Data\Support_Artillery_Soviet.sqf",
-    "Doctrines\Data\Support_Armor_Soviet.sqf",
     "Doctrines\Data\Support_Artillery_Japanese.sqf",
     "Doctrines\Data\Support_Armor_Japanese.sqf"
 )
+
+function Get-StrippedCode([string]$raw) {
+    $sb = New-Object System.Text.StringBuilder
+    $i = 0; $n = $raw.Length
+    $inBlock = $false; $inLine = $false; $inStr = $false
+    while ($i -lt $n) {
+        $c = $raw[$i]
+        $next = if ($i + 1 -lt $n) { $raw[$i + 1] } else { [char]' ' }
+        if ($inBlock) {
+            if ($c -eq '*' -and $next -eq '/') { $inBlock = $false; $i += 2 } else { $i++ }
+            continue
+        }
+        if ($inLine) {
+            if ($c -eq "`n") { $inLine = $false; [void]$sb.Append("`n") }
+            $i++
+            continue
+        }
+        if ($inStr) {
+            if ($c -eq '"') {
+                if ($next -eq '"') { $i += 2 } else { $inStr = $false; $i++ }
+            } else { $i++ }
+            continue
+        }
+        if ($c -eq '/' -and $next -eq '*') { $inBlock = $true; $i += 2; continue }
+        if ($c -eq '/' -and $next -eq '/') { $inLine = $true; $i += 2; continue }
+        if ($c -eq '"') { $inStr = $true; $i++; continue }
+        [void]$sb.Append($c)
+        $i++
+    }
+    return $sb.ToString()
+}
 
 foreach ($f in $files) {
     if (-not (Test-Path $f)) {
         Write-Host "MISSING: $f" -ForegroundColor Red
         continue
     }
-    $c = Get-Content -Path $f -Raw
+    $c = Get-StrippedCode (Get-Content -Path $f -Raw)
     $ob = ([regex]::Matches($c, '\{')).Count
     $cb = ([regex]::Matches($c, '\}')).Count
-    $okB = ($ob -eq $cb)
-
     $obr = ([regex]::Matches($c, '\[')).Count
     $cbr = ([regex]::Matches($c, '\]')).Count
-    
     $op = ([regex]::Matches($c, '\(')).Count
     $cp = ([regex]::Matches($c, '\)')).Count
 

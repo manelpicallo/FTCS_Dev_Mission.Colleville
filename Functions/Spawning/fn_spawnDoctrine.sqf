@@ -267,6 +267,8 @@ if (_factionSide == civilian || _factionSide == sideUnknown) then { _factionSide
                 };
 
                 _playerUnit = _doctrinalUnit;
+                // Zeus capability is granted by the player-avatar monitor in init.sqf,
+                // which re-assigns the curator automatically on every selectPlayer change.
             } else {
                 private _unit = _group createUnit [_classType, _finalPos, [], 0, "CAN_COLLIDE"];
                 _unit setDir _finalDir;

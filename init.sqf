@@ -9,6 +9,38 @@
 // Prevent duplicate initialization on clients or re-entries
 if (!isNil "FTCS_Initialized") exitWith {};
 
+// Debug mode: grant Zeus (Curator) to the definitive player avatar and keep it
+// assigned across player entity changes (selectPlayer replaces the avatar when
+// the doctrinal commander spawns, detaching any editor-synced Zeus module).
+// Runs as a monitor thread on every client with interface.
+if (hasInterface) then {
+    [] spawn {
+        private _curator = objNull;
+        private _lastUnit = objNull;
+        while { true } do {
+            waitUntil { !isNull player && { player != _lastUnit } };
+            _lastUnit = player;
+            if (missionNamespace getVariable ["FTCS_Debug_Mode", true]) then {
+                if (isNull _curator) then {
+                    // Modules MUST live in a sideLogic group: on a normal side group
+                    // the logic never functions as a curator interface
+                    private _zeusGroup = createGroup sideLogic;
+                    _curator = _zeusGroup createUnit ["ModuleCurator_F", [-1000, -1000, 0], [], 0, "NONE"];
+                    _curator setVariable ["owner", (name player), true]; // owner expects a STRING
+                    _curator setVariable ["Addons", 3, true]; // 3 = ALL addons (including unofficial)
+                    [_curator, [], true] call BIS_fnc_moduleCurator;
+                    _curator addCuratorPoints 100;
+                    _curator addCuratorEditableObjects [(allUnits + vehicles), true];
+                    diag_log format ["[FTCS][ZEUS] Curator module created for %1", (name player)];
+                };
+                unassignCurator _curator;
+                player assignCurator _curator;
+                diag_log format ["[FTCS][ZEUS] Curator assigned to new player avatar %1", (name player)];
+            };
+        };
+    };
+};
+
 // Ensure internal side cohesion: in Arma 3, RESISTANCE/INDEPENDENT factions must
 // explicitly be marked friendly to themselves at mission level so disparate
 // independent groups never treat each other as hostiles under default map diplomacy.

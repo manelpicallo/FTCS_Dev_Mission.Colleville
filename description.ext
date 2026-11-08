@@ -71,6 +71,9 @@ class CfgFunctions
             class roadFindSegment {};
             class roadBuildPath {};
             class roadGetPointsBehind {};
+            class roadPathExtend {};
+            class roadAdvanceAnchor {};
+            class roadReanchor {};
         };
 
         class Interactions
