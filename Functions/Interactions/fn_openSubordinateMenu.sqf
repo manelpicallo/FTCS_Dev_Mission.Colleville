@@ -248,6 +248,44 @@ if (!isNil "FTCS_MENU_RoadMarchLayout") then {
     }];
     (FTCS_MENU_RoadMarchLayout select 7) set [6, if (_roadActive && { _edgeSteps > 0 }) then { "1" } else { "0" }];
     (FTCS_MENU_RoadMarchLayout select 8) set [6, if (_roadActive && { _edgeSteps > 0 }) then { "1" } else { "0" }];
+
+    // ------------------------------------------------------------------
+    // Squad & Scout Directives hub + Squad Orders submenus (dynamic rebuild)
+    // One hub entry per doctrinal squad (3 or 4, real doctrine names) plus the
+    // scouts row; each Squad Orders submenu shows the movement rows only when a
+    // commander target is currently marked (Targeting class), and highlights
+    // Rejoin when the squad is detached/pinned from its formation slot.
+    // ------------------------------------------------------------------
+    private _pltIdD = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+    private _pltKeyD = format ["PLT_%1", _pltIdD];
+    private _platoonsMapD = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+    private _pltDataD = _platoonsMapD getOrDefault [_pltKeyD, createHashMap];
+    private _parsedSquadsD = _pltDataD getOrDefault ["parsedSquads", createHashMap];
+
+    private _hasTargetD = !(isNil "FTCS_Commander_Target") && { count (missionNamespace getVariable ["FTCS_Commander_Target", []]) >= 8 };
+
+    // Hub rebuild: rows 2-5 map to squads 1-4 (show only existing doctrinal squads)
+    private _sqdOrder = ["_1", "_2", "_3", "_4"];
+    for "_si" from 1 to 4 do {
+        private _sqdKeyD = format ["SQD_%1_%2", _pltIdD, _si];
+        private _sDataD = _parsedSquadsD getOrDefault [_sqdKeyD, createHashMap];
+        private _hasSquadD = (count _sDataD > 0) || { !isNull (_sDataD getOrDefault ["group", grpNull]) };
+        private _hubRow = FTCS_MENU_SquadDirectives select (1 + _si);
+        private _doctName = _sDataD getOrDefault ["name", format ["Squad %1", _si]];
+        _hubRow set [0, format ["%1. %2", _si + 1, _doctName]];
+        _hubRow set [6, if (_hasSquadD) then { "1" } else { "0" }];
+    };
+
+    // Squad Orders submenus rebuild (rows: 0=title, 1=mark, 2-4=movement, 5-7=in-formation, 8=rejoin)
+    for "_si" from 1 to 4 do {
+        private _menuArr = missionNamespace getVariable [format ["FTCS_MENU_SquadOrders_%1", _si], []];
+        if (count _menuArr >= 9) then {
+            (_menuArr select 0) set [0, format ["Squad Orders - Squad %1%2", _si, if (_hasTargetD) then { " [TGT MARKED]" } else { "" }]];
+            for "_ri" from 2 to 4 do {
+                (_menuArr select _ri) set [6, if (_hasTargetD) then { "1" } else { "0" }];
+            };
+        };
+    };
 };
 
 showCommandingMenu _menuName;

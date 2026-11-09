@@ -250,17 +250,65 @@ FTCS_MENU_WeaponsReadiness_P2 = [
 // 2.6 Master Platoon Sergeant Menu (Phase 2: Overwatch) - [ACTIVE]
 FTCS_MENU_Sgt_Phase2 = [
     ["Platoon Command (Phase 2: Overwatch)", false],
-    ["1. Operational Phase Transition", [2], "#USER:FTCS_MENU_PhaseTransition", -5, [["expression", ""]], "1", "1"],
-    ["2. Platoon Formations (Trail / Cross-country)", [3], "#USER:FTCS_MENU_PlatoonFormations_P1", -5, [["expression", ""]], "1", "1"],
-    ["3. Road / Trail March", [4], "#USER:FTCS_MENU_RoadMarchLayout", -5, [["expression", ""]], "1", "1"],
-    ["4. Bounding Overwatch", [5], "#USER:FTCS_MENU_BoundingOverwatch_P2", -5, [["expression", ""]], "1", "1"],
+    ["1. Platoon Formations (Trail / Cross-country)", [2], "#USER:FTCS_MENU_PlatoonFormations_P1", -5, [["expression", ""]], "1", "1"],
+    ["2. Road / Trail March", [3], "#USER:FTCS_MENU_RoadMarchLayout", -5, [["expression", ""]], "1", "1"],
+    ["3. Bounding Overwatch", [4], "#USER:FTCS_MENU_BoundingOverwatch_P2", -5, [["expression", ""]], "1", "1"],
+    ["4. Squad & Scout Directives", [5], "#USER:FTCS_MENU_SquadDirectives", -5, [["expression", ""]], "1", "1"],
     ["5. Halt & 360 Security", [6], "", -5, [["expression", "['P2_HALT_360'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["6. Tactical Stance", [7], "#USER:FTCS_MENU_PlatoonStance_Common", -5, [["expression", ""]], "1", "1"],
     ["7. LDA Crossing Protocols", [8], "#USER:FTCS_MENU_LDACrossing_P2", -5, [["expression", ""]], "1", "1"],
     ["8. Weapons Readiness", [9], "#USER:FTCS_MENU_WeaponsReadiness_P2", -5, [["expression", ""]], "1", "1"],
     ["9. Regroup on Commander", [10], "", -5, [["expression", "['PLT_FOLLOW_COMMANDER'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["10. More Directives (Scouts / Squads)", [11], "#USER:FTCS_MENU_Platoon_Scouts", -5, [["expression", ""]], "1", "1"]
+    ["10. Operational Phase Transition", [11], "#USER:FTCS_MENU_PhaseTransition", -5, [["expression", ""]], "1", "1"]
 ];
+
+// Submenu: Squad & Scout Directives hub (Phase 2) - rebuilt dynamically in
+// fn_openSubordinateMenu with one entry per doctrinal squad plus the scouts row.
+FTCS_MENU_SquadDirectives = [
+    ["Squad & Scout Directives", false],
+    ["1. Scouts Directive", [2], "#USER:FTCS_MENU_Platoon_Scouts", -5, [["expression", ""]], "1", "1"],
+    ["2. [Squad 1]", [3], "#USER:FTCS_MENU_SquadOrders_1", -5, [["expression", ""]], "1", "1"],
+    ["3. [Squad 2]", [4], "#USER:FTCS_MENU_SquadOrders_2", -5, [["expression", ""]], "1", "1"],
+    ["4. [Squad 3]", [5], "#USER:FTCS_MENU_SquadOrders_3", -5, [["expression", ""]], "1", "1"],
+    ["5. [Squad 4]", [6], "#USER:FTCS_MENU_SquadOrders_4", -5, [["expression", ""]], "1", "1"]
+];
+
+// Squad Orders submenus (Phase 2, one per doctrinal squad slot 1-4) - rebuilt
+// dynamically in fn_openSubordinateMenu. Row 1 = target acquisition (always on);
+// rows 2-5 = movement orders (visible only with a marked target); rows 6-8 =
+// in-formation orders (always on); row 9 = rejoin (highlighted when detached).
+private _squadOrderRows = [
+    ["1. Mark Target (aim & confirm)", [2], "", -5, [["expression", "['SQD_TARGET_MARK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["2. Advance to Target (Hold)", [3], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DETACH_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["3. Advance and Defend Position", [4], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["4. Advance & Keep Formation", [5], "", -5, [["expression", "['SQD_MOVE_ADVANCE_KEEP_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["5. Hold Current Position / Defend", [6], "", -5, [["expression", "['SQD_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["6. Open Flank Right", [7], "", -5, [["expression", "['SQD_FLANK_OPEN_R_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["7. Open Flank Left", [8], "", -5, [["expression", "['SQD_FLANK_OPEN_L_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["8. Fall Back (+15m)", [9], "", -5, [["expression", "['SQD_FALL_BACK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["9. Rejoin Platoon Formation", [10], "", -5, [["expression", "['SQD_REJOIN_FORMATION_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["10. Squad Leader Menu (full)", [11], "#USER:FTCS_MENU_Squad_Phase2", -5, [["expression", ""]], "1", "1"]
+];
+
+for "_i" from 1 to 4 do {
+    private _menuArr = [[format ["Squad Orders - Squad %1", _i], false]];
+    {
+        // Interpolate the squad index into every expression token of the row.
+        // Row structure: [label, keys, submenu, priority, EVENTS, visible, enabled]
+        // where EVENTS = [["expression", code]] (TWO elements: event name + code).
+        // The code lives at EVENTS select 0 select 1 - NOT select 0 (that is the
+        // literal word "expression"). Writing back a one-element event breaks the
+        // row and blanks the whole menu.
+        private _row = +_x;
+        private _events = _row select 4;                    // [["expression", code]]
+        private _code = (_events select 0) select 1;        // the call string
+        private _formattedCode = format [_code, _i];
+        _row set [4, [["expression", _formattedCode]]];
+        _menuArr pushBack _row;
+    } forEach _squadOrderRows;
+    diag_log format ["[FTCS][MENUS] SquadOrders_%1 built: %2 rows (sample expr: %3).", _i, count _menuArr, ((_menuArr select 1) select 4 select 0) select 0];
+    missionNamespace setVariable [format ["FTCS_MENU_SquadOrders_%1", _i], _menuArr];
+};
 
 // Submenu: Platoon-Wide Scout & Screen Deployments - [ACTIVE]
 FTCS_MENU_Platoon_Scouts = [

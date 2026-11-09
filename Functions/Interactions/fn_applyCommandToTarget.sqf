@@ -495,6 +495,17 @@ switch (_commandCode) do {
 
         // Check if platoon or doctrine defines custom formation slots overrides
         private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+
+        // DOCTRINE RESET (road march): scout detachment mappings (outer slots
+        // 5,6,7,8,11,12) are ephemeral per formation order - wiped here so detached
+        // scouts re-join their doctrinal slot inside the road column instead of
+        // staying as scouts ahead of the leader.
+        {
+            private _sIdx = _x;
+            if (_sIdx in [5, 6, 7, 8, 11, 12]) then { _formationSlotsMap deleteAt _sIdx; };
+        } forEach (keys _formationSlotsMap);
+        _pltData set ["formationSlots", _formationSlotsMap];
+
         private _squadElementsMap = createHashMap;
 
         {
@@ -1060,6 +1071,15 @@ switch (_commandCode) do {
             private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
             private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
             private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+
+            // DOCTRINE RESET (trail march): scout detachment mappings (outer slots
+            // 5,6,7,8,11,12) are ephemeral per formation order - wiped here so detached
+            // scouts re-join their doctrinal slot inside the trail chain.
+            {
+                private _sIdxT = _x;
+                if (_sIdxT in [5, 6, 7, 8, 11, 12]) then { _formationSlotsMap deleteAt _sIdxT; };
+            } forEach (keys _formationSlotsMap);
+            _pltData set ["formationSlots", _formationSlotsMap];
             private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
 
             // 1. Identify which squad this targetGroup belongs to
@@ -1364,26 +1384,36 @@ switch (_commandCode) do {
             private _ldr = call _fnc_getPlatoonLeaderUnit;
             private _ldrGroup = group _ldr;
 
-            if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > _destSlot}) then {
-                private _slotTemplate = Platoon_Formation_Position_List select _destSlot;
-                if (count _slotTemplate >= 2) then {
-                    private _slotDist = _slotTemplate select 0;
-                    private _slotBearing = _slotTemplate select 1;
-
-                    // Bind scout group object into the slot position buffer
-                    Platoon_Formation_Position_List set [_destSlot, [_slotDist, _slotBearing, _scoutGroup]];
-
-                    // Register coordinates in FTCS_Groups_Registry_Table anchored directly to Platoon Leader [X]
-                    private _scoutGroupId = groupId _scoutGroup;
-                    [_scoutGroupId, "allocationSlot", _destSlot] call FTCS_fnc_registrySet;
-                    [_scoutGroupId, "formationPosition", [_slotDist, _slotBearing, _ldrGroup]] call FTCS_fnc_registrySet;
-                    [_scoutGroupId, "relPosition", [_slotDist, _slotBearing, _ldrGroup]] call FTCS_fnc_registrySet;
-
-                    // Launch follow-commander thread strictly for this scout group
-                    private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
-                    [_scoutGroup, _followMode, _ldr] spawn FTCS_fnc_formationsGroupDoFollowCommander;
-                };
+            private _templateOK = (!isNil "Platoon_Formation_Position_List" &&
+                                   {count Platoon_Formation_Position_List > _destSlot} &&
+                                   {count (Platoon_Formation_Position_List select _destSlot) >= 2});
+            if (!_templateOK) exitWith {
+                systemChat format ["[SCOUT DIRECTIVE] Warning: no active platoon formation template - order a platoon formation before deploying scouts to Slot %1.", _destSlot];
             };
+
+            private _slotTemplate = Platoon_Formation_Position_List select _destSlot;
+            private _slotDist = _slotTemplate select 0;
+            private _slotBearing = _slotTemplate select 1;
+
+            // Bind scout group object into the slot position buffer
+            Platoon_Formation_Position_List set [_destSlot, [_slotDist, _slotBearing, _scoutGroup]];
+
+            // Register coordinates in FTCS_Groups_Registry_Table anchored directly to Platoon Leader [X]
+            private _scoutGroupId = groupId _scoutGroup;
+            [_scoutGroupId, "allocationSlot", _destSlot] call FTCS_fnc_registrySet;
+            [_scoutGroupId, "formationPosition", [_slotDist, _slotBearing, _ldrGroup]] call FTCS_fnc_registrySet;
+            [_scoutGroupId, "relPosition", [_slotDist, _slotBearing, _ldrGroup]] call FTCS_fnc_registrySet;
+
+            // Full march-world cleanup for the detached scout group: kill any
+            // road/trail follow thread (its threadID stays but the group leaves
+            // that movingMode, so the old loop self-terminates) and hand the
+            // group over to a dedicated follow-commander thread on its new slot.
+            private _scoutGroupId = groupId _scoutGroup;
+            [_scoutGroupId, "movingMode", "SCOUT_DETACHED"] call FTCS_fnc_registrySet;
+
+            // Launch follow-commander thread strictly for this scout group
+            private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
+            [_scoutGroup, _followMode, _ldr] spawn FTCS_fnc_formationsGroupDoFollowCommander;
 
             // 8. Re-compact the parent squad's internal formation locally without the detached scouts
             // Preserve Squad Leader and remaining members in place without forward leaps
@@ -1409,6 +1439,109 @@ switch (_commandCode) do {
 
     // =========================================================================
     // 4.1 PLATOON-WIDE SCOUT SCREEN DIRECTIVES (Directly from Platoon Sergeant)
+    // =========================================================================
+    case "PLT_SCOUT_FLANK_L": {
+        // Left Flank Screen: Automatically provided by Squad in Slot 1
+        private _info = ["2"] call _fnc_getPlatoonSquadInfo; // SQD_X_2 is Slot 1
+        if (isNull (_info select 1)) then { _info = ["1"] call _fnc_getPlatoonSquadInfo; };
+        _info params ["_grp", "_ldr", "_name"];
+        if (!isNull _ldr) then {
+            missionNamespace setVariable ["FTCS_ActiveMenu_Target", _ldr];
+            missionNamespace setVariable ["FTCS_ActiveMenu_Role", _name];
+            ['SQD_SCOUT_SLOT_11'] call FTCS_fnc_applyCommandToTarget;
+        };
+    };
+
+    // =========================================================================
+    // 4.2 SQUAD 3D ORDERS (Squad & Scout Directives > Squad X)
+    // Row 1 marks the target through the Targeting class (fn_squadTarget3DScan,
+    // which regenerates and reopens this submenu with movement rows enabled);
+    // movement orders require a marked target (runtime re-validated).
+    // =========================================================================
+    case "SQD_TARGET_MARK_1";
+    case "SQD_TARGET_MARK_2";
+    case "SQD_TARGET_MARK_3";
+    case "SQD_TARGET_MARK_4": {
+        private _slotIdx = parseNumber ((_commandCode splitString "_") select 3);
+        diag_log format ["[FTCS][TARGET] Dispatcher reached SQD_TARGET_MARK (slot %1).", _slotIdx];
+        [_slotIdx] spawn FTCS_fnc_squadTarget3DScan;
+    };
+
+    case "SQD_MOVE_ADVANCE_DETACH_1";
+    case "SQD_MOVE_ADVANCE_DETACH_2";
+    case "SQD_MOVE_ADVANCE_DETACH_3";
+    case "SQD_MOVE_ADVANCE_DETACH_4";
+    case "SQD_MOVE_ADVANCE_DEFEND_1";
+    case "SQD_MOVE_ADVANCE_DEFEND_2";
+    case "SQD_MOVE_ADVANCE_DEFEND_3";
+    case "SQD_MOVE_ADVANCE_DEFEND_4";
+    case "SQD_MOVE_ADVANCE_KEEP_1";
+    case "SQD_MOVE_ADVANCE_KEEP_2";
+    case "SQD_MOVE_ADVANCE_KEEP_3";
+    case "SQD_MOVE_ADVANCE_KEEP_4";
+    case "SQD_DEFEND_1";
+    case "SQD_DEFEND_2";
+    case "SQD_DEFEND_3";
+    case "SQD_DEFEND_4";
+    case "SQD_FLANK_OPEN_R_1";
+    case "SQD_FLANK_OPEN_R_2";
+    case "SQD_FLANK_OPEN_R_3";
+    case "SQD_FLANK_OPEN_R_4";
+    case "SQD_FLANK_OPEN_L_1";
+    case "SQD_FLANK_OPEN_L_2";
+    case "SQD_FLANK_OPEN_L_3";
+    case "SQD_FLANK_OPEN_L_4";
+    case "SQD_FALL_BACK_1";
+    case "SQD_FALL_BACK_2";
+    case "SQD_FALL_BACK_3";
+    case "SQD_FALL_BACK_4";
+    case "SQD_REJOIN_FORMATION_1";
+    case "SQD_REJOIN_FORMATION_2";
+    case "SQD_REJOIN_FORMATION_3";
+    case "SQD_REJOIN_FORMATION_4": {
+        // Parse "SQD_<ORDER>_<slot>" and resolve the addressed squad group from
+        // the parsed platoon structure (authoritative "group" references)
+        private _parts = _commandCode splitString "_";
+        private _slotIdx = parseNumber (_parts select (count _parts - 1));
+        private _orderToken = "SQD_" + (_parts select 2);
+        if (count _parts > 4) then { _orderToken = _orderToken + "_" + (_parts select 3); };
+
+        private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltKey = format ["PLT_%1", _pltId];
+        private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+        private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+        private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+        private _sqdKey = format ["SQD_%1_%2", _pltId, _slotIdx];
+        private _sData = _parsedSquads getOrDefault [_sqdKey, createHashMap];
+
+        // Prefer the first tactical team group; fall back to the squad-level group
+        private _tacticalTeams = _sData getOrDefault ["tacticalTeams", createHashMap];
+        private _tKeys = keys _tacticalTeams;
+        _tKeys sort true;
+        private _targetGrp = objNull;
+        if (count _tKeys > 0) then {
+            _targetGrp = (_tacticalTeams get (_tKeys select 0)) getOrDefault ["group", objNull];
+        };
+        if (isNull _targetGrp) then { _targetGrp = _sData getOrDefault ["group", objNull]; };
+
+        if (isNull _targetGrp) exitWith {
+            systemChat format ["[SQD ORDER] Error: squad %1 not found in platoon data.", _slotIdx];
+        };
+
+        // Token translation: menu tokens -> squadOrderApply codes
+        private _applyCode = switch (true) do {
+            case (_commandCode find "ADVANCE_DETACH_" >= 0): { "ADVANCE_DETACH_HOLD" };
+            case (_commandCode find "ADVANCE_DEFEND" >= 0): { "ADVANCE_DETACH_DEFEND" };
+            case (_commandCode find "ADVANCE_KEEP" >= 0): { "ADVANCE_KEEP" };
+            case (_commandCode find "DEFEND_" >= 0): { "DEFEND" };
+            case (_commandCode find "FLANK_OPEN_R" >= 0): { "FLANK_OPEN_R" };
+            case (_commandCode find "FLANK_OPEN_L" >= 0): { "FLANK_OPEN_L" };
+            case (_commandCode find "FALL_BACK" >= 0): { "FALL_BACK" };
+            default { "REJOIN" };
+        };
+
+        [_targetGrp, _applyCode] call FTCS_fnc_squadOrderApply;
+    };
     // =========================================================================
     case "PLT_SCOUT_FLANK_L": {
         // Left Flank Screen: Automatically provided by Squad in Slot 1
@@ -1494,6 +1627,24 @@ switch (_commandCode) do {
         } forEach _detachedSlots;
 
         _pltData set ["formationSlots", _formationSlotsMap];
+
+        // March-world re-integration: scouts currently detached (SCOUT_DETACHED
+        // movingMode) are returned to the platoon's active follow mode and re-registered
+        // against their parent squads, so a road/trail order re-chains them cleanly.
+        private _followModeRejoin = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
+        {
+            private _sDataR = _y;
+            private _tacticalTeamsR = _sDataR getOrDefault ["tacticalTeams", createHashMap];
+            {
+                private _tGrpR = (_tacticalTeamsR get _x) getOrDefault ["group", grpNull];
+                if (!isNull _tGrpR) then {
+                    private _tGrpIdR = groupId _tGrpR;
+                    if (([_tGrpIdR, "movingMode"] call FTCS_fnc_registryGet) == "SCOUT_DETACHED") then {
+                        [_tGrpIdR, "movingMode", _followModeRejoin] call FTCS_fnc_registrySet;
+                    };
+                };
+            } forEach _tacticalTeamsR;
+        } forEach _parsedSquads;
 
         // Trigger local rejoin for each squad
         {

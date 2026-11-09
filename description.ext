@@ -83,6 +83,21 @@ class CfgFunctions
             class trailAdvanceAnchor {};
         };
 
+        class Targeting
+        {
+            class targetScan {};
+            class targetMark {};
+            class targetGet {};
+            class targetClear {};
+        class targetRestore {};
+        };
+
+        class Squads
+        {
+            class squadTarget3DScan {};
+            class squadOrderApply {};
+        };
+
         class Interactions
         {
             class addEngineAction {};

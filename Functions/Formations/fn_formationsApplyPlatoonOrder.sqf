@@ -189,8 +189,20 @@ private _mortarElements = [];
 private _slottedElements = [[], [], [], [], [], [], [], [], [], [], [], [], []];
 
 // Query active doctrine custom slot overrides (Method 2 data template hook)
-// Checks platoon-level pre-resolved formationSlots (from fn_applyDoctrine) or raw doctrine data
+// Checks platoon-level pre-resolved formationSlots (from fn_applyDoctrine) or raw doctrine data.
+// DOCTRINE: scout detachment mappings (outer slots 5,6,7,8,11,12 → team keys) are
+// EPHEMERAL per formation order - a new cross-country order wipes them, so detached
+// scouts re-join their doctrinal slot instead of resurrecting the old detachment.
 private _formationSlotsMap = _pltData getOrDefault ["formationSlots", createHashMap];
+private _detachedScoutKeys = [];
+{
+    private _sIdx = _x;
+    if (_sIdx in [5, 6, 7, 8, 11, 12]) then {
+        _detachedScoutKeys pushBack (_formationSlotsMap get _sIdx);
+        _formationSlotsMap deleteAt _sIdx;
+    };
+} forEach (keys _formationSlotsMap);
+_pltData set ["formationSlots", _formationSlotsMap];
 if (count _formationSlotsMap == 0) then {
     private _activeDocData = FTCS_Company_Data getOrDefault ["activeDoctrineData", createHashMap];
     private _rawOverrides = _activeDocData getOrDefault ["platoonFormationSlots", createHashMap];
