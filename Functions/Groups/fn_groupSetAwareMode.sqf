@@ -90,6 +90,23 @@ switch (_mode) do {
         [_groupID, "awareMode", "COMBAT"] call FTCS_fnc_registrySet;
     };
 
+    case "ROAD_MARCH": {
+        // Disciplined road march profile: AWARE spacing preserved for formation
+        // integrity, but COVER and AUTOTARGET disabled - neither seek-cover
+        // detours nor threat-anticipation lead soldiers off the assigned lane.
+        // Suppression remains active (react to real fire only).
+        {
+            _x disableAI "TARGET";
+            _x disableAI "AUTOCOMBAT";
+            _x disableAI "AUTOTARGET";
+            _x disableAI "COVER";
+            _x enableAI "SUPPRESSION";
+        } forEach (units _group);
+
+        _group setBehaviour "AWARE";
+        [_groupID, "awareMode", "ROAD_MARCH"] call FTCS_fnc_registrySet;
+    };
+
     case "STEALTH": {
         {
             _x disableAI "TARGET";

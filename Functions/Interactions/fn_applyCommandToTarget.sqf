@@ -358,11 +358,39 @@ switch (_commandCode) do {
 
     case "PLT_MODE_RELATIVE": {
         missionNamespace setVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
+        // Refresh the relative reference heading with the leader's CURRENT heading:
+        // switching from ABS leaves FTCS_Platoon_Advance_Direction frozen at the old
+        // absolute lock, which makes RELATIVE targets behave like fixed-compass ones
+        // until the leader moves. Re-baseline the direction at mode switch time.
+        private _ldrRel = call _fnc_getPlatoonLeaderUnit;
+        missionNamespace setVariable ["FTCS_Platoon_Advance_Direction", getDir _ldrRel];
+        missionNamespace setVariable ["FTCS_Last_Commander_Dir", getDir _ldrRel];
         (FTCS_MENU_PlatoonFormations_P1 select 9) set [6, "0"];
         (FTCS_MENU_PlatoonFormations_P1 select 10) set [6, "1"];
         
         // Adopt current ground positions dynamically and engage relative follow mode
         [call _fnc_getPlatoonLeaderUnit, "FOLLOWING_COMMANDER_REL"] call FTCS_fnc_formationsCurrentPositionSet;
+
+        // RELIABILITY SWEEP: re-launch follow threads for every subordinate group
+        // of the platoon regardless of whether the capture above managed to collect
+        // them. Stale ABS threads surviving a failed/aborted capture path would keep
+        // steering by fixed compass while the mode variable already says RELATIVE.
+        // Collection source: parsedSquads (authoritative "group" references), NOT the
+        // registry (whose entries are keyed by groupId without the group object).
+        private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+        private _relGroups = [];
+        {
+            private _sData = _y;
+            private _tacticalTeams = _sData getOrDefault ["tacticalTeams", createHashMap];
+            private _sqdGroup = _sData getOrDefault ["group", grpNull];
+            if (count _tacticalTeams > 0) then {
+                { private _g = (_tacticalTeams get _x) getOrDefault ["group", grpNull]; if (!isNull _g) then { _relGroups pushBack _g; }; } forEach _tacticalTeams;
+            } else {
+                if (!isNull _sqdGroup) then { _relGroups pushBack _sqdGroup; };
+            };
+        } forEach _parsedSquads;
+        [_relGroups, "FOLLOWING_COMMANDER_REL"] spawn FTCS_fnc_formationsGroupListFollowCommander;
+
         systemChat "[FOLLOW MODE] Platoon follow mode set to RELATIVE (Turn with Leader). Current ground layout locked.";
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
     };
@@ -381,6 +409,21 @@ switch (_commandCode) do {
         
         // Adopt current ground positions dynamically and engage absolute follow mode
         [_ldr, "FOLLOWING_COMMANDER_ABS"] call FTCS_fnc_formationsCurrentPositionSet;
+
+        // RELIABILITY SWEEP: same guarantee as the RELATIVE switch (see above)
+        private _absGroups = [];
+        {
+            private _sData = _y;
+            private _tacticalTeams = _sData getOrDefault ["tacticalTeams", createHashMap];
+            private _sqdGroup = _sData getOrDefault ["group", grpNull];
+            if (count _tacticalTeams > 0) then {
+                { private _g = (_tacticalTeams get _x) getOrDefault ["group", grpNull]; if (!isNull _g) then { _absGroups pushBack _g; }; } forEach _tacticalTeams;
+            } else {
+                if (!isNull _sqdGroup) then { _absGroups pushBack _sqdGroup; };
+            };
+        } forEach _parsedSquads;
+        [_absGroups, "FOLLOWING_COMMANDER_ABS"] spawn FTCS_fnc_formationsGroupListFollowCommander;
+
         systemChat "[FOLLOW MODE] Platoon follow mode set to ABSOLUTE (Fixed Compass). Current ground layout locked.";
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
     };
@@ -520,7 +563,11 @@ switch (_commandCode) do {
         _platoonsMap set [_pltKey, _pltData];
 
         // Calculate staggered shoulder positions along road and launch debug visualizer if active
-        private _followerGroups = [_formationElements, _roadPath, 8] call FTCS_fnc_formationsRoadColumnSet;
+        // Forced side injection (ROAD_COLUMN_LEFT/RIGHT fresh orders): a pending
+        // value (-1/+1) makes roadColumnSet deploy single-shoulder; 0 = staggered
+        private _forcedSideRC = missionNamespace getVariable ["FTCS_Road_Column_ForcedSide", 0];
+        missionNamespace setVariable ["FTCS_Road_Column_ForcedSide", 0]; // consume once
+        private _followerGroups = [_formationElements, _roadPath, 8, _forcedSideRC] call FTCS_fnc_formationsRoadColumnSet;
 
         // Extend mapped path rearward if total column depth exceeds the initially mapped road distance
         private _maxAssignedDist = 0;
@@ -575,7 +622,14 @@ switch (_commandCode) do {
         _anchor set ["roadPath", _roadPath];
         _anchor set ["headDist", _headStart];
         _anchor set ["lastAnchorMovePos", getPosATL _ldr];
-        _anchor set ["columnLayout", "STAGGERED"]; // (re)enables the Compact option in the menu
+        // Layout born: staggered by default, LEFT/RIGHT when deployed through the
+        // single-shoulder fresh orders (forced side was injected and consumed above)
+        private _bornLayout = switch (_forcedSideRC) do {
+            case -1: { "LEFT" };
+            case 1: { "RIGHT" };
+            default { "STAGGERED" };
+        };
+        _anchor set ["columnLayout", _bornLayout];
         missionNamespace setVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltId], _anchor];
 
         // Generation counter: each new road march order invalidates previous anchor threads
@@ -592,6 +646,10 @@ switch (_commandCode) do {
                 sleep 1.0;
             };
         };
+
+        // Orphan marker sweep: wipe road and trail slot markers from previous
+        // march worlds before issuing the fresh road chain
+        { if (_x find "FTCS_DEBUG_TRAIL_SLOT_" == 0 || _x find "FTCS_DEBUG_ROAD_SLOT_" == 0) then { deleteMarkerLocal _x; }; } forEach allMapMarkers;
 
         // Awaken AI and configure standardized march posture and blind follow micro-AI features for ALL groups
         private _allGroupsToConfigure = +_followerGroups;
@@ -617,12 +675,18 @@ switch (_commandCode) do {
                     _x disableAI "RADIOPROTOCOL";
                 } forEach (units _x);
 
-                [_x, "AWARE"] call FTCS_fnc_groupSetAwareMode;
+                [_x, "ROAD_MARCH"] call FTCS_fnc_groupSetAwareMode; // disciplined march profile (no COVER/AUTOTARGET)
                 [_x, "NORMAL"] call FTCS_fnc_groupSetSpeed;
                 [_x, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
                 [_x, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance; // Copy My Stance (formation default)
             };
         } forEach _allGroupsToConfigure;
+
+        // Straggler recovery supervisor: bumps the shared generation (kills any
+        // previous march watchdog) and spawns the fresh one for this order
+        private _wdGenR = (missionNamespace getVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1", _pltId], 0]) + 1;
+        missionNamespace setVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1", _pltId], _wdGenR];
+        [_pltId, _wdGenR] spawn FTCS_fnc_marchStuckWatchdog;
 
         // Launch dedicated road navigation thread for subordinate follower groups
         {
@@ -641,20 +705,214 @@ switch (_commandCode) do {
     };
 
     // =========================================================================
+    // ROAD MARCH SUBMENU: LEADER TRAIL COLUMN (Follow My Track)
+    // Column slot order identical to road march, but the master trajectory is
+    // the leader's own recorded track: groups inherit the exact terrain line
+    // he walked (ravines, defiles, tree lanes). No road graph involved.
+    // =========================================================================
+    case "PLT_TRAIL_COLUMN": {
+        private _pltIdT = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _ldrT = call _fnc_getPlatoonLeaderUnit;
+
+        // Invalidate any previous trail thread generation
+        missionNamespace setVariable [format ["FTCS_Trail_Gen_PLT_%1", _pltIdT],
+            (missionNamespace getVariable [format ["FTCS_Trail_Gen_PLT_%1", _pltIdT], 0]) + 1];
+
+        // Collect subordinate groups identically to the road column order
+        private _pltId = _pltIdT;
+        private _pltKey = format ["PLT_%1", _pltId];
+        private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+        private _pltData = _platoonsMap getOrDefault [_pltKey, createHashMap];
+        private _parsedSquads = _pltData getOrDefault ["parsedSquads", createHashMap];
+
+        private _trailGroups = [];
+        {
+            private _sData = _y;
+            private _tacticalTeams = _sData getOrDefault ["tacticalTeams", createHashMap];
+            private _sqdGroup = _sData getOrDefault ["group", grpNull];
+            if (count _tacticalTeams > 0) then {
+                { private _g = (_tacticalTeams get _x) getOrDefault ["group", grpNull]; if (!isNull _g) then { _trailGroups pushBack _g; }; } forEach _tacticalTeams;
+            } else {
+                if (!isNull _sqdGroup) then { _trailGroups pushBack _sqdGroup; };
+            };
+        } forEach _parsedSquads;
+
+        // Freeze the trail anchor and assign chained offsets
+        private _chainedCount = [_pltIdT, _trailGroups, _ldrT] call FTCS_fnc_trailColumnSet;
+        if (_chainedCount == 0) exitWith {
+            hint parseText "<t color='#FF5555'>[TRAIL COLUMN FAILED]</t><br/>No subordinate groups resolved for chaining.";
+            systemChat "[TRAIL COLUMN] Error: no subordinate groups found.";
+        };
+
+        private _anchorT = missionNamespace getVariable [format ["FTCS_Trail_Anchor_PLT_%1", _pltIdT], createHashMap];
+
+        // Persist in the platoon data-driven model
+        _pltData set ["movementTechnique", "TRAIL_COLUMN"];
+        _pltData set ["trailAnchor", _anchorT];
+        _platoonsMap set [_pltKey, _pltData];
+
+        // Awaken AI and configure the SAME doctrinal march profile as road march
+        {
+            if (!isNull _x) then {
+                (leader _x) enableAI "PATH";
+                (leader _x) enableAI "MOVE";
+                (leader _x) disableAI "TARGET";
+                (leader _x) disableAI "AUTOCOMBAT";
+                (leader _x) disableAI "COVER";
+                (leader _x) disableAI "RADIOPROTOCOL";
+                { _x enableAI "PATH"; _x enableAI "MOVE"; _x disableAI "TARGET"; _x disableAI "AUTOCOMBAT"; _x disableAI "COVER"; _x disableAI "RADIOPROTOCOL"; } forEach (units _x);
+
+                [_x, "ROAD_MARCH"] call FTCS_fnc_groupSetAwareMode;
+                [_x, "NORMAL"] call FTCS_fnc_groupSetSpeed;
+                [_x, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+                [_x, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance;
+                _x setFormation "COLUMN"; // same native formation as road march (single file)
+            };
+        } forEach _trailGroups;
+
+        // Sole trail recorder thread: records the leader's track every 0.5s
+        private _gen = missionNamespace getVariable [format ["FTCS_Trail_Gen_PLT_%1", _pltIdT], 0];
+        [_ldrT, _anchorT, _pltIdT, _gen] spawn {
+            params ["_ldr", "_anchor", "_pltId", "_gen"];
+            while { !isNull _ldr &&
+                    { (missionNamespace getVariable [format ["FTCS_Trail_Gen_PLT_%1", _pltId], 0]) == _gen } } do {
+                [_ldr, _anchor, 2.0, 60] call FTCS_fnc_trailAdvanceAnchor;
+                sleep 0.5;
+            };
+        };
+
+        // Orphan marker sweep: any leftover trail slot markers from a previous
+        // march world (dead threads) are wiped before the new chain starts
+        { if (_x find "FTCS_DEBUG_TRAIL_SLOT_" == 0) then { deleteMarkerLocal _x; }; } forEach allMapMarkers;
+
+        // Straggler recovery supervisor: bumps the shared generation (kills any
+        // previous march watchdog) and spawns the fresh one for this order
+        private _wdGen = (missionNamespace getVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1", _pltIdT], 0]) + 1;
+        missionNamespace setVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1", _pltIdT], _wdGen];
+        [_pltIdT, _wdGen] spawn FTCS_fnc_marchStuckWatchdog;
+
+        // Launch per-group trail follow threads
+        { if (!isNull _x) then { [_x, _ldrT] spawn FTCS_fnc_formationsGroupFollowTrail; }; } forEach _trailGroups;
+
+        missionNamespace setVariable ["FTCS_Debug_Mode", true];
+        [_ldrT] spawn FTCS_fnc_formationsLiveSlotsDebugWorker;
+
+        systemChat format ["[TRAIL COLUMN] Platoon chained on leader track (%1 teams).", _chainedCount];
+        hint parseText "<t color='#00FFCC'>[TRAIL COLUMN ACTIVATED]</t><br/><t color='#FFFFFF'>Trajectory:</t> Leader's own track<br/><t color='#AAAAAA'>Every team inherits the exact terrain line the leader walked.</t>";
+    };
+
+    // =========================================================================
     // ROAD MARCH SUBMENU: COMPACT COLUMN (Close Ranks, no stagger stepping)
     // Requires an already-formed road march column (live anchor): validated here
     // at runtime, since commanding menus are static arrays built once at init.
     // =========================================================================
     case "PLT_ROAD_COMPACT": {
         private _pltIdC = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltKeyC = format ["PLT_%1", _pltIdC];
+        private _platoonsMapC = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+        private _pltDataC = _platoonsMapC getOrDefault [_pltKeyC, createHashMap];
+        private _techniqueC = _pltDataC getOrDefault ["movementTechnique", "CROSS_COUNTRY"];
+
+        // Router: the same Compact command serves both march worlds.
+        // TRAIL_COLUMN compacts into a staggered double lane over the leader track;
+        // ROAD_COLUMN compacts onto matching shoulder distances over the road path.
+        if (_techniqueC == "TRAIL_COLUMN") exitWith {
+            private _anchorC = missionNamespace getVariable [format ["FTCS_Trail_Anchor_PLT_%1", _pltIdC], createHashMap];
+            if (count (_anchorC getOrDefault ["trailPath", []]) < 2) exitWith {
+                hint parseText "<t color='#FF5555'>[TRAIL COMPACT FAILED]</t><br/>No active trail column.<br/><t color='#AAAAAA'>Form the platoon in Leader Trail Column first.</t>";
+                systemChat "[TRAIL COMPACT] Error: trail march not active.";
+            };
+            if ((_anchorC getOrDefault ["columnLayout", "STAGGERED"]) == "COMPACT") exitWith {
+                hint parseText "<t color='#FF5555'>[TRAIL COMPACT]</t><br/>Column already compacted.<br/><t color='#AAAAAA'>Re-order Leader Trail Column to restore single file.</t>";
+            };
+            [_pltIdC] call FTCS_fnc_formationsTrailCompactColumn;
+            hint parseText "<t color='#00FFCC'>[TRAIL COMPACT]</t><br/><t color='#FFFFFF'>Staggered double lane engaged.</t><br/><t color='#AAAAAA'>Teams paired +/-0.75m off the leader's walked line.</t>";
+        };
+
         private _anchorC = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdC], createHashMap];
         if (count (_anchorC getOrDefault ["roadPath", []]) < 2) exitWith {
             hint parseText "<t color='#FF5555'>[ROAD COMPACT FAILED]</t><br/>No active road march column.<br/><t color='#AAAAAA'>Form the platoon in Staggered Column first, then compact.</t>";
             systemChat "[ROAD COMPACT] Error: road march not active. Form the column first.";
         };
 
+        // Single-shoulder columns are already single-file: compacting is meaningless
+        if ((_anchorC getOrDefault ["columnLayout", "STAGGERED"]) in ["LEFT", "RIGHT"]) exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD COMPACT]</t><br/>Column is already a single-shoulder file.<br/><t color='#AAAAAA'>Re-order Staggered Column to restore dual shoulders first.</t>";
+            systemChat "[ROAD COMPACT] Blocked: layout is already LEFT/RIGHT single-shoulder.";
+        };
+
         [_pltIdC, "BOTH"] call FTCS_fnc_formationsRoadCompactColumn;
         hint parseText "<t color='#00FFCC'>[ROAD COMPACT]</t><br/><t color='#FFFFFF'>Staggering removed.</t><br/><t color='#AAAAAA'>Left and right shoulder teams march at matching distances (pace + 2m gap).</t>";
+    };
+
+    // =========================================================================
+    // ROAD MARCH SUBMENU: SINGLE-SHOULDER COLUMNS (all teams to ONE side)
+    // Two entry paths:
+    // 1) No road column active: orders a FRESH road march directly into the
+    //    requested single-shoulder layout (same full pipeline as PLT_ROAD_COLUMN
+    //    with a forced side - no staggered pre-order needed).
+    // 2) Road column active: re-chains the current column onto the requested
+    //    shoulder via the compact resolver (push-out/push-in keeps working).
+    // =========================================================================
+    case "ROAD_COLUMN_LEFT";
+    case "ROAD_COLUMN_RIGHT": {
+        private _pltIdS = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _forcedSide = if (_commandCode == "ROAD_COLUMN_LEFT") then { -1 } else { 1 };
+        private _sideStr = if (_forcedSide == -1) then { "LEFT" } else { "RIGHT" };
+        private _anchorS = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdS], createHashMap];
+
+        if (count (_anchorS getOrDefault ["roadPath", []]) >= 2) then {
+            // PATH 1 - column already active: re-chain onto the requested shoulder
+            private _scope = if (_forcedSide == -1) then { "LEFT" } else { "RIGHT" };
+            [_pltIdS, _scope] call FTCS_fnc_formationsRoadCompactColumn;
+            hint parseText format ["<t color='#00FFCC'>[ROAD COLUMN: %1]</t><br/><t color='#FFFFFF'>Single-shoulder column re-chained.</t><br/><t color='#AAAAAA'>All teams moved to the %2 shoulder (standard pacing).</t>", _sideStr, toLower _sideStr];
+        } else {
+            // PATH 2 - fresh order: route through PLT_ROAD_COLUMN with the forced side
+            // injected, so the full pipeline (path, anchor, AI, threads, watchdog) runs
+            missionNamespace setVariable ["FTCS_Road_Column_ForcedSide", _forcedSide];
+            "PLT_ROAD_COLUMN" call FTCS_fnc_applyCommandToTarget;
+            hint parseText format ["<t color='#00FFCC'>[ROAD COLUMN: %1]</t><br/><t color='#FFFFFF'>Road march deployed single-shoulder.</t><br/><t color='#AAAAAA'>All teams chained down the %2 shoulder from the start.</t>", _sideStr, toLower _sideStr];
+        };
+    };
+
+    // =========================================================================
+    // ROAD MARCH SUBMENU: STEPPED EDGE MARGIN CONTROL (margins 2m per level)
+    // Requires an active road march column (staggered or compact layout).
+    // PUSH_OUT / PULL_IN move the column 2m at a time; EDGE_RESET returns it
+    // immediately onto the asphalt shoulders.
+    // =========================================================================
+    case "ROAD_EDGE_PUSH": {
+        private _pltIdE = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _anchorE = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdE], createHashMap];
+        if (count (_anchorE getOrDefault ["roadPath", []]) < 2) exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD EDGE FAILED]</t><br/>No active road march column.<br/><t color='#AAAAAA'>Form the platoon in a road column first.</t>";
+            systemChat "[ROAD EDGE] Error: road march not active.";
+        };
+
+        [_pltIdE, 1] call FTCS_fnc_roadEdgeModeToggle;
+    };
+
+    case "ROAD_EDGE_PULL": {
+        private _pltIdE = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _anchorE = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdE], createHashMap];
+        if (count (_anchorE getOrDefault ["roadPath", []]) < 2) exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD EDGE FAILED]</t><br/>No active road march column.<br/><t color='#AAAAAA'>Form the platoon in a road column first.</t>";
+            systemChat "[ROAD EDGE] Error: road march not active.";
+        };
+
+        [_pltIdE, -1] call FTCS_fnc_roadEdgeModeToggle;
+    };
+
+    case "ROAD_EDGE_RESET": {
+        private _pltIdE = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _anchorE = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdE], createHashMap];
+        if (count (_anchorE getOrDefault ["roadPath", []]) < 2) exitWith {
+            hint parseText "<t color='#FF5555'>[ROAD EDGE FAILED]</t><br/>No active road march column.<br/><t color='#AAAAAA'>Form the platoon in a road column first.</t>";
+            systemChat "[ROAD EDGE] Error: road march not active.";
+        };
+
+        [_pltIdE, 0] call FTCS_fnc_roadEdgeModeToggle;
+        hint parseText "<t color='#00FFCC'>[ROAD EDGE: RESET]</t><br/><t color='#FFFFFF'>Column returned onto the asphalt shoulders.</t>";
     };
     case "CHECK_WAYPOINT": {
         hint parseText "<t color='#00FFCC'>[NAVIGATION CHECK]</t><br/><t color='#FFFFFF'>Route Status:</t> On designated Axis of Advance.<br/><t color='#FFAA00'>Heading:</t> Bearing locked towards Objective.";

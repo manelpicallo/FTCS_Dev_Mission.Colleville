@@ -268,6 +268,10 @@ if (!isNull _team3Grp) then {
 } forEach _formationSlotsMap;
 
 // Gather all active subordinate groups participating in formation navigation
+// Platoon operational phase resolves once and is shared by the leader-group sync
+// block and the subordinate AI configuration block below.
+private _platoonPhase = missionNamespace getVariable [format ["FTCS_Platoon_Phase_%1", _pltIdx], 1];
+
 private _allSubordinateGroups = [];
 {
     {
@@ -302,7 +306,6 @@ _leaderGroup setGroupIconParams [[0.55, 0.55, 0.55, 1.0], format ["[Slot 0 Ancho
 // Doctrinal State & AI Synchronization for Platoon Leader Anchor Group (_leaderGroup / HQ)
 // -------------------------------------------------------------------------
 if (!isNull _leaderGroup) then {
-    private _platoonPhase = missionNamespace getVariable [format ["FTCS_Platoon_Phase_%1", _pltIdx], 1];
 
     switch (_platoonPhase) do {
         case 1: {
@@ -342,14 +345,43 @@ if (!isNull _leaderGroup) then {
 // and recursively calls FTCS_fnc_formationsTypeSquadSet for internal squad teams
 private _followerGroups = [_formationElements, _formationType, _separationDistance, _squadFormationsOverride] call FTCS_fnc_formationsTypePlatoonSet;
 
-// Default stance for every cross-country formation order: FOLLOW_COMMANDER_STANCE
-// ("Copy My Stance") - subordinate units mirror the leader's posture while marching.
-// The road march path (PLT_ROAD_COLUMN) applies the same default separately.
+// Default AI configuration for every cross-country formation order, mirroring the
+// road march entry pattern: stance ("Copy My Stance") plus doctrinal awareness,
+// speed and ROE per operational phase, applied through the standardized group
+// functions only. Phase profile mirrors the leader-group table above, except
+// phase 2 uses AWARE (not SAFE) to keep vigilant spacing coherent for subordinates.
 {
-    if (!isNull _x) then {
-        [_x, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance;
+    private _grp = _x;
+    if (!isNull _grp) then {
+        [_grp, "FOLLOW_COMMANDER_STANCE"] call FTCS_fnc_groupSetStance;
+
+        switch (_platoonPhase) do {
+            case 1: {
+                [_grp, "CARELESS"] call FTCS_fnc_groupSetAwareMode;
+                [_grp, "NORMAL"] call FTCS_fnc_groupSetSpeed;
+                [_grp, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+            };
+            case 2: {
+                [_grp, "AWARE"] call FTCS_fnc_groupSetAwareMode;
+                [_grp, "LIMITED"] call FTCS_fnc_groupSetSpeed;
+                [_grp, "FIRE_IF_FIRED_UPON"] call FTCS_fnc_groupSetROE;
+            };
+            case 3: {
+                [_grp, "COMBAT"] call FTCS_fnc_groupSetAwareMode;
+                [_grp, "FULL"] call FTCS_fnc_groupSetSpeed;
+                [_grp, "FIRE_AT_WILL"] call FTCS_fnc_groupSetROE;
+            };
+            default { };
+        };
     };
 } forEach _allSubordinateGroups;
+
+// Straggler recovery supervisor (levels 1-2): cross-country orders share the
+// same watchdog coverage as road/trail marches. Bumping the shared generation
+// kills any previous march watchdog for this platoon and spawns a fresh one.
+private _wdGen = (missionNamespace getVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1", _pltIdx], 0]) + 1;
+missionNamespace setVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1", _pltIdx], _wdGen];
+[_pltIdx, _wdGen] spawn FTCS_fnc_marchStuckWatchdog;
 
 // 6. Launch concurrent follow-commander movement threads for all subordinate groups
 if (count _allSubordinateGroups > 0) then {

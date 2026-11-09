@@ -65,6 +65,11 @@ class CfgFunctions
             class formationsRoadColumnSet {};
             class formationsGroupFollowRoad {};
             class formationsRoadCompactColumn {};
+            class formationsGroupFollowTrail {};
+            class trailColumnSet {};
+            class formationsTrailCompactColumn {};
+            class marchStuckWatchdog {};
+            class roadEdgeModeToggle {};
         };
 
         class Roads
@@ -75,6 +80,7 @@ class CfgFunctions
             class roadPathExtend {};
             class roadAdvanceAnchor {};
             class roadReanchor {};
+            class trailAdvanceAnchor {};
         };
 
         class Interactions

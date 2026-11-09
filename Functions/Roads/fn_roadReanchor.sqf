@@ -100,5 +100,7 @@ _anchor set ["anchorPos", _leaderPos];
 _anchor set ["lastAnchorMovePos", _leaderPos];
 _anchor set ["devStart", -1];
 _anchor set ["devAccumDist", 0];
+// edgeMode and columnLayout are intentionally NOT touched: a junction re-anchor
+// preserves the current road-edge placement and column layout of the march.
 
 true

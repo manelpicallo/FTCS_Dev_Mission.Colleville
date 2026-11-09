@@ -26,16 +26,21 @@ if (hasInterface) then {
                     // the logic never functions as a curator interface
                     private _zeusGroup = createGroup sideLogic;
                     _curator = _zeusGroup createUnit ["ModuleCurator_F", [-1000, -1000, 0], [], 0, "NONE"];
-                    _curator setVariable ["owner", (name player), true]; // owner expects a STRING
                     _curator setVariable ["Addons", 3, true]; // 3 = ALL addons (including unofficial)
+                    // Owner MUST be set BEFORE module activation: BIS_fnc_moduleCurator
+                    // registers the logic against its owner at init time
+                    _curator setVariable ["owner", (name player), true];
                     [_curator, [], true] call BIS_fnc_moduleCurator;
                     _curator addCuratorPoints 100;
                     _curator addCuratorEditableObjects [(allUnits + vehicles), true];
-                    diag_log format ["[FTCS][ZEUS] Curator module created for %1", (name player)];
+                    diag_log format ["[FTCS][ZEUS] Curator module created for %1 (owner=%2)", (name player), (name player)];
                 };
+                // Re-point the owner STRING to the CURRENT avatar on every transfer:
+                // the interface only opens when owner matches the requesting unit's name
                 unassignCurator _curator;
+                _curator setVariable ["owner", (name player), true];
                 player assignCurator _curator;
-                diag_log format ["[FTCS][ZEUS] Curator assigned to new player avatar %1", (name player)];
+                diag_log format ["[FTCS][ZEUS] Curator assigned to new player avatar %1 (owner=%2)", (name player), (name player)];
             };
         };
     };

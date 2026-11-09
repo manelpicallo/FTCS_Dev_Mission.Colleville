@@ -222,9 +222,32 @@ if (!isNil "FTCS_MENU_RoadMarchLayout") then {
     private _anchorM = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdM], createHashMap];
     private _roadActive = count (_anchorM getOrDefault ["roadPath", []]) >= 2;
     private _layout = _anchorM getOrDefault ["columnLayout", "STAGGERED"];
-    private _compactAllowed = _roadActive && { _layout == "STAGGERED" };
-    // Row 2 = Compact Column (rows: 0=title, 1=staggered, 2=compact)
-    (FTCS_MENU_RoadMarchLayout select 2) set [6, if (_compactAllowed) then { "1" } else { "0" }];
+    private _roadLayout = (missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltIdM], createHashMap]) getOrDefault ["columnLayout", "STAGGERED"];
+    private _trailAnchorM = missionNamespace getVariable [format ["FTCS_Trail_Anchor_PLT_%1", _pltIdM], createHashMap];
+    private _trailActive = count (_trailAnchorM getOrDefault ["trailPath", []]) >= 2;
+    private _trailLayout = _trailAnchorM getOrDefault ["columnLayout", "STAGGERED"];
+    private _edgeSteps = _anchorM getOrDefault ["edgeMarginSteps", 0];
+    // Row 3 = Compact Column (rows: 0=title, 1=staggered, 2=trail, 3=compact)
+    // Enabled with a road column in STAGGERED/COMPACT layout; DISABLED under a
+    // single-shoulder LEFT/RIGHT column (already single-file, nothing to compact)
+    private _compactAllowed = _roadActive && { _roadLayout in ["STAGGERED", "COMPACT"] };
+    (FTCS_MENU_RoadMarchLayout select 3) set [6, if (_compactAllowed) then { "1" } else { "0" }];
+    // Rows 4/5 = single-shoulder columns (LEFT/RIGHT): ALWAYS enabled - they
+    // deploy the full road pipeline with a forced side, no prior staggered
+    // column required (dispatcher handles both fresh-order and re-chain paths)
+    (FTCS_MENU_RoadMarchLayout select 4) set [6, "1"];
+    (FTCS_MENU_RoadMarchLayout select 5) set [6, "1"];
+    // Rows 6-8 = stepped edge margin controls (road-world only): push available
+    // while below the 4-step cap; pull-in and reset only while off-road
+    private _row5 = FTCS_MENU_RoadMarchLayout select 6;
+    _row5 set [6, if (_roadActive && { _edgeSteps < 4 }) then { "1" } else { "0" }];
+    _row5 set [0, if (_edgeSteps > 0) then {
+        format ["6. Push Out From Road (+3m) [OUT x%1/4]", _edgeSteps]
+    } else {
+        "6. Push Out From Road (+3m)"
+    }];
+    (FTCS_MENU_RoadMarchLayout select 7) set [6, if (_roadActive && { _edgeSteps > 0 }) then { "1" } else { "0" }];
+    (FTCS_MENU_RoadMarchLayout select 8) set [6, if (_roadActive && { _edgeSteps > 0 }) then { "1" } else { "0" }];
 };
 
 showCommandingMenu _menuName;

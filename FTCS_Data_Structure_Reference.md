@@ -17,6 +17,16 @@ missionNamespace
 ├── FTCS_Platoon_Phase_1 .. 4       (NUMBER: Fase operacional activa individual por pelotón: 1, 2 o 3)
 ├── FTCS_Platoon_Follow_Mode        (STRING: Modo de seguimiento activo: "FOLLOWING_COMMANDER_REL" | "FOLLOWING_COMMANDER_ABS")
 ├── FTCS_Platoon_Fixed_Abs_Dir      (NUMBER: Rumbo fijo congelado en brújula [0-360] para seguimiento y debug en modo absoluto)
+├── FTCS_Road_Anchor_PLT_1 .. 4        (HashMap: Ancla de marcha por carretera por pelotón: anchorPos, advanceDir,
+│                                        roadPath, headDist, lastAnchorMovePos, edgeMarginSteps, columnLayout, generation)
+├── FTCS_Road_Anchor_Gen_PLT_1 .. 4    (NUMBER: Generación del ancla de road march — cada orden nueva invalida hilos previos)
+├── FTCS_Trail_Anchor_PLT_1 .. 4       (HashMap: Ancla de columna de estela por pelotón: anchorPos,
+│                                        trailPath [ARRAY de [posATL, dir] — estela grabada del líder],
+│                                        headDist [NUMBER — arco del líder], maxTrailOffset [NUMBER],
+│                                        lastAnchorMovePos [ATL], generation [NUMBER];
+│                                        registro en FTCS_Groups_Registry_Table: trailOffsetDist / trailTargetPos /
+│                                        trailTangentDir / movingMode "FOLLOWING_TRAIL")
+├── FTCS_Trail_Gen_PLT_1 .. 4          (NUMBER: Generación de trail column — cada orden nueva invalida hilos previos)
 └── FTCS_Debug_Mode                 (BOOLEAN: Centinela de depuración, true para telemetría visual y slots en mapa)
 ```
 
@@ -152,7 +162,7 @@ FTCS_Groups_Registry_Table (HashMap)
       │
       ├── "awareMode"         : ENUM STRING (Comportamiento nativo de combate en Arma 3)
       │     Valores válidos:
-      │     └── "CARELESS" | "SAFE" | "AWARE" | "COMBAT" | "STEALTH"
+      │     └── "CARELESS" | "SAFE" | "AWARE" | "COMBAT" | "STEALTH" | "ASSAULT_ADVANCE" | "ROAD_MARCH" (perfil disciplinado de marcha por carretera: AWARE + COVER/AUTOTARGET deshabilitados)
       │
       ├── "speed"             : ENUM STRING
       │     Valores válidos:

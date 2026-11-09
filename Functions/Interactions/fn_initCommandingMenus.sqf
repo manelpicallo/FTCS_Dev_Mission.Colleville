@@ -139,13 +139,18 @@ FTCS_MENU_RouteControl_P1 = [
 // 1.3.1 Road March Column Layout Submenu (Phase 1) - [ACTIVE]
 // Staggered: forms the road column. Compact: requires an already-formed road
 // march column (validated at runtime in applyCommandToTarget). Left/Right single
-// shoulder columns are placeholders reserved for future implementation.
+// shoulder columns are also fresh-orderable: ROAD_COLUMN_LEFT/RIGHT deploy the
+// full road pipeline with a forced side without any staggered pre-order.
 FTCS_MENU_RoadMarchLayout = [
     ["Road March Column Layout", false],
     ["1. Staggered Column (Dual Shoulder)", [2], "", -5, [["expression", "['PLT_ROAD_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["2. Compact Column (Close Ranks)", [3], "", -5, [["expression", "['PLT_ROAD_COMPACT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"], // enabled at runtime while a road column is active (fn_openSubordinateMenu)
-    ["3. Column Left (Single Shoulder)", [4], "", -5, [["expression", ""]], "1", "0"],
-    ["4. Column Right (Single Shoulder)", [5], "", -5, [["expression", ""]], "1", "0"]
+    ["2. Leader Trail Column (Follow My Track)", [3], "", -5, [["expression", "['PLT_TRAIL_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["3. Compact Column (Close Ranks)", [4], "", -5, [["expression", "['PLT_ROAD_COMPACT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"], // enabled at runtime while a road column is active (fn_openSubordinateMenu)
+    ["4. Column Left (Single Shoulder)", [5], "", -5, [["expression", "['ROAD_COLUMN_LEFT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["5. Column Right (Single Shoulder)", [6], "", -5, [["expression", "['ROAD_COLUMN_RIGHT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["6. Push Out From Road (+3m)", [7], "", -5, [["expression", "['ROAD_EDGE_PUSH'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["7. Pull In To Road (-3m)", [8], "", -5, [["expression", "['ROAD_EDGE_PULL'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["8. Return To Road (Reset)", [9], "", -5, [["expression", "['ROAD_EDGE_RESET'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"]
 ];
 
 // 1.4 Weapons Control Status Submenu (Phase 1) - [ACTIVE]

@@ -44,9 +44,7 @@ private _headGap = 1.0;    // meters from the leader arclength to the first slot
 
 private _anchor = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", _pltId], createHashMap];
 private _roadPath = _anchor getOrDefault ["roadPath", []];
-diag_log format ["[FTCS][COMPACT] Called (plt %1, scope %2). Anchor path points: %3", _pltId, _scope, count _roadPath];
 if (count _roadPath < 2) exitWith {
-    diag_log "[FTCS][COMPACT] ABORT: anchor missing/empty.";
     systemChat "[ROAD COMPACT] Error: no active road march column (anchor missing).";
     0
 };
@@ -64,16 +62,20 @@ private _rightGroups = [];
     private _offsetDist = _entry getOrDefault ["roadOffsetDist", -1];
     private _shoulder = _entry getOrDefault ["roadShoulderOffset", 0];
 
-    // Only rear-marching groups on a shoulder participate; forward/center stay untouched
+    // Only rear-marching groups on a shoulder participate; forward/center stay untouched.
+    // Scope LEFT/RIGHT (single-shoulder column): EVERY participant joins the requested
+    // chain regardless of its original side — all teams end up on the same shoulder.
     if (_offsetDist > 0 && {_shoulder != 0}) then {
-        private _bucket = if (_shoulder < 0) then { _leftGroups } else { _rightGroups };
+        private _bucket = switch (_scope) do {
+            case "LEFT": { _leftGroups };
+            case "RIGHT": { _rightGroups };
+            default { if (_shoulder < 0) then { _leftGroups } else { _rightGroups }; };
+        };
         _bucket pushBack [_offsetDist, _grpId];
     };
 } forEach FTCS_Groups_Registry_Table;
-diag_log format ["[FTCS][COMPACT] Candidates: left=%1 right=%2", count _leftGroups, count _rightGroups];
 
 if (count _leftGroups == 0 && count _rightGroups == 0) exitWith {
-    diag_log "[FTCS][COMPACT] ABORT: no participants with roadOffsetDist > 0 and shoulder != 0.";
     systemChat "[ROAD COMPACT] Error: no formed road march slots found in the registry.";
     0
 };
@@ -127,17 +129,33 @@ private _compactColumn = {
         { if (groupId _x == _grpId) exitWith { _grp = _x }; } forEach allGroups;
         private _unitCount = if (!isNull _grp) then { count (units _grp) max 1 } else { 4 };
 
-        // Manpower footprint (COMPACT): soldiers * 3m pace + 3m tactical interval
-        private _pace = (_unitCount * 3.0) + 3.0;
+        // MEASURED team length: real leader->rearmost distance floored by the
+        // nominal model (men * 3.5), + 3m tactical interval. Engine formations
+        // do not spread linearly with man count, hence the measurement.
+        private _rearmost = 0;
+        if (!isNull _grp) then {
+            { private _d = (leader _grp) distance2D _x; if (_d > _rearmost) then { _rearmost = _d; }; } forEach (units _grp);
+        };
+        private _pace = (_rearmost max (_unitCount * 3.5)) + 3.0;
 
         // ABSOLUTE arclength on the march-oriented path for this slot
         private _absArc = (_leaderArcLen - _cursor) max 0;
 
-        // Shoulder offset: standard staggered edge value on this column's side
+        // Shoulder offset: staggered edge value on this column's side, shifted
+        // (steps * 3m) beyond the asphalt edge by the anchor edge margin steps
         private _sample = [_absArc, _roadPath] call _fnc_getRoadSampleLocal;
         private _width = _sample select 2;
         private _effectiveWidth = if (_width isEqualType 0 && {_width > 0}) then { _width } else { 4.5 };
-        private _shoulderOffset = if (_effectiveWidth > 1.5) then { ((_effectiveWidth / 2.0) * 0.85) * _side } else { 0 };
+        private _edgeMarginC = (_anchor getOrDefault ["edgeMarginSteps", 0]) * 3.0;
+        private _shoulderOffset = if (_effectiveWidth <= 1.5) then {
+            0
+        } else {
+            if (_edgeMarginC > 0) then {
+                ((_effectiveWidth / 2.0) + _edgeMarginC) * _side
+            } else {
+                ((_effectiveWidth / 2.0) * 0.85) * _side
+            };
+        };
 
         // Perpendicular offset from road center line
         private _tangent = _sample select 1;
@@ -167,9 +185,8 @@ if (_scope in ["BOTH", "RIGHT"]) then {
     _assignedCount = _assignedCount + ([_rightGroups, 1, _headGap] call _compactColumn);
 };
 
-systemChat format ["[ROAD COMPACT] Column compacted: %1 teams re-assigned (scope: %2, gap %3m).", _assignedCount, _scope, _compactGap];
-// Layout state: once compacted, the Compact option disables itself in the menu;
-// re-ordering Staggered Column restores the STAGGERED layout flag and re-enables it.
-_anchor set ["columnLayout", "COMPACT"];
-diag_log format ["[FTCS][COMPACT] DONE: %1 teams re-assigned (scope %2).", _assignedCount, _scope];
+systemChat format ["[ROAD COLUMN] %1 teams re-chained on the %2 shoulder (scope: %3).", _assignedCount, if (_scope == "LEFT") then { "LEFT" } else { "RIGHT" }, _scope];
+// Layout state: LEFT/RIGHT single-shoulder columns lock the layout; re-ordering
+// Staggered Column restores STAGGERED and re-enables Compact and the other modes.
+_anchor set ["columnLayout", if (_scope == "LEFT") then { "LEFT" } else { "RIGHT" }];
 _assignedCount

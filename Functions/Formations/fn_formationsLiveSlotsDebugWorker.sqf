@@ -67,6 +67,7 @@ FTCS_LiveSlotsWorker_Active = true;
         private _technique = _pltData getOrDefault ["movementTechnique", "CROSS_COUNTRY"];
         private _activePath = _pltData getOrDefault ["roadPath", []];
         private _isRoadMode = (_technique == "ROAD_COLUMN" && count _activePath >= 2);
+        private _isTrailMode = (_technique == "TRAIL_COLUMN");
 
         if (_isRoadMode && {!isNil "FTCS_Groups_Registry_Table"}) then {
             // In ROAD march mode: sample slots from the FROZEN march anchor path
@@ -148,10 +149,23 @@ FTCS_LiveSlotsWorker_Active = true;
                 if (getMarkerType _m != "") then { deleteMarkerLocal _m; };
             };
         } else {
-            // Clean up road slot markers when off road
-            {
-                if (_x find "FTCS_DEBUG_ROAD_SLOT_" == 0) then { deleteMarkerLocal _x; };
-            } forEach allMapMarkers;
+            if (_isTrailMode) then {
+                // TRAIL march: per-group slot markers are drawn by the trail follow
+                // threads themselves (FTCS_DEBUG_TRAIL_SLOT_*). The generic 13-slot
+                // cross-country view is suppressed here - its stale polar offsets
+                // would paint ghost markers around the leader. Only clean-up.
+                for "_i" from 0 to 12 do {
+                    private _m = format ["FTCS_DEBUG_DYNAMIC_SLOT_%1", _i];
+                    if (getMarkerType _m != "") then { deleteMarkerLocal _m; };
+                };
+            } else {
+                // CROSS_COUNTRY: classic 13-slot formation view
+                {
+                    if (_x find "FTCS_DEBUG_ROAD_SLOT_" == 0) then { deleteMarkerLocal _x; };
+                } forEach allMapMarkers;
+                {
+                    if (_x find "FTCS_DEBUG_TRAIL_SLOT_" == 0) then { deleteMarkerLocal _x; };
+                } forEach allMapMarkers;
 
             // Update all 13 macro slots (slots 0 to 12)
             if (!isNil "Platoon_Formation_Position_List" && {count Platoon_Formation_Position_List > 0}) then {
@@ -175,7 +189,24 @@ FTCS_LiveSlotsWorker_Active = true;
 
                         private _markerName = format ["FTCS_DEBUG_DYNAMIC_SLOT_%1", _slotIdx];
                         private _isOccupied = (!isNull _slotGrp && {count units _slotGrp > 0} && {!isNull (leader _slotGrp)});
+
+                        // Draw the LIVE registry layout, not the doctrinal template:
+                        // for occupied slots read the group's relPosition (the same
+                        // [dist, angle, refLeader] the follow thread uses for its
+                        // move target), so markers always match where units are
+                        // actually being sent - doctrine fresh from a formation
+                        // order, or captured layout after a REL/ABS mode switch.
                         private _slotPos = _leaderPos getPos [_slotDist, _refHeading + _slotBearing];
+                        if (_isOccupied && {!isNil "FTCS_Groups_Registry_Table"}) then {
+                            private _rel = [ _slotGrp, "relPosition" ] call FTCS_fnc_registryGet;
+                            if (!isNil "_rel" && { _rel isEqualType [] } && { count _rel >= 3 } && { !isNull (_rel select 2) }) then {
+                                private _refLeader = leader (_rel select 2);
+                                if (!isNull _refLeader) then {
+                                    private _refDir = if (speed _refLeader > 2) then { getDir _refLeader } else { _refHeading };
+                                    _slotPos = (getPosATL _refLeader) getPos [(_rel select 0), _refDir + (_rel select 1)];
+                                };
+                            };
+                        };
 
                         if (getMarkerType _markerName == "") then {
                             createMarkerLocal [_markerName, _slotPos];
@@ -195,7 +226,8 @@ FTCS_LiveSlotsWorker_Active = true;
                     };
                 } forEach Platoon_Formation_Position_List;
             };
-        };
+        }; // close CROSS_COUNTRY 13-slot block
+        }; // close else branch (non-road, non-trail)
 
         // Render / update solid red arrow indicator for the Platoon Leader / Player facing direction (+25% size)
         private _playerPos = getPosATL player;

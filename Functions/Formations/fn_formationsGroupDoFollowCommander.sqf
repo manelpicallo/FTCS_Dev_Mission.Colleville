@@ -80,26 +80,15 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
     if ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) exitWith {};
 
     // -------------------------------------------------------------------------
-    // 1. ACTIVE MARCHING (speed > 2 km/h): Dynamic formation tracking
+    // 1. ACTIVE MARCHING (speed > 2 km/h): Dynamic formation tracking.
+    //    Fixed 1s cadence (no waitUntil/unitReady gating): re-issuing moves on
+    //    unit-ready moments caused path re-plan churn and micro-command spam.
+    //    Exit conditions are polled inside the loop condition itself.
     // -------------------------------------------------------------------------
     if (_spd > 2) then 
     {
         _last_spd = _spd;
         { _x limitSpeed _spd; } foreach units _group;
-
-        _timer = time + _not_able_time;
-
-        waitUntil { 
-            time > _timer || 
-            ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) ||
-            ([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode || 
-            unitReady leader _group || 
-            lifeState leader _group == "DEAD" || 
-            lifeState leader _group == "INCAPACITATED" 
-        };
-
-        if ((_group getVariable ["FTCS_FollowThread_ID", -1]) != _threadID) exitWith {};
-        if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode) exitWith {};
 
         { _x disableAI "RADIOPROTOCOL"; } foreach units _group;
 
@@ -123,6 +112,8 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
 
         _alignedOnStop = false;
         _facingAppliedOnReady = false;
+
+        sleep 1.0;
     }
     // -------------------------------------------------------------------------
     // 2. STOPPED / STATIC (speed <= 2 km/h): Anchor formation along platoon heading
@@ -192,9 +183,11 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
             _facingAppliedOnReady = true;
         };
 
-        { _x limitSpeed _last_spd; } foreach units _group;
+        // Stopped approach: no explicit limitSpeed (natural arrival pacing),
+        // matching the road/trail follow standard; the stale last-march speed
+        // is never re-applied once the leader has halted.
         { _x disableAI "RADIOPROTOCOL"; } foreach units _group;
         if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode) exitWith {};
-        sleep 0.5;
+        sleep 1.0;
     };
 };

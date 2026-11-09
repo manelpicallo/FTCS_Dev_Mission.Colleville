@@ -18,7 +18,7 @@
     ================================================================================
 */
 
-params ["_formation_elements_in", "_roadPath", ["_separate_dis", 8]];
+params ["_formation_elements_in", "_roadPath", ["_separate_dis", 8], ["_forcedSide", 0]];
 
 if (count _formation_elements_in == 0 || count _roadPath == 0) exitWith { [] };
 
@@ -60,8 +60,10 @@ private _leaderArcLen = 0;
 for "_li" from 0 to (_leaderArc - 1) do {
     _leaderArcLen = _leaderArcLen + (((_roadPath select _li) select 0) distance2D ((_roadPath select (_li + 1)) select 0));
 };
-private _currentPathDistance = _leaderArcLen + 2.0; // HQ Escort (slot 9) starts 2m behind the LEADER
-private _currentSide = -1; // Starts on left shoulder
+    private _currentPathDistance = _leaderArcLen + 2.0; // HQ Escort (slot 9) starts 2m behind the LEADER
+// Forced side: 0 = alternating staggered shoulders (default); -1 = all LEFT; +1 = all RIGHT
+private _forcedSide = _forcedSide;
+private _currentSide = if (_forcedSide != 0) then { _forcedSide } else { -1 }; // Starts on left shoulder
 
 private _roadSlotsMap = createHashMap; // slotIndex -> [worldPos, tangentDir, shoulderOffset]
 
@@ -113,12 +115,19 @@ private _registeredGroupsCount = 0;
                 // Defensive type check: guarantee scalar road width across all terrain types
                 private _effectiveWidth = if (_roadWidth isEqualType 0 && {_roadWidth > 0}) then { _roadWidth } else { 4.5 };
 
-                // Staggered shoulder offset: if road is wide enough (> 1.5m), place on shoulder edge; if <= 1.5m, trail center
+                // Staggered shoulder offset: if road is wide enough (> 1.5m), place on shoulder edge; if <= 1.5m, trail center.
+                // Stepped edge margin (edgeMarginSteps) shifts the offset (steps * 3m) beyond the asphalt edge.
+                private _edgeStepsS = missionNamespace getVariable [format ["FTCS_Road_Anchor_PLT_%1", (missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1])], createHashMap] getOrDefault ["edgeMarginSteps", 0];
+                private _edgeMarginS = _edgeStepsS * 3.0;
                 private _isStaggered = (_effectiveWidth > 1.5);
-                private _shoulderOffset = if (_isStaggered) then {
-                    (_effectiveWidth / 2.0) * 0.85 * _currentSide
-                } else {
+                private _shoulderOffset = if (!_isStaggered) then {
                     0
+                } else {
+                    if (_edgeMarginS > 0) then {
+                        ((_effectiveWidth / 2.0) + _edgeMarginS) * _currentSide
+                    } else {
+                        (_effectiveWidth / 2.0) * 0.85 * _currentSide
+                    };
                 };
 
                 // Calculate perpendicular offset from road center line (perpendicular to tangentDir)
@@ -167,12 +176,18 @@ private _registeredGroupsCount = 0;
                 };
 
                 // Advance path distance by this team's footprint:
-                // Number of soldiers * 2m pace, plus 3m tactical interval to next team
-                private _teamPace = ((_unitCount max 1) * 2.0) + 3.0;
+                // MEASURED team length: real distance from the group leader to his
+                // rearmost soldier (engine formations do not spread linearly with
+                // man count, so a formula underestimates for larger teams). Floor
+                // at the nominal model (men * 3.5 + 3) to keep the column airy.
+                private _rearmost = 0;
+                { private _d = (leader _grp) distance2D _x; if (_d > _rearmost) then { _rearmost = _d; }; } forEach (units _grp);
+                private _teamPace = (_rearmost max ((_unitCount max 1) * 3.5)) + 3.0;
                 _currentPathDistance = _currentPathDistance + _teamPace;
 
                 // Alternate shoulder side for the next team within this squad or next squad
-                if (_isStaggered) then {
+                // (skipped entirely under a forced LEFT/RIGHT single-shoulder column)
+                if (_isStaggered && { _forcedSide == 0 }) then {
                     _currentSide = _currentSide * -1;
                 };
 

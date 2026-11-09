@@ -74,8 +74,7 @@ private _direction_10 = 0;
 private _direction_11 = 0;
 private _direction_12 = 0;
 
-private _local_elements_separation = 4;
-private _Advance_dir = missionNamespace getVariable "FTCS_Platoon_Advance_Direction";            
+private _local_elements_separation = 4;            
 
 // Helper arrays to store dynamic paces fetched from squad elements (slots 0 to 12 capacity)
 private _paces_front = [0,0,0,0,0,0,0,0,0,0,0,0,0];
@@ -827,7 +826,6 @@ private _list = [];
         // slot 3 (mortars/weapons) deploys in "COLUMN".
         // In other platoon formations, squads adapt echelon or column/wedge per phase.
         private _slotBearing = (Platoon_Formation_Position_List select _forEachIndex) select 1;
-        
         // Resolve platoon operational phase (1: Approach, 2: Overwatch, 3: Combat)
         private _platoonPhase = missionNamespace getVariable ["FTCS_CurrentPhase", 1];
         if (!isNull _leader) then {
@@ -889,7 +887,6 @@ private _list = [];
         // Update 2D tactical map NATO icon text to display assigned formation slot (0-12)
         private _grpObj = (_x select 0);
         private _slotDist = (Platoon_Formation_Position_List select _forEachIndex) select 0;
-        private _slotBearing = (Platoon_Formation_Position_List select _forEachIndex) select 1;
 
         private _isDebug = missionNamespace getVariable ["FTCS_Debug_Mode", false];
         if (_isDebug) then {

@@ -6,12 +6,14 @@
 
 params ["_list", "_mode"];
 
-// Detiene cualquier bucle previo en los grupos de la lista
+// Halt any previous follow loops on the listed groups
 { [groupId _x, "movingMode", "STOP"] call FTCS_fnc_registrySet; } forEach _list;
 
-sleep 0.2;                    
+sleep 0.2;
 
-if (_mode == "FOLLOWING_COMMANDER_ABS") then 
+// Unified batch launch: RELATIVE and ABSOLUTE share identical wiring, only the
+// mode string handed to the per-group follow loop differs (DRY refactor).
+if (_mode in ["FOLLOWING_COMMANDER_REL", "FOLLOWING_COMMANDER_ABS"]) then 
 {
     {
         private _curGroup = _x;
@@ -27,35 +29,11 @@ if (_mode == "FOLLOWING_COMMANDER_ABS") then
         if (_refGroup != _curGroup) then 
         {
             private _leader_formation = leader _refGroup;
-            if (!isNull _leader_formation) then 
+            if (!isNull _leader_formation) then  
             {
-                // Launch individual follow loop in ABS mode
+                // Launch the individual follow loop in the selected mode
                 [_curGroup, _mode, _leader_formation] spawn FTCS_fnc_formationsGroupDoFollowCommander;
                 [ _curGroupId, "movingMode", _mode ] call FTCS_fnc_registrySet;
-            };
-        };
-    } forEach _list;
-};
-
-if (_mode == "FOLLOWING_COMMANDER_REL") then 
-{
-    {
-        private _curGroup = _x;
-        private _curGroupId = groupId _curGroup;
-        private _relPos = [ _curGroupId, "relPosition" ] call FTCS_fnc_registryGet;
-        private _refGroup = if (!isNil "_relPos" && {_relPos isEqualType []} && {count _relPos > 2}) then {
-            _relPos select 2
-        } else {
-            FTCS_Group_Commander
-        };
-        
-        // Prevent a group from trying to follow itself
-        if (_refGroup != _curGroup) then {
-            private _leader_formation = leader _refGroup;
-            if (!isNull _leader_formation) then {
-                // Lanza la función de seguimiento individual para cada grupo
-                [_curGroup, _mode, _leader_formation] spawn FTCS_fnc_formationsGroupDoFollowCommander;
-                [_curGroupId, "movingMode", _mode] call FTCS_fnc_registrySet;
             };
         };
     } forEach _list;

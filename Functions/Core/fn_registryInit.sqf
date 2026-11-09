@@ -27,7 +27,7 @@
 // 1. Shared tactical constants (migrated from the legacy init block)
 // ---------------------------------------------------------------------------
 
-FTCS_Pace_Soldiers = 5;
+FTCS_Pace_Soldiers = 3;
 FTCS_Platoon_MAX_Infantry_Groups = 14;
 FTCS_Squad_MAX_Infantry_Groups = 5;
 
