@@ -201,7 +201,19 @@ FTCS_Groups_Registry_Table (HashMap)
       ├── "roadTangentDir"    : SCALAR           -> Rumbo/tangente de la carretera en la posición objetivo asignada.
       ├── "roadOffsetDist"    : SCALAR           -> Distancia lineal acumulada a lo largo de la carretera desde el líder guía.
       ├── "roadShoulderOffset": SCALAR           -> Desplazamiento lateral perpendicular al eje de la calzada (-1 babor / +1 estribor / 0 centro).
-      └── "roadTeamIndex"     : SCALAR           -> Índice numérico ordinal del sub-equipo/fireteam dentro de la escuadra (1, 2, 3...).
+      ├── "roadTeamIndex"     : SCALAR           -> Índice numérico ordinal del sub-equipo/fireteam dentro de la escuadra (1, 2, 3...).
+      │
+      └── "squadTarget"       : ARRAY (tupla target de 8 campos + opcional marca temporal)
+            Blanco capturado PROPIO de esta escuadra mediante "Mark Target"
+            (Targeting class). Tupla idéntica a la del target del comandante:
+            [isObject, targetType, objectRef, approachPos, impactPos, distance,
+             bearing, label]. nil cuando la escuadra no tiene blanco asignado.
+            Consumido (borrado) al ejecutar una orden de movimiento con blanco
+            (ADVANCE_KEEP / ADVANCE_DETACH_HOLD / ADVANCE_DETACH_DEFEND).
+            Alimenta el marcador 3D persistente (fn_targetPersistentMarker).
+      └── "squadTargetSquadName": STRING -> Nombre doctrinal de la escuadra propietaria
+            del blanco (campo "name" de parsedSquads), capturado junto al target
+            para la segunda línea del marcador persistente. nil cuando no hay blanco.
 ```
 
 ---

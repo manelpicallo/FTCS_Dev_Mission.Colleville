@@ -1464,6 +1464,9 @@ switch (_commandCode) do {
     case "SQD_TARGET_MARK_4": {
         private _slotIdx = parseNumber ((_commandCode splitString "_") select 3);
         diag_log format ["[FTCS][TARGET] Dispatcher reached SQD_TARGET_MARK (slot %1).", _slotIdx];
+        // Remember which squad menu started the acquisition: the post-capture
+        // menu reopen in fn_targetMark goes back to THIS squad's orders menu.
+        missionNamespace setVariable ["FTCS_TGT_OwnerSquadIndex", _slotIdx];
         [_slotIdx] spawn FTCS_fnc_squadTarget3DScan;
     };
 

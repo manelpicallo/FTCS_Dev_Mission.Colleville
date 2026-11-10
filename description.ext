@@ -90,6 +90,7 @@ class CfgFunctions
             class targetGet {};
             class targetClear {};
         class targetRestore {};
+        class targetPersistentMarker {};
         };
 
         class Squads

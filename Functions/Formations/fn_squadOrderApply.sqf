@@ -26,6 +26,10 @@
                    restores follow mode and clears hold flags).
                  All movement orders REQUIRE a marked commander target
                  (fn_targetGet with freshness window of 120s).
+                 TARGET-CONSUMING orders (ADVANCE_KEEP, ADVANCE_DETACH_HOLD,
+                 ADVANCE_DETACH_DEFEND) also clear the squad's per-squad target
+                 ("squadTarget" registry field), which removes its persistent
+                 3D marker from the world (see fn_targetPersistentMarker).
     Params:
         0: GROUP - Squad (or fireteam) group the order applies to.
         1: STRING - Order code (see above).
@@ -55,10 +59,34 @@ private _approachPos = [0, 0, 0];
 private _label = "";
 
 if (_needsTarget) then {
-    _target = [true, 120] call FTCS_fnc_targetGet;
+    // Per-squad target first (owned white); fall back to the global commander
+    // target for legacy flows
+    _target = _entry getOrDefault ["squadTarget", []];
+    if (count _target < 8) then { _target = [true, 120] call FTCS_fnc_targetGet; };
     if (count _target < 8) exitWith { false };
     _approachPos = _target select 3;
     _label = _target select 7;
+};
+
+// TARGET CONSUMPTION: the movement orders that use the target clear the owning
+// squad's white everywhere it was stored (the capture spreads across every
+// team group of the squad) - the persistent marker disappears with it. Matches
+// entries whose captured approach position equals the consumed one.
+private _consumedPos = _approachPos;
+if (_consumeTarget) then {
+    _entry set ["squadTarget", nil];
+    _entry set ["squadTargetSquadName", nil];
+    FTCS_Groups_Registry_Table set [_groupID, _entry];
+    {
+        private _otherId = _x;
+        private _otherEntry = _y;
+        private _otherTgt = _otherEntry getOrDefault ["squadTarget", []];
+        if ((count _otherTgt >= 8) && { ((_otherTgt select 3) distance2D _consumedPos) < 0.5 }) then {
+            _otherEntry set ["squadTarget", nil];
+            _otherEntry set ["squadTargetSquadName", nil];
+            FTCS_Groups_Registry_Table set [_otherId, _otherEntry];
+        };
+    } forEach FTCS_Groups_Registry_Table;
 };
 
 switch (_orderCode) do {

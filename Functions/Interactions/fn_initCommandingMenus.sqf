@@ -277,15 +277,25 @@ FTCS_MENU_SquadDirectives = [
 // dynamically in fn_openSubordinateMenu. Row 1 = target acquisition (always on);
 // rows 2-5 = movement orders (visible only with a marked target); rows 6-8 =
 // in-formation orders (always on); row 9 = rejoin (highlighted when detached).
+// Target-state-aware row enables: the squad-orders menu is rebuilt EVERY time
+// it is opened (the reopen after capture calls this section again), so the flags
+// read the live FTCS_Commander_Target state:
+// - WITH a captured target: the Move rows (2-4) enable, the formation-maneuver
+//   rows (5-8) disable (a designated target supersedes free-form maneuvering).
+// - WITHOUT a target: the inverse. Rows 1, 9, 10 are ALWAYS enabled.
+private _hasTarget = !((missionNamespace getVariable ["FTCS_Commander_Target", []]) isEqualTo []);
+private _moveEnable = if (_hasTarget) then { "1" } else { "0" };
+private _formEnable = if (_hasTarget) then { "0" } else { "1" };
+
 private _squadOrderRows = [
     ["1. Mark Target (aim & confirm)", [2], "", -5, [["expression", "['SQD_TARGET_MARK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["2. Advance to Target (Hold)", [3], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DETACH_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["3. Advance and Defend Position", [4], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["4. Advance & Keep Formation", [5], "", -5, [["expression", "['SQD_MOVE_ADVANCE_KEEP_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["5. Hold Current Position / Defend", [6], "", -5, [["expression", "['SQD_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["6. Open Flank Right", [7], "", -5, [["expression", "['SQD_FLANK_OPEN_R_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["7. Open Flank Left", [8], "", -5, [["expression", "['SQD_FLANK_OPEN_L_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["8. Fall Back (+15m)", [9], "", -5, [["expression", "['SQD_FALL_BACK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["2. Move to Target (Hold)", [3], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DETACH_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
+    ["3. Move and Defend Position", [4], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
+    ["4. Move & Keep Formation", [5], "", -5, [["expression", "['SQD_MOVE_ADVANCE_KEEP_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
+    ["5. Hold Current Position / Defend", [6], "", -5, [["expression", "['SQD_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+    ["6. Open Flank Right", [7], "", -5, [["expression", "['SQD_FLANK_OPEN_R_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+    ["7. Open Flank Left", [8], "", -5, [["expression", "['SQD_FLANK_OPEN_L_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+    ["8. Fall Back (+15m)", [9], "", -5, [["expression", "['SQD_FALL_BACK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
     ["9. Rejoin Platoon Formation", [10], "", -5, [["expression", "['SQD_REJOIN_FORMATION_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["10. Squad Leader Menu (full)", [11], "#USER:FTCS_MENU_Squad_Phase2", -5, [["expression", ""]], "1", "1"]
 ];
