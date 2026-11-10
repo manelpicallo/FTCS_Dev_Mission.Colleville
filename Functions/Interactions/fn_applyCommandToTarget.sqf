@@ -1126,6 +1126,17 @@ switch (_commandCode) do {
                 _pltData set ["formationSlots", _formationSlotsMap];
 
                 // 3. Rejoin strictly at the squad's CURRENT real-world position without re-triggering platoon formation
+                // Restore the SQUAD_BOUND attachment on every recovered scout team
+                // (mirror of the DETACHED_FREE set at deployment)
+                {
+                    private _tKey = _x;
+                    if (_tKey in _tacticalTeams) then {
+                        private _tGrp = (_tacticalTeams get _tKey) getOrDefault ["group", grpNull];
+                        if (!isNull _tGrp) then {
+                            [groupId _tGrp, "teamAttachment", "SQUAD_BOUND"] call FTCS_fnc_registrySet;
+                        };
+                    };
+                } forEach _slotsToRemove;
                 // Gather all fireteams of this squad
                 private _teamKeys = keys _tacticalTeams;
                 _teamKeys sort true;
@@ -1410,6 +1421,7 @@ switch (_commandCode) do {
             // group over to a dedicated follow-commander thread on its new slot.
             private _scoutGroupId = groupId _scoutGroup;
             [_scoutGroupId, "movingMode", "SCOUT_DETACHED"] call FTCS_fnc_registrySet;
+            [_scoutGroupId, "teamAttachment", "DETACHED_FREE"] call FTCS_fnc_registrySet;
 
             // Launch follow-commander thread strictly for this scout group
             private _followMode = missionNamespace getVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
@@ -1531,19 +1543,40 @@ switch (_commandCode) do {
             systemChat format ["[SQD ORDER] Error: squad %1 not found in platoon data.", _slotIdx];
         };
 
-        // Token translation: menu tokens -> squadOrderApply codes
-        private _applyCode = switch (true) do {
-            case (_commandCode find "ADVANCE_DETACH_" >= 0): { "ADVANCE_DETACH_HOLD" };
-            case (_commandCode find "ADVANCE_DEFEND" >= 0): { "ADVANCE_DETACH_DEFEND" };
-            case (_commandCode find "ADVANCE_KEEP" >= 0): { "ADVANCE_KEEP" };
-            case (_commandCode find "DEFEND_" >= 0): { "DEFEND" };
-            case (_commandCode find "FLANK_OPEN_R" >= 0): { "FLANK_OPEN_R" };
-            case (_commandCode find "FLANK_OPEN_L" >= 0): { "FLANK_OPEN_L" };
-            case (_commandCode find "FALL_BACK" >= 0): { "FALL_BACK" };
-            default { "REJOIN" };
+        // Token translation: menu tokens -> squadOrderApply codes. The point
+        // movement orders route through the Movement class primitive
+        // (ADVANCE_TO_POINT), which dispatches every BOUND team of the squad
+        // to computed arrival points around the marked target.
+        private _movementToken = true;
+        private _applyCode = "";
+        private _arrivalBehaviour = "KEEP_FORMATION";
+        switch (true) do {
+            case (_commandCode find "ADVANCE_DETACH_" >= 0): { _applyCode = "ADVANCE_DETACH_HOLD"; _movementToken = false; };
+            case (_commandCode find "ADVANCE_DEFEND" >= 0): { _applyCode = "ADVANCE_DETACH_DEFEND"; _movementToken = false; };
+            case (_commandCode find "ADVANCE_KEEP" >= 0): { _applyCode = "ADVANCE_KEEP"; _movementToken = true; _arrivalBehaviour = "KEEP_FORMATION"; };
+            case (_commandCode find "DEFEND_" >= 0): { _applyCode = "DEFEND"; _movementToken = false; };
+            case (_commandCode find "FLANK_OPEN_R" >= 0): { _applyCode = "FLANK_OPEN_R"; _movementToken = false; };
+            case (_commandCode find "FLANK_OPEN_L" >= 0): { _applyCode = "FLANK_OPEN_L"; _movementToken = false; };
+            case (_commandCode find "FALL_BACK" >= 0): { _applyCode = "FALL_BACK"; _movementToken = false; };
+            default { _applyCode = "REJOIN"; _movementToken = false; };
         };
 
-        [_targetGrp, _applyCode] call FTCS_fnc_squadOrderApply;
+        if (_movementToken) then {
+            // Point movement: resolve THIS squad's marked target exclusively.
+            // The legacy global (FTCS_Commander_Target) is deliberately NOT consulted:
+            // another squad's capture must never drive this squad's movement
+            // (per-squad target ownership - menu gating matches this rule).
+            private _entryMv = FTCS_Groups_Registry_Table getOrDefault [groupId _targetGrp, createHashMap];
+            private _sqdTgt = _entryMv getOrDefault ["squadTarget", []];
+            private _mvPos = [0, 0, 0];
+            if (count _sqdTgt >= 8) then { _mvPos = _sqdTgt select 3; };
+            if (count _mvPos < 2 || { _mvPos isEqualTo [0, 0, 0] }) exitWith {
+                systemChat format ["[SQD ORDER] Squad %1 has no marked target - mark one first (option 1).", _slotIdx];
+            };
+            [_targetGrp, _mvPos, _arrivalBehaviour] call FTCS_fnc_mvSquadAdvanceToPoint;
+        } else {
+            [_targetGrp, _applyCode] call FTCS_fnc_squadOrderApply;
+        };
     };
     // =========================================================================
     case "PLT_SCOUT_FLANK_L": {

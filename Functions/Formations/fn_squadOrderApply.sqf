@@ -112,6 +112,7 @@ switch (_orderCode) do {
         _entry set ["movingMode", "HOLD_POSITION"];
         _entry set ["anchoredToWorld", true];
         _entry set ["anchorWorldPos", +_approachPos];
+        _entry set ["teamAttachment", "DETACHED_HOLD"];
         FTCS_Groups_Registry_Table set [_groupID, _entry];
 
         _group doMove _approachPos;
@@ -123,6 +124,7 @@ switch (_orderCode) do {
         _entry set ["movingMode", "HOLD_POSITION"];
         _entry set ["anchoredToWorld", true];
         _entry set ["anchorWorldPos", +_approachPos];
+        _entry set ["teamAttachment", "DETACHED_HOLD"];
         FTCS_Groups_Registry_Table set [_groupID, _entry];
 
         _group doMove _approachPos;
@@ -187,6 +189,7 @@ switch (_orderCode) do {
         _entry set ["movingMode", _followMode];
         _entry set ["anchoredToWorld", false];
         _entry set ["anchorWorldPos", nil];
+        _entry set ["teamAttachment", "SQUAD_BOUND"];
         FTCS_Groups_Registry_Table set [_groupID, _entry];
 
         [_group, _followMode, _pltLeader] spawn FTCS_fnc_formationsGroupDoFollowCommander;

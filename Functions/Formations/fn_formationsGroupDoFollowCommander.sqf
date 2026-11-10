@@ -187,7 +187,10 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
         // matching the road/trail follow standard; the stale last-march speed
         // is never re-applied once the leader has halted.
         { _x disableAI "RADIOPROTOCOL"; } foreach units _group;
-        if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode) exitWith {};
+        if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != _mode) exitWith {
+            // Follow ended: restore radio protocol so units report normally again
+            { _x enableAI "RADIOPROTOCOL"; } foreach units _group;
+        };
         sleep 1.0;
     };
 };

@@ -50,11 +50,26 @@ FTCS_Group_Commander = _companyHQ getOrDefault ["group", group player];
 // 3. Registry access helper closures (global, engine-agnostic)
 // ---------------------------------------------------------------------------
 
+// NOTE: SQF arrays collapse nil elements ([a, b, nil] becomes [a, b]), so a
+// call with nil as the value arrives here as a 2-element array. That shape is
+// interpreted as "DELETE the key" - the nil-clearing semantics every consumer
+// of this setter already assumes (e.g. clearing pinnedAnchorPos, mvAligned).
+// Passing nil via params would leave _value undefined (undefined-variable
+// runtime error), hence the explicit count-based branch instead of params.
 FTCS_fnc_registrySet = {
-    params ["_groupID", "_key", "_value"];
+    params ["_groupID", "_key"];
     private _entryKey = if (_groupID isEqualType grpNull) then { groupId _groupID } else { _groupID };
     private _entry = FTCS_Groups_Registry_Table getOrDefault [_entryKey, createHashMap];
-    _entry set [_key, _value];
+    if ((count _this) > 2) then {
+        // Guard: a nil value reaching here would raise the engine's
+        // "Undefined variable _value" diagnostic on every call - treat it as
+        // an explicit DELETE request instead (same semantics as the 2-arg form).
+        private _value = _this select 2;
+        if (!isNil "_value") then { _entry set [_key, _value]; }
+        else { if (_key in _entry) then { _entry deleteAt _key; }; };
+    } else {
+        if (_key in _entry) then { _entry deleteAt _key; };
+    };
     FTCS_Groups_Registry_Table set [_entryKey, _entry];
     true;
 };
@@ -170,7 +185,8 @@ private _registeredCount = 0;
                     ["formationType", "COLUMN"],
                     ["allocationSlot", _groupSlot],
                     ["formationPosition", [-1, -1, _leaderRef]],
-                    ["relPosition", [-1, -1, _leaderRef]]
+                    ["relPosition", [-1, -1, _leaderRef]],
+                    ["teamAttachment", "SQUAD_BOUND"]
                 ]];
                 _registeredCount = _registeredCount + 1;
             };
@@ -201,7 +217,8 @@ private _registeredCount = 0;
                 ["formationType", "COLUMN"],
                 ["allocationSlot", -1],
                 ["formationPosition", [-1, -1, FTCS_Group_Commander]],
-                ["relPosition", [-1, -1, FTCS_Group_Commander]]
+                ["relPosition", [-1, -1, FTCS_Group_Commander]],
+                ["teamAttachment", "SQUAD_BOUND"]
             ]];
             _registeredCount = _registeredCount + 1;
         };
@@ -221,7 +238,8 @@ private _registeredCount = 0;
             ["formationType", "COLUMN"],
             ["allocationSlot", -1],
             ["formationPosition", [-1, -1, FTCS_Group_Commander]],
-            ["relPosition", [-1, -1, FTCS_Group_Commander]]
+            ["relPosition", [-1, -1, FTCS_Group_Commander]],
+            ["teamAttachment", "SQUAD_BOUND"]
         ]];
         _registeredCount = _registeredCount + 1;
     };

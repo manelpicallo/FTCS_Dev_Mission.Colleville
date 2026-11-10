@@ -262,8 +262,6 @@ if (!isNil "FTCS_MENU_RoadMarchLayout") then {
     private _pltDataD = _platoonsMapD getOrDefault [_pltKeyD, createHashMap];
     private _parsedSquadsD = _pltDataD getOrDefault ["parsedSquads", createHashMap];
 
-    private _hasTargetD = !(isNil "FTCS_Commander_Target") && { count (missionNamespace getVariable ["FTCS_Commander_Target", []]) >= 8 };
-
     // Hub rebuild: rows 2-5 map to squads 1-4 (show only existing doctrinal squads)
     private _sqdOrder = ["_1", "_2", "_3", "_4"];
     for "_si" from 1 to 4 do {
@@ -277,12 +275,40 @@ if (!isNil "FTCS_MENU_RoadMarchLayout") then {
     };
 
     // Squad Orders submenus rebuild (rows: 0=title, 1=mark, 2-4=movement, 5-7=in-formation, 8=rejoin)
+    // PER-SQUAD gating: the movement rows enable state mirrors the squad's OWN
+    // captured target (any of its teams carrying "squadTarget"), never the
+    // global commander target - one squad's capture cannot unlock another
+    // squad's movement rows. Same rule as the fn_initCommandingMenus builder.
     for "_si" from 1 to 4 do {
         private _menuArr = missionNamespace getVariable [format ["FTCS_MENU_SquadOrders_%1", _si], []];
         if (count _menuArr >= 9) then {
-            (_menuArr select 0) set [0, format ["Squad Orders - Squad %1%2", _si, if (_hasTargetD) then { " [TGT MARKED]" } else { "" }]];
+            // Resolve this squad's bound teams from the parsed doctrine data
+            private _sqdKeyD = format ["SQD_%1_%2", _pltIdD, _si];
+            private _sDataD = _parsedSquadsD getOrDefault [_sqdKeyD, createHashMap];
+            private _teamsD = _sDataD getOrDefault ["tacticalTeams", createHashMap];
+            if (count _teamsD == 0) then { _teamsD = _sDataD getOrDefault ["teams", createHashMap]; };
+
+            // Squad owns a target when ANY of its team registry entries (or the
+            // squad-level group fallback) carries a populated "squadTarget"
+            private _sqdHasTgt = false;
+            {
+                private _grpD = (_y) getOrDefault ["group", grpNull];
+                if (!isNull _grpD) then {
+                    private _eD = FTCS_Groups_Registry_Table getOrDefault [groupId _grpD, createHashMap];
+                    if (count (_eD getOrDefault ["squadTarget", []]) >= 8) exitWith { _sqdHasTgt = true; };
+                };
+            } forEach _teamsD;
+            if (!_sqdHasTgt) then {
+                private _sqdGrpD = _sDataD getOrDefault ["group", grpNull];
+                if (!isNull _sqdGrpD) then {
+                    private _eD = FTCS_Groups_Registry_Table getOrDefault [groupId _sqdGrpD, createHashMap];
+                    if (count (_eD getOrDefault ["squadTarget", []]) >= 8) then { _sqdHasTgt = true; };
+                };
+            };
+
+            (_menuArr select 0) set [0, format ["Squad Orders - Squad %1%2", _si, if (_sqdHasTgt) then { " [TGT MARKED]" } else { "" }]];
             for "_ri" from 2 to 4 do {
-                (_menuArr select _ri) set [6, if (_hasTargetD) then { "1" } else { "0" }];
+                (_menuArr select _ri) set [6, if (_sqdHasTgt) then { "1" } else { "0" }];
             };
         };
     };

@@ -99,6 +99,13 @@ class CfgFunctions
             class squadOrderApply {};
         };
 
+        class Movement
+        {
+            class movementBoundTeams {};
+            class mvSquadAdvanceToPoint {};
+            class mvTeamMarchLoop {};
+        };
+
         class Interactions
         {
             class addEngineAction {};

@@ -279,28 +279,63 @@ FTCS_MENU_SquadDirectives = [
 // in-formation orders (always on); row 9 = rejoin (highlighted when detached).
 // Target-state-aware row enables: the squad-orders menu is rebuilt EVERY time
 // it is opened (the reopen after capture calls this section again), so the flags
-// read the live FTCS_Commander_Target state:
+// are computed PER SQUAD inside the build loop below:
 // - WITH a captured target: the Move rows (2-4) enable, the formation-maneuver
 //   rows (5-8) disable (a designated target supersedes free-form maneuvering).
 // - WITHOUT a target: the inverse. Rows 1, 9, 10 are ALWAYS enabled.
-private _hasTarget = !((missionNamespace getVariable ["FTCS_Commander_Target", []]) isEqualTo []);
-private _moveEnable = if (_hasTarget) then { "1" } else { "0" };
-private _formEnable = if (_hasTarget) then { "0" } else { "1" };
-
-private _squadOrderRows = [
-    ["1. Mark Target (aim & confirm)", [2], "", -5, [["expression", "['SQD_TARGET_MARK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["2. Move to Target (Hold)", [3], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DETACH_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
-    ["3. Move and Defend Position", [4], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
-    ["4. Move & Keep Formation", [5], "", -5, [["expression", "['SQD_MOVE_ADVANCE_KEEP_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
-    ["5. Hold Current Position / Defend", [6], "", -5, [["expression", "['SQD_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
-    ["6. Open Flank Right", [7], "", -5, [["expression", "['SQD_FLANK_OPEN_R_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
-    ["7. Open Flank Left", [8], "", -5, [["expression", "['SQD_FLANK_OPEN_L_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
-    ["8. Fall Back (+15m)", [9], "", -5, [["expression", "['SQD_FALL_BACK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
-    ["9. Rejoin Platoon Formation", [10], "", -5, [["expression", "['SQD_REJOIN_FORMATION_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["10. Squad Leader Menu (full)", [11], "#USER:FTCS_MENU_Squad_Phase2", -5, [["expression", ""]], "1", "1"]
-];
+// Per-squad gating: a squad owns a target when ANY of its team registry entries
+// carries a "squadTarget" - one squad's capture never enables another squad's
+// movement rows. Row 1 (Mark Target) is always enabled for every squad.
+private _squadHasTarget = {
+    params ["_slotIdx"];
+    private _pltIdL = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+    private _pltKeyL = format ["PLT_%1", _pltIdL];
+    private _pltMapL = (missionNamespace getVariable ["FTCS_Company_Data", createHashMap]) getOrDefault ["platoons", createHashMap];
+    private _parsedSqL = (_pltMapL getOrDefault [_pltKeyL, createHashMap]) getOrDefault ["parsedSquads", createHashMap];
+    private _sqdKeyL = format ["SQD_%1_%2", _pltIdL, _slotIdx];
+    private _sqdDataL = _parsedSqL getOrDefault [_sqdKeyL, createHashMap];
+    private _teamsL = _sqdDataL getOrDefault ["tacticalTeams", createHashMap];
+    if (count _teamsL == 0) then { _teamsL = _sqdDataL getOrDefault ["teams", createHashMap]; };
+    private _has = false;
+    {
+        private _grpL = (_y) getOrDefault ["group", grpNull];
+        if (!isNull _grpL) then {
+            private _eL = FTCS_Groups_Registry_Table getOrDefault [groupId _grpL, createHashMap];
+            if (count (_eL getOrDefault ["squadTarget", []]) >= 8) exitWith { _has = true; };
+        };
+    } forEach _teamsL;
+    // Legacy fallback: the squad-level group entry when no sub-team resolved
+    if (!_has) then {
+        private _gSL = _sqdDataL getOrDefault ["group", grpNull];
+        if (!isNull _gSL) then {
+            private _eSL = FTCS_Groups_Registry_Table getOrDefault [groupId _gSL, createHashMap];
+            if (count (_eSL getOrDefault ["squadTarget", []]) >= 8) then { _has = true; };
+        };
+    };
+    _has
+};
 
 for "_i" from 1 to 4 do {
+    // Per-squad enable state: rows 2-4 (Move) need THIS squad's own target;
+    // rows 5-8 are the inverse gate. Row 1, 9, 10 always enabled. The row
+    // template lives INSIDE the loop because the enable flags differ per squad.
+    private _hasTgt = [_i] call _squadHasTarget;
+    private _moveEnable = if (_hasTgt) then { "1" } else { "0" };
+    private _formEnable = if (_hasTgt) then { "0" } else { "1" };
+
+    private _squadOrderRows = [
+        ["1. Mark Target (aim & confirm)", [2], "", -5, [["expression", "['SQD_TARGET_MARK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+        ["2. Move to Target (Hold)", [3], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DETACH_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
+        ["3. Move and Defend Position", [4], "", -5, [["expression", "['SQD_MOVE_ADVANCE_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
+        ["4. Move & Keep Formation", [5], "", -5, [["expression", "['SQD_MOVE_ADVANCE_KEEP_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _moveEnable],
+        ["5. Hold Current Position / Defend", [6], "", -5, [["expression", "['SQD_DEFEND_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+        ["6. Open Flank Right", [7], "", -5, [["expression", "['SQD_FLANK_OPEN_R_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+        ["7. Open Flank Left", [8], "", -5, [["expression", "['SQD_FLANK_OPEN_L_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+        ["8. Fall Back (+15m)", [9], "", -5, [["expression", "['SQD_FALL_BACK_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", _formEnable],
+        ["9. Rejoin Platoon Formation", [10], "", -5, [["expression", "['SQD_REJOIN_FORMATION_%1'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+        ["10. Squad Leader Menu (full)", [11], "#USER:FTCS_MENU_Squad_Phase2", -5, [["expression", ""]], "1", "1"]
+    ];
+
     private _menuArr = [[format ["Squad Orders - Squad %1", _i], false]];
     {
         // Interpolate the squad index into every expression token of the row.

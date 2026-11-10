@@ -187,6 +187,21 @@ FTCS_Groups_Registry_Table (HashMap)
       │     Valores válidos:
       │     └── "COLUMN" | "LINE" | "WEDGE" | "VEE" | "ECHELON_RIGHT" | "ECHELON_LEFT" | "DIAMOND" | "FILE"
       │
+      ├── "teamAttachment"    : ENUM STRING (Atribución del sub-equipo a su escuadra — Movement/Formations)
+      │     Valores válidos:
+      │     ├── "SQUAD_BOUND"    -> Arrastrado por las órdenes de movimiento del squad (defecto).
+      │     ├── "DETACHED_HOLD"  -> Desligado y fijo (MG emplazada, hold ordenado): ignora movimientos de squad.
+      │     └── "DETACHED_FREE"  -> Desligado autónomo (scouts desplegados): ignora movimientos de squad.
+      │
+      ├── "movementType"      : ENUM STRING (Maniobra táctica activa del grupo/squad — Movement class)
+      │     Valores válidos:
+      │     ├── "NORMAL_MOVE"         -> Desplazamiento simple a punto (primitiva ADVANCE_TO_POINT).
+      │     ├── "BOUNDING_OVERWATCH"  -> Salto de rana entre teams (reservado, primer cliente: overwatch).
+      │     ├── "ASSAULT"             -> Carga contra posición (reservado).
+      │     └── "MOVING_OVERWATCH"    -> Avance con cobertura en movimiento (reservado).
+      │     Escritura: al entrar en la maniobra (dispatcher de órdenes SQD_MOVE_* / primitivas fn_mv*).
+      │     Limpieza: al terminar el bucle de marcha del team (fn_mvTeamMarchLoop) -> "NORMAL_MOVE".
+      │
       ├── "allocationSlot"    : SCALAR (Entero: 0, 1, 2, 3...)
       │     Índice de ranura geométrica dentro de la formación de su pelotón/escuadra.
       │

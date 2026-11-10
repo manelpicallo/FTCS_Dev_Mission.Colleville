@@ -221,7 +221,10 @@ while {((_group getVariable ["FTCS_FollowThread_ID", -1]) == _threadID) &&
         };
 
         { _x disableAI "RADIOPROTOCOL"; } forEach (units _group);
-        if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != "FOLLOWING_ROAD") exitWith {};
+        if (([ _groupID, "movingMode" ] call FTCS_fnc_registryGet) != "FOLLOWING_ROAD") exitWith {
+            // Follow ended: restore radio protocol so units report normally again
+            { _x enableAI "RADIOPROTOCOL"; } forEach (units _group);
+        };
         sleep 1.0;
     };
 };
