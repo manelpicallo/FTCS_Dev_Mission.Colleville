@@ -21,8 +21,7 @@
 */
 
 params [["_slotIndex", 1]];
-diag_log format ["[FTCS][TARGET] squadTarget3DScan invoked (slot %1).", _slotIndex];
-diag_log format ["[FTCS][TARGET-SCAN] Entered with slot %1 (player %2).", _slotIndex, name player];
+diag_log "[FTCS][TARGET-SCAN] Version 2 - sync entry into targetMark.";
 
 [player, true] call FTCS_fnc_targetMark;
 true

@@ -10,7 +10,24 @@
                  Supports direct line-of-sight visual checks (cursorObject), distance-based channel routing
                  (Voice <= 20m vs Visual Signals 20-60m), and proximity summons ([Call]).
     Language: Strictly English (Rule 7)
+
+    ============================================================================
+    ACTIONS SUSPENDED (design decision, session):
+    NPCs receive NO addAction. The player receives ONLY the
+    "[Platoon Orders] Command Net (Radio / Voice)" self-action, with NO
+    visibility restriction (works even when looking at an NPC).
+
+    INIT PROCESS MAP (where in the init sequence this lives):
+      1. Below: helper definitions (_fnc_add*Actions) - definitions only.
+      2. "FTCS_NPC_ACTIONS_ENABLED" gate - set true to re-enable ALL NPC
+         action assignment (the big platoon/squad forEach loop further down).
+      3. Player self-action block - "PLATOON_COMMANDER" branch registers the
+         single [Platoon Orders] action on `player` (always-visible condition).
+    ============================================================================
 */
+
+// *** MASTER GATE: re-enable NPC interaction actions by setting this to true ***
+FTCS_NPC_ACTIONS_ENABLED = false;
 
 private _playerSide = side group player;
 private _processedUnits = [];
@@ -401,6 +418,11 @@ if (count _assignedRoles > 0) then {
     };
 
     // If player is a Platoon Commander, register Platoon Formation self-actions directly on the Lieutenant
+    // >>> PLAYER SELF-ACTION POINT <<< - the ONLY action registered on the player:
+    // "[Platoon Orders] Command Net", with NO visibility restriction (always shown).
+    // SUSPENDED player actions (restore by uncommenting + re-adding conditions):
+    //   - "[Operational Phase] Set Doctrinal Phase"  (PHASE_TRANSITION)
+    //   - "[Planning] Platoon TLP & Mission Prep"    (TLP_PLANNING)
     if (_playerRole == "PLATOON_COMMANDER") then {
         private _pltLeaderAction = [
             player,
@@ -413,7 +435,7 @@ if (count _assignedRoles > 0) then {
             [],
             1.5,
             0.0,
-            "isNull cursorObject || {cursorObject distance player > 20}"
+            "true"   // no visibility restriction: always available on the player
         ] call FTCS_fnc_addEngineAction;
 
         private _phaseAction = [
@@ -426,7 +448,7 @@ if (count _assignedRoles > 0) then {
             [],
             1.4,
             0.0,
-            "isNull cursorObject || {cursorObject distance player > 20}"
+            "false"  // SUSPENDED: single-action-only design (see header comment)
         ] call FTCS_fnc_addEngineAction;
 
         private _tlpAction = [
@@ -439,13 +461,19 @@ if (count _assignedRoles > 0) then {
             [],
             1.3,
             0.0,
-            "isNull cursorObject || {cursorObject distance player > 20}"
+            "false"  // SUSPENDED: single-action-only design (see header comment)
         ] call FTCS_fnc_addEngineAction;
     };
 };
 
 // 2. Process Tactical Platoons and Squads (Filtered by player command scope)
+// >>> NPC ACTION ASSIGNMENT POINT <<< - this is the ONLY place where NPC units
+// receive addActions (squad leaders, sergeants, RTOs, medics...). It is gated by
+// FTCS_NPC_ACTIONS_ENABLED (false = NPCs get no actions, current design).
+// Re-enabling = set FTCS_NPC_ACTIONS_ENABLED = true at the top of this file.
 private _platoonsMap = FTCS_Company_Data getOrDefault ["platoons", createHashMap];
+
+if (!(missionNamespace getVariable ["FTCS_NPC_ACTIONS_ENABLED", false])) exitWith {};
 
 {
     private _pltKey = _x;

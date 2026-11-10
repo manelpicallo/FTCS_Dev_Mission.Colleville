@@ -20,6 +20,7 @@
 */
 
 params [["_requireTarget", true], ["_maxAge", 0]];
+diag_log format ["[FTCS][TARGET-GET] Called (require %1).", _requireTarget];
 
 private _tuple = missionNamespace getVariable ["FTCS_Commander_Target", []];
 if (count _tuple < 9) exitWith {
