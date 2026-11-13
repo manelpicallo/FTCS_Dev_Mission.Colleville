@@ -38,6 +38,7 @@ $files = @(
     "Functions\Formations\fn_trailColumnSet.sqf",
     "Functions\Formations\fn_formationsTrailCompactColumn.sqf",
     "Functions\Formations\fn_marchStuckWatchdog.sqf",
+    "Functions\Formations\fn_platoonHaltRejoin.sqf",
     "Functions\Formations\fn_formationsGroupFollowTrail.sqf",
     "Functions\Roads\fn_trailAdvanceAnchor.sqf",
     "Functions\Roads\fn_roadFindSegment.sqf",

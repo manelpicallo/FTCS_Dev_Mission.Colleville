@@ -151,6 +151,11 @@ private _registeredCount = 0;
         // Collect every Arma 3 group belonging to this squad element (including HQ sub-teams)
         private _squadGroups = [];
         private _teamsContainer = _sqdData getOrDefault ["teams", _sqdData getOrDefault ["tacticalTeams", createHashMap]];
+        // Squad-level anchor group (first resolved group of this squad): the
+        // parentSquadGroup stamped on every team entry so fireteams can always
+        // resolve their hierarchical anchor without groupId-prefix guessing
+        // (groupIds are doctrine display names, NOT SQD_N_M keys).
+        private _sqdAnchorGroup = grpNull;
 
         if (count _teamsContainer > 0) then {
             {
@@ -175,6 +180,9 @@ private _registeredCount = 0;
             private _groupSlot = _x select 1;
             private _groupID = groupId _group;
 
+            // First registered group of this squad = squad-level anchor
+            if (isNull _sqdAnchorGroup) then { _sqdAnchorGroup = _group; };
+
             // Skip already registered groups (idempotent initialization)
             if !(_groupID in FTCS_Groups_Registry_Table) then {
                 FTCS_Groups_Registry_Table set [_groupID, createHashMapFromArray [
@@ -188,9 +196,15 @@ private _registeredCount = 0;
                     ["allocationSlot", _groupSlot],
                     ["formationPosition", [-1, -1, _leaderRef]],
                     ["relPosition", [-1, -1, _leaderRef]],
-                    ["teamAttachment", "SQUAD_BOUND"]
+                    ["teamAttachment", "SQUAD_BOUND"],
+                    ["parentSquadGroup", _sqdAnchorGroup]
                 ]];
                 _registeredCount = _registeredCount + 1;
+            } else {
+                // Existing entry (re-init): stamp/refresh parentSquadGroup
+                private _exEntry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
+                _exEntry set ["parentSquadGroup", _sqdAnchorGroup];
+                FTCS_Groups_Registry_Table set [_groupID, _exEntry];
             };
         } forEach _squadGroups;
 
@@ -198,6 +212,58 @@ private _registeredCount = 0;
 
     } forEach _parsedSquads;
 
+} forEach _platoonsMap;
+
+// ---------------------------------------------------------------------------
+// 4b. Platoon-level registry (FTCS_Platoons_Registry): per-platoon state map
+//     Company-scale safe: one entry per platoon, keyed by platoon number.
+//     Populated HERE (doctrine seed time): "squads" = array of squad group
+//     refs + "platoonGroup"/"platoonLeader" refs. Runtime code must consume
+//     this registry (rule 16) - NEVER re-derive squads from FTCS_Company_Data.
+// ---------------------------------------------------------------------------
+if (isNil "FTCS_Platoons_Registry") then { FTCS_Platoons_Registry = createHashMap; };
+
+{
+    private _pltKey = _x;
+    private _pltNum = parseNumber ((_pltKey splitString "_") select 1);
+    private _pltData2 = _y;
+    private _parsedSquads2 = _pltData2 getOrDefault ["parsedSquads", createHashMap];
+
+    private _squadGroups = [];
+    private _platoonHqGroup = grpNull;
+    {
+        private _sqdData2 = _y;
+        private _teams2 = _sqdData2 getOrDefault ["teams", _sqdData2 getOrDefault ["tacticalTeams", createHashMap]];
+        if (count _teams2 > 0) then {
+            // Team-structured squad: the SQUAD-LEVEL anchor is the FIRST team
+            // group (the squad-leader element). Subsequent teams are fireteams
+            // whose anchor is their squad leader - they must NOT be in this
+            // list, or consumers (platoonHaltRejoin hierarchy split, squad
+            // slot dispatchers) would treat every fireteam as a platoon-slot
+            // element and re-anchor them all against the lieutenant.
+            private _first = grpNull;
+            { private _g = (_y) getOrDefault ["group", grpNull]; if (!isNull _g) exitWith { _first = _g; }; } forEach _teams2;
+            if (!isNull _first) then { _squadGroups pushBackUnique _first; };
+        } else {
+            private _g = _sqdData2 getOrDefault ["group", grpNull];
+            if (!isNull _g) then { _squadGroups pushBackUnique _g; };
+        };
+        // Platoon HQ = first squad (SQD_N_0) resolved group
+        if ((format ["%1", _x]) find (format ["SQD_%1_0", _pltNum]) == 0) then {
+            if (count _squadGroups > 0) then { _platoonHqGroup = _squadGroups select 0; };
+        };
+    } forEach _parsedSquads2;
+
+    private _existing = FTCS_Platoons_Registry getOrDefault [_pltNum, createHashMap];
+    // Registry-first, non-destructive: seed the ORBAT once, preserve any
+    // runtime state (orderState, halt snapshot) already written by the menus.
+    if (!(_existing getOrDefault ["squads", []] isEqualTo _squadGroups)) then {
+        _existing set ["squads", _squadGroups];
+    };
+    if (isNull (_existing getOrDefault ["platoonGroup", grpNull]) && { !isNull _platoonHqGroup }) then {
+        _existing set ["platoonGroup", _platoonHqGroup];
+    };
+    FTCS_Platoons_Registry set [_pltNum, _existing];
 } forEach _platoonsMap;
 
 // ---------------------------------------------------------------------------

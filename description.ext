@@ -58,6 +58,7 @@ class CfgFunctions
             class formationsTypePlatoonSet {};
             class formationsTypeSquadSet {};
             class formationsGroupDoFollowCommander {};
+            class platoonAdvanceAxis {};
             class formationsGroupListFollowCommander {};
             class formationsSetAdvanceDirection {};
             class formationsApplyPlatoonOrder {};
@@ -69,6 +70,7 @@ class CfgFunctions
             class trailColumnSet {};
             class formationsTrailCompactColumn {};
             class marchStuckWatchdog {};
+            class platoonHaltRejoin {};
             class roadEdgeModeToggle {};
         };
 

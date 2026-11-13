@@ -66,15 +66,43 @@ while { (missionNamespace getVariable [format ["FTCS_March_Watchdog_Gen_PLT_%1",
                             _u setVariable ["FTCS_Stuck_Cycles", _stuckCycles];
 
                             if (_stuckCycles >= 2) then {
+                                // Reroute destination: normally the LIVE group
+                                // leader position. During a platoon HALT the
+                                // leader is far away exploring, so the target
+                                // switches to the group's frozen snapshot
+                                // (haltedAtPos): stragglers of squads still in
+                                // transit converge on their freezing point,
+                                // NOT on the lieutenant (both level 1 and the
+                                // level 2 sprint use the same source).
+                                private _haltState = "MARCH";
+                                private _registryW = missionNamespace getVariable ["FTCS_Platoons_Registry", createHashMap];
+                                private _pltEntryW = _registryW getOrDefault [_pltId, createHashMap];
+                                _haltState = _pltEntryW getOrDefault ["orderState", "MARCH"];
+                                // (haltedAtPos). Also the frozen straggler's
+                                // own pending sprint (L2 limitSpeed -1 from a
+                                // pre-HALT cycle) is reverted so he stops AT
+                                // the snapshot instead of overshooting it.
+                                private _reroutePos = getPosATL _grpLeader;
+                                if (_haltState == "HALTED") then {
+                                    _u limitSpeed 0;
+                                    private _gEntry = FTCS_Groups_Registry_Table getOrDefault [groupId _grp, createHashMap];
+                                    private _snap = _gEntry getOrDefault ["haltedAtPos", []];
+                                    if (count _snap >= 2) then { _reroutePos = _snap; };
+                                };
+
                                 // LEVEL 1 / LEVEL 2 escalation ladder
                                 if (_stuckCycles == 2) then {
-                                    // LEVEL 1: fresh path re-plan to the live group position
-                                    _u doMove (getPosATL _grpLeader);
+                                    // LEVEL 1: fresh path re-plan to the reroute source
+                                    _u doMove _reroutePos;
                                     diag_log format ["[FTCS][WATCHDOG] L1 re-route: %1 -> %2 (%3m behind)", (name _u), (groupId _grp), round _distToLeader];
                                 } else {
                                     // LEVEL 2: catch-up sprint + repeat re-route
+                                    // (in HALT the sprint only applies when the
+                                    // reroute target is the snapshot: restoring
+                                    // L2 speed toward the snapshot keeps the
+                                    // recovery converging on the frozen point)
                                     _u limitSpeed -1;
-                                    _u doMove (getPosATL _grpLeader);
+                                    _u doMove _reroutePos;
                                     diag_log format ["[FTCS][WATCHDOG] L2 sprint: %1 -> %2 (%3m behind)", (name _u), (groupId _grp), round _distToLeader];
                                 };
                             };

@@ -356,6 +356,25 @@ switch (_commandCode) do {
         showCommandingMenu "#USER:FTCS_MENU_PlatoonFormations_P1";
     };
 
+    // =========================================================================
+    // PLATOON HALT / REJOIN (lieutenant orders)
+    // HALT: freeze the platoon in place (registry snapshot per platoon; the
+    // lieutenant keeps exploring). Stragglers of squads still in transit keep
+    // being recovered by the watchdog toward their frozen position snapshot.
+    // REJOIN: squads converge on the current lieutenant position preserving
+    // their frozen relative geometry (mvFormationShift re-anchoring). Emplaced
+    // teams (teamAttachment != SQUAD_BOUND) are excluded; mark-3D squads DO
+    // participate - their march is a slot re-anchor, not an emplacement.
+    // =========================================================================
+    case "PLT_HALT": {
+        private _okH = ["HALT"] call FTCS_fnc_platoonHaltRejoin;
+        systemChat format ["[PLATOON ORDER] %1", if (_okH) then {"HALT - platoon frozen in place, lieutenant free to explore."} else {"HALT refused."}];
+    };
+    case "PLT_REJOIN": {
+        private _okR = ["REJOIN"] call FTCS_fnc_platoonHaltRejoin;
+        systemChat format ["[PLATOON ORDER] %1", if (_okR) then {"REJOIN - squads converging on the lieutenant."} else {"REJOIN refused (platoon must be HALTED)."}];
+    };
+
     case "PLT_MODE_RELATIVE": {
         missionNamespace setVariable ["FTCS_Platoon_Follow_Mode", "FOLLOWING_COMMANDER_REL"];
         // Refresh the relative reference heading with the leader's CURRENT heading:

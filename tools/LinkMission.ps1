@@ -15,6 +15,7 @@ $SharedItems = @(
     "Functions",
     "Doctrines",
     "tools",
+    "UI",
     "description.ext",
     "init.sqf",
     "LinkMission.bat"
@@ -134,7 +135,8 @@ foreach ($item in $SharedItems) {
             Write-Host "[REPLACED] Elemento real sustituido por enlace: $item" -ForegroundColor DarkYellow
         }
     }
-    if ($src.PSIsContainer) {
+    $srcItem = Get-Item $src -Force
+    if ($srcItem.PSIsContainer) {
         New-Item -ItemType Junction -Path $dst -Target $src -ErrorAction Stop | Out-Null
     } else {
         # Ficheros compartidos: hardlink para mantenerlos sincronizados
@@ -149,6 +151,10 @@ foreach ($item in $SharedItems) {
 Write-Host ""
 foreach ($file in $LocalFiles) {
     $dst = Join-Path $rutaDestino $file
+    if ((Resolve-Path $missionSqmOrigen).Path -eq (Resolve-Path $dst -ea SilentlyContinue)) {
+        Write-Host "[OK] $file ya existe en la mision (se conserva)" -ForegroundColor Green
+        continue
+    }
     Copy-Item -Path $missionSqmOrigen -Destination $dst -Force
     Write-Host "[COPIA] $file (fichero local de esta mision, no versionado por el repo)" -ForegroundColor Green
 }

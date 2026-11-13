@@ -20,13 +20,18 @@
     Params:
         0: GROUP - Squad group receiving the move order.
         1: ARRAY - Target world position [x, y, z] (marked/confirmed point).
+        2: NUMBER - OPTIONAL arrival facing in degrees (world bearing the squad
+                    aligns to ON ARRIVAL). Default -1 = face the objective (the
+                    marked-point behaviour). Flank/fall-back orders pass the
+                    platoon axis of advance so the squad ends up facing the
+                    formation's direction of march.
     Returns:
         BOOLEAN - true when a primitive accepted the order.
     Compatibility: Arma 3 (SQF) | Designed for Enforce Script (Arma 4) port.
     ================================================================================
 */
 
-params [["_squad", grpNull], ["_targetPos", [0, 0, 0]]];
+params [["_squad", grpNull], ["_targetPos", [0, 0, 0]], ["_arrivalFacing", -1, [0]]];
 
 if (isNull _squad || { count _targetPos < 2 }) exitWith { false };
 
@@ -39,7 +44,7 @@ switch (true) do {
         true
     };
     case (_mode == "FREE_MOVE"): {
-        [_squad, _targetPos] call FTCS_fnc_mvSquadAdvanceToPoint;
+        [_squad, _targetPos, _arrivalFacing] call FTCS_fnc_mvSquadAdvanceToPoint;
         true
     };
     default {

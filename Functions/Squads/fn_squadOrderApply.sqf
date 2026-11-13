@@ -41,17 +41,53 @@ params [["_slotIndex", 1], ["_order", ""]];
 if (_order == "") exitWith { false };
 
 // --- Resolve the addressed squad group --------------------------------------
+// Dual input contract: callers may pass a GROUP directly (as the Squad Directives
+// menu dispatcher in fn_applyCommandToTarget does for slot-parsed order tokens)
+// or a NUMBER slot index (legacy contract). A STRING is also accepted when it
+// matches a group ID in the groups registry (FTCS_Groups_Registry_Table key).
+private _group = objNull;
+private _groupID = "";
+private _entry = locationNull;
+private _registryEntryValid = false;
+
 private _pltId = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
 private _registry = missionNamespace getVariable ["FTCS_Platoons_Registry", createHashMap];
 private _plt = _registry getOrDefault [_pltId, createHashMap];
 private _squadList = _plt getOrDefault ["squads", []];
 
-private _group = objNull;
-if (_slotIndex <= count _squadList) then {
-    _group = _squadList select (_slotIndex - 1);
+switch (typeName _slotIndex) do {
+    case "GROUP";
+    case "OBJECT": {
+        if (!isNull _slotIndex && { { _x == (leader _slotIndex) } count (units _slotIndex) > 0 }) then {
+            _group = _slotIndex;
+            _groupID = groupId _group;
+            _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
+            _registryEntryValid = (count _entry > 0);
+        };
+    };
+    case "STRING": {
+        _groupID = _slotIndex;
+        _group = missionNamespace getVariable [_groupID, objNull];
+        if (isNull _group) then {
+            // Fallback: search the platoon squad list by groupId string
+            { if (groupId _x == _groupID) exitWith { _group = _x }; } forEach _squadList;
+        };
+        _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
+        _registryEntryValid = (count _entry > 0);
+    };
+    default {
+        if (_slotIndex <= count _squadList) then {
+            _group = _squadList select (_slotIndex - 1);
+        };
+        if (!isNull _group) then {
+            _groupID = groupId _group;
+            _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMap];
+            _registryEntryValid = (count _entry > 0);
+        };
+    };
 };
 // Scout slot fallback: the scout submenu shares this dispatcher with a special index
-if (isNull _group && { _slotIndex == 99 }) then {
+if (isNull _group && { typeName _slotIndex == "SCALAR" && { _slotIndex == 99 } }) then {
     _group = missionNamespace getVariable ["FTCS_Scout_Group", objNull];
 };
 if (isNull _group) exitWith {
@@ -69,8 +105,7 @@ private _hasTarget = (count _tPos > 0) && { !(_tPos isEqualTo [0, 0, 0]) };
 // Movement orders require a target (they are gated disabled in the menu, but the
 // runtime re-validation keeps the guarantee even if the menu state went stale).
 private _needsTarget = _order in
-    ["SQD_MOVE_ADVANCE_DETACH", "SQD_MOVE_ADVANCE_KEEP", "SQD_MOVE_FLANK",
-     "SQD_MOVE_FALL_BACK", "SQD_DEFEND"];
+    ["SQD_MOVE_ADVANCE_DETACH", "SQD_MOVE_ADVANCE_KEEP", "SQD_DEFEND"];
 
 if (_needsTarget && { !_hasTarget }) exitWith {
     systemChat "[SQD ORDER] No marked target - mark a target first (option 1).";
@@ -107,21 +142,72 @@ switch (_order) do
         true
     };
 
-    case "SQD_MOVE_FLANK": {
-        // Flank bound to the target via the contextual movement dispatcher
-        [_grpId, "movingMode", "STOP"] call FTCS_fnc_registrySet;
-        [_grpId, "pinnedAnchorPos", _tPos] call FTCS_fnc_registrySet;
-        [_group, _tPos] call FTCS_fnc_mvSquadMoveOrder;
-        systemChat format ["[SQD ORDER] %1: flank to %2.", _grpId, _tLabel];
+    // NOTE: legacy dead cases SQD_MOVE_FLANK / SQD_MOVE_FALL_BACK removed -
+    // they wrote movingMode STOP before dispatching, which made
+    // mvFormationShift refuse the order (pre-Movement-era code, never invoked).
+
+    case "FLANK_OPEN_R";
+    case "FLANK_OPEN_L": {
+        // FLANK MOVE (perpendicular bound): the squad moves 90deg LEFT/RIGHT of
+        // the platoon's CURRENT axis of advance, a fixed 25m, then stops there
+        // facing the platoon's direction of advance. The formation slot bearing
+        // is NOT rotated permanently - this is a positional bound, not a slot
+        // re-anchor (the follow loop keeps the canonical slot as-is).
+        // Axis of advance = the platoon leader's heading (world direction the
+        // formation is moving in right now).
+        private _refLeader = leader _group;
+        private _pltIdF = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltGrpF = missionNamespace getVariable [format ["FTCS_Platoon_Group_%1", _pltIdF], objNull];
+        if (!isNull _pltGrpF) then { _refLeader = leader _pltGrpF; };
+        if (isNull _refLeader) exitWith {
+            systemChat "[SQD ORDER] Error: no platoon leader to derive the axis of advance from.";
+            false
+        };
+
+        // Axis of advance - CANONICAL platoon reference (fn_platoonAdvanceAxis):
+        // road anchor advanceDir > ABS frozen lock > live REL direction.
+        private _axisDir = [_refLeader] call FTCS_fnc_platoonAdvanceAxis;
+        private _flankDir = _axisDir + (if (_order == "FLANK_OPEN_R") then { 90 } else { -90 });
+        private _sqdPos = getPosATL (leader _group);
+        if (count _sqdPos < 2) then { _sqdPos = getPosATL _refLeader; };
+        private _tgt = _sqdPos getPos [25, _flankDir];
+
+        // Walk the squad to the flank point THROUGH THE FORMATION SYSTEM:
+        // mvSquadMoveOrder delegates to the mode-matching primitive, which owns
+        // the march and the ON-ARRIVAL alignment. The platoon axis of advance
+        // is passed as the arrival facing (4th dispatcher param) so the squad
+        // ends up facing the platoon's direction of march - no synchronous
+        // setFormDir here (it would fight the follow loop).
+        [_group, _tgt, _axisDir] call FTCS_fnc_mvSquadMoveOrder;
+        systemChat format ["[SQD ORDER] %1: flanking %2 25m (perpendicular to advance %3deg).", _grpId, if (_order == "FLANK_OPEN_R") then { "RIGHT" } else { "LEFT" }, round _axisDir];
         true
     };
 
-    case "SQD_MOVE_FALL_BACK": {
-        // Fall back to the target and hold via the contextual dispatcher
-        [_grpId, "movingMode", "STOP"] call FTCS_fnc_registrySet;
-        [_grpId, "pinnedAnchorPos", _tPos] call FTCS_fnc_registrySet;
-        [_group, _tPos] call FTCS_fnc_mvSquadMoveOrder;
-        systemChat format ["[SQD ORDER] %1: fall back to %2.", _grpId, _tLabel];
+    case "FALL_BACK": {
+        // FALL BACK: move 180deg opposite to the platoon's CURRENT axis of
+        // advance, a fixed 25m, keeping the platoon's facing on arrival.
+        private _refLeader = leader _group;
+        private _pltIdB = missionNamespace getVariable ["FTCS_Player_Platoon_ID", 1];
+        private _pltGrpB = missionNamespace getVariable [format ["FTCS_Platoon_Group_%1", _pltIdB], objNull];
+        if (!isNull _pltGrpB) then { _refLeader = leader _pltGrpB; };
+        if (isNull _refLeader) exitWith {
+            systemChat "[SQD ORDER] Error: no platoon leader to derive the axis of advance from.";
+            false
+        };
+
+        // Axis of advance - CANONICAL platoon reference (see FLANK branch above)
+        private _axisDir = [_refLeader] call FTCS_fnc_platoonAdvanceAxis;
+        private _backDir = _axisDir + 180;
+        private _sqdPos = getPosATL (leader _group);
+        if (count _sqdPos < 2) then { _sqdPos = getPosATL _refLeader; };
+        private _tgt = _sqdPos getPos [25, _backDir];
+
+        // Walk the squad back THROUGH THE FORMATION SYSTEM (same contract as
+        // the flank bound: dispatcher picks the primitive, which owns the march
+        // and aligns the squad to the platoon axis on arrival - no synchronous
+        // setFormDir, no detach race on platoon advance).
+        [_group, _tgt, _axisDir] call FTCS_fnc_mvSquadMoveOrder;
+        systemChat format ["[SQD ORDER] %1: falling back 25m (opposite to advance %2deg).", _grpId, round _axisDir];
         true
     };
 

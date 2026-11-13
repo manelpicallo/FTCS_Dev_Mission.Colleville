@@ -58,6 +58,19 @@
    - Estas funciones son las únicas responsables de aplicar los comandos y registrar/sincronizar de manera consistente el estado operativo tanto a nivel de soldado individual como de grupo. 
    Si se necesita alterar este punto, es obligatorio preguntar al programador antes de ejecutar cualquier modificacion de este supuesto.
 
+16. **Acceso a Unidades SIEMPRE vía Registro (prohibido leer la doctrina en runtime):**
+   - La doctrina (`Doctrines/Data/*`, `FTCS_Company_Data`) es SOLO la semilla de arranque: el pipeline doctrinal existe únicamente para **rellenar el registro** al arrancar.
+   - NINGUNA función de runtime puede leer en ejecución `FTCS_Company_Data`, ficheros de doctrina, clases de composición ni nombres de grupos de la doctrina. Todo acceso a unidades, ORBAT, jerarquía platoon->squad->team y estado táctico se hace EXCLUSIVAMENTE a través de las estructuras de registro (`FTCS_Groups_Registry_Table`, `FTCS_Platoons_Registry` y sus helpers `FTCS_fnc_registryGet/Set/UpdatePos`).
+   - Si una función necesita datos que solo existen en la doctrina, el fix correcto es ampliar el registro (añadir el campo en `registryInit`/`parseEditorGroups` y documentarlo en `FTCS_Data_Structure_Reference.md`), nunca volver a consultar la doctrina.
+
+17. **Verificación Obligatoria de Versión Ejecutada (prohibido alegar "versión antigua" sin pruebas):**
+   - Antes de decirle al programador que el código que se está ejecutando NO es el último ("necesitas recompilar", "estás en una versión antigua", "la misión no está bien enlazada"), es OBLIGATORIO verificar primero, en este orden:
+     1. Comprobar el **timestamp de modificación** de los ficheros editados (última escritura real en disco).
+     2. Abrir el **log de Arma 3** (`%LOCALAPPDATA%\Arma 3\arma3_x64_*.log` o el RPT de la misión) y mirar la marca de tiempo de la última ejecución y las líneas de carga de funciones, para confirmar qué versión entró en el juego.
+   - El historial demuestra que estas alegaciones han sido erróneas de forma sistemática: el código en disco ha estado siempre correcto. Por tanto, si los timestamps del código y del log confirman que la ejecución es posterior a la edición, se asume que la versión es la correcta y el fallo hay que buscarlo en la LÓGICA del código (o en el comportamiento del motor), jamás en la compilación, sin pruebas explícitas de lo contrario.
+
+   - Nunca pedir re-entrada al editor "por si acaso" sin ese doble chequeo de timestamps + log.
+
 **Validación contra este documento:**
 
 - Antes de proponer o modificar código, comprueba que el cambio cumple las especificaciones de este documento.
@@ -68,6 +81,21 @@
 - **Sincronización Obligatoria de la Estructura de Menús:** La arquitectura, jerarquía y definición de los menús e interfaces de comando del proyecto residen en el documento `FTCS_Menu_Structure_Reference`. La IA debe mirarse siempre el documento `FTCS_Menu_Structure_Reference` para que lo actualice obligatoriamente siempre que toque o modifique cualquier aspecto referente al tema de ese fichero (menús e interfaces de comando), manteniendo rigurosamente el formato original del fichero con las modificaciones oportunas.
 - **Base de Conocimiento Técnica Obligatoria (`FTCS_Programming_Lessons.md`):** El fichero `FTCS_Programming_Lessons.md` (raíz del proyecto) es la base de conocimiento viva del proyecto: registra cada hallazgo técnico verificado de programación (quirks del motor de Arma, errores de parseo SQF, causas raíz de bugs resueltos, patrones de depuración), numerado y fechado. La IA debe **leerlo COMPLETO antes de programar o depurar cualquier código del proyecto**, **aplicar sus lecciones** (son hallazgos ya probados en el motor, no hipótesis) y **añadir una nueva entrada numerada** cada vez que se descubra y verifique un nuevo hallazgo técnico, para que cualquier IA (o programador) que arranque desde cero disponga inmediatamente de todo el conocimiento acumulado.
 - **Registro de Cambios Estructurales y de Diseño para IA (`FTCS_Programming_Lessons.md`, sección de arquitectura):** Además de los hallazgos de programación, cuando una tarea implique un **cambio estructural importante del software** (nueva capa o sistema, cambio en el flujo de órdenes o en el ciclo de vida de datos, reorganización de módulos) o la **incorporación de un mecanismo crucial para entender el funcionamiento del proyecto** (por ejemplo: la estructura de datos y su ciclo de vida, el modelo de registro/hash central, la propagación de órdenes entre niveles), la IA debe añadir en ese mismo fichero una **entrada de tipo "Architecture / Design Note"** redactada como **guía directa para una IA** (orientada a consumo automático: invariantes que no se pueden romper, contratos entre módulos, qué leer y en qué orden para entender el sistema). Este registro es **distinto y complementario** a la documentación de diseño existente orientada a intervención humana: aquella explica el *qué* y el *por qué* para el programador; esta nota explica el *cómo funciona y cómo no romperlo* para la IA que programa sobre ello. Ambos tipos de entrada conviven numerados y fechados en el mismo fichero.
+
+**Nota específica para Arma 3 — Proceso de trabajo con misiones múltiples (sistema de enlaces/Junctions):**
+
+- **Objetivo:** mantener UN SOLO código del proyecto versionado en GitHub, reutilizado por TODAS las misiones de prueba, sin copiar carpetas entre misiones.
+- **Carpeta única de código (repositorio):** todo el proyecto (Functions/, Doctrines/, UI/, tools/, description.ext, init.sqf, documentación, .git) vive en una carpeta fija de desarrollo (`C:\Users\Usuario\Desktop\Arma_3_code\FTCS_Development`), que es la que se abre en Visual Studio Code y la que se versiona en GitHub.
+- **Herramienta de enlace:** en la raíz del repo existe `LinkMission.bat`. Ejecutarlo crea automáticamente en la carpeta de una misión de Arma 3 unos "enlaces" (junctions de NTFS y hardlinks) que apuntan al código del repositorio, junto con un `mission.sqm` real propio de esa misión. El script muestra un menú numerado con las misiones existentes (marcando las ya enlazadas) y permite dar de alta una nueva.
+- **Regla de oro:** el `mission.sqm` de cada misión es SIEMPRE un fichero real y exclusivo de esa misión (cada terreno necesita el suyo, generado por Eden). Nunca se enlaza ni se versiona.
+- **Proceso estándar para crear una misión de prueba en un terreno nuevo (de cero):**
+  1. Abrir Arma 3 → Eden, crear una misión vacía en el terreno deseado y guardarla (esto genera su `mission.sqm` propio).
+  2. Ejecutar `LinkMission.bat` desde la carpeta del repositorio.
+  3. Elegir la misión nueva en el menú (o escribirla si no aparece) y confirmar. El script crea los enlaces automáticamente.
+  4. Recargar la misión en Eden/Arma 3: ya dispone de todo el código FTCS actualizado.
+- **Proceso de trabajo diario:** el código se edita SOLO en la carpeta del repositorio (VS Code). Al guardar, TODAS las misiones enlazadas ven y ejecutan ese mismo código al instante — no hay copias que sincronizar. Cada misión conserva por separado su mundo, unidades y progreso (su `mission.sqm`).
+- **Precauciones:** los enlaces se borran como enlaces (nunca con borrados recursivos que atraviesen el enlace, para no dañar el repositorio). Si una misión ya tiene carpetas/ficheros propios reales (p. ej. un `Functions/` viejo copiado a mano), el script lo detecta y pide confirmación antes de sustituirlo por el enlace.
+- **Herramientas auxiliares del proyecto** (alineador de compositions, generadores de doctrina, verificadores de sintaxis, etc.) viven en `tools/` dentro del repositorio y operan sobre rutas autodetectadas o relativas a sí mismas: no dependen de la carpeta de ninguna misión concreta.
 
 **Forma de trabajar:**
 

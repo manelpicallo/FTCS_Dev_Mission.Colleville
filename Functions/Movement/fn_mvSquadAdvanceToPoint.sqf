@@ -36,13 +36,16 @@
         2: STRING - On-arrival behaviour: "KEEP_FORMATION" (re-anchor the slot at
                     the target and resume follow) or "HOLD" (detach + hold at
                     the arrival point) (default "KEEP_FORMATION").
+        3: NUMBER - OPTIONAL arrival facing in degrees. Default -1 = face the
+                    objective (approach axis, the marked-point behaviour).
+                    Flank/fall-back orders pass the platoon axis of advance.
     Returns:
         NUMBER - Count of teams dispatched (0 when nothing was bound).
     Compatibility: Arma 3 (SQF) | Designed for Enforce Script (Arma 4) port.
     ================================================================================
 */
 
-params [["_squad", grpNull], ["_targetPos", [0, 0, 0]], ["_arrivalBehaviour", "KEEP_FORMATION"]];
+params [["_squad", grpNull], ["_targetPos", [0, 0, 0]], ["_arrivalBehaviour", "KEEP_FORMATION"], ["_arrivalFacing", -1, [0]]];
 
 if (isNull _squad || { count _targetPos < 2 }) exitWith { 0 };
 
@@ -80,6 +83,10 @@ private _leftSide = true;
 private _lateralStep = 0;                     // +5m per completed pair
 private _dispatched = 0;
 
+// Arrival facing: explicit platoon-axis facing (flank/fall-back) when supplied,
+// otherwise the approach axis toward the objective (marked-point default).
+private _effectiveFacing = if (_arrivalFacing >= 0) then { _arrivalFacing } else { _approachBearing };
+
 {
     private _team = _x;
     private _footprint = [_team] call _fnc_teamFootprint; // documented model
@@ -112,7 +119,7 @@ private _dispatched = 0;
     // 3. Per-team march loop (same skeleton as the formation follow loops).
     // The objective bearing is passed in (approach axis) so the arrival
     // alignment faces the objective regardless of where the team came from.
-    [_team, _arrivalPos, _arrivalBehaviour, _approachBearing] spawn FTCS_fnc_mvTeamMarchLoop;
+    [_team, _arrivalPos, _arrivalBehaviour, _effectiveFacing] spawn FTCS_fnc_mvTeamMarchLoop;
 
     _dispatched = _dispatched + 1;
 } forEach _sortedTeams;

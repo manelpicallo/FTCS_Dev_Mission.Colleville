@@ -116,7 +116,9 @@ FTCS_MENU_PlatoonFormations_P1 = [
     ["7. Platoon File (Dense Vegetation / Narrow Trail)", [8], "", -5, [["expression", "['PLT_FORM_FILE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["8. Adopt Ground Layout (Lock Positions)", [9], "", -5, [["expression", "['PLT_FORM_LOCK_GROUND'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
     ["9. Follow Mode: Relative (Turn with Leader)", [10], "", -5, [["expression", "['PLT_MODE_RELATIVE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["10. Follow Mode: Absolute (Fixed Compass)", [11], "", -5, [["expression", "['PLT_MODE_ABSOLUTE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
+    ["10. Follow Mode: Absolute (Fixed Compass)", [11], "", -5, [["expression", "['PLT_MODE_ABSOLUTE'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["11. HALT - Freeze Platoon (Lieutenant Explores)", [12], "", -5, [["expression", "['PLT_HALT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["12. REJOIN - Re-group on Lieutenant", [13], "", -5, [["expression", "['PLT_REJOIN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"]
 ];
 
 // 1.2 Movement Techniques Submenu (Phase 1) - [ACTIVE]
@@ -137,17 +139,20 @@ FTCS_MENU_RouteControl_P1 = [
 ];
 
 // 1.3.1 Road March Column Layout Submenu (Phase 1) - [ACTIVE]
-// Staggered: forms the road column. Compact: requires an already-formed road
-// march column (validated at runtime in applyCommandToTarget). Left/Right single
-// shoulder columns are also fresh-orderable: ROAD_COLUMN_LEFT/RIGHT deploy the
-// full road pipeline with a forced side without any staggered pre-order.
+// Layout doctrine: FORMATIONS FIRST (dual-shoulder staggered -> single-shoulder
+// Left -> Right -> Leader Trail), then the TRANSFORMATION commands below them
+// (Compact), then the road-edge margin adjustments (Push/Pull/Reset).
+// Staggered/Trail/Left/Right are fresh-orderable: ROAD_COLUMN_LEFT/RIGHT deploy
+// the full road pipeline with a forced side without any staggered pre-order.
+// Compact requires an already-formed column (validated at runtime in
+// applyCommandToTarget and gated in fn_openSubordinateMenu row 5).
 FTCS_MENU_RoadMarchLayout = [
     ["Road March Column Layout", false],
     ["1. Staggered Column (Dual Shoulder)", [2], "", -5, [["expression", "['PLT_ROAD_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["2. Leader Trail Column (Follow My Track)", [3], "", -5, [["expression", "['PLT_TRAIL_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
-    ["3. Compact Column (Close Ranks)", [4], "", -5, [["expression", "['PLT_ROAD_COMPACT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"], // enabled at runtime while a road column is active (fn_openSubordinateMenu)
-    ["4. Column Left (Single Shoulder)", [5], "", -5, [["expression", "['ROAD_COLUMN_LEFT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
-    ["5. Column Right (Single Shoulder)", [6], "", -5, [["expression", "['ROAD_COLUMN_RIGHT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
+    ["2. Column Left (Single Shoulder)", [3], "", -5, [["expression", "['ROAD_COLUMN_LEFT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["3. Column Right (Single Shoulder)", [4], "", -5, [["expression", "['ROAD_COLUMN_RIGHT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["4. Leader Trail Column (Follow My Track)", [5], "", -5, [["expression", "['PLT_TRAIL_COLUMN'] call FTCS_fnc_applyCommandToTarget;"]], "1", "1"],
+    ["5. Compact Column (Close Ranks)", [6], "", -5, [["expression", "['PLT_ROAD_COMPACT'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"], // enabled at runtime while a road/trail column is active (fn_openSubordinateMenu)
     ["6. Push Out From Road (+3m)", [7], "", -5, [["expression", "['ROAD_EDGE_PUSH'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
     ["7. Pull In To Road (-3m)", [8], "", -5, [["expression", "['ROAD_EDGE_PULL'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"],
     ["8. Return To Road (Reset)", [9], "", -5, [["expression", "['ROAD_EDGE_RESET'] call FTCS_fnc_applyCommandToTarget;"]], "1", "0"]

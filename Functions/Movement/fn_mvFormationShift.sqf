@@ -84,14 +84,10 @@ private _refLeader = leader _refGroup;
 if (isNull _refLeader) exitWith { 0 };
 private _refPos = getPosATL _refLeader;
 
-// Reference heading (mode semantics identical to the follow loop):
-// REL -> live platoon advance direction; ABS -> fixed compass direction
-private _refHeading = if (_mode == "FOLLOWING_COMMANDER_ABS") then {
-    missionNamespace getVariable ["FTCS_Platoon_Fixed_Abs_Dir",
-        missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", getDir _refLeader]]
-} else {
-    missionNamespace getVariable ["FTCS_Platoon_Advance_Direction", getDir _refLeader]
-};
+// Reference heading - CANONICAL platoon axis (fn_platoonAdvanceAxis):
+// REL -> live platoon advance direction; ABS -> fixed compass direction;
+// road march -> road-aligned anchor axis. Same source the follow loop uses.
+private _refHeading = [_refLeader] call FTCS_fnc_platoonAdvanceAxis;
 
 // Required polar slot so the projected position lands on the target
 private _requiredDist = _refPos distance2D _targetPos;
