@@ -301,8 +301,14 @@ _pltData set ["movementTechnique", "CROSS_COUNTRY"];
 _pltData set ["roadPath", []];
 _platoonsMap set [_pltKey, _pltData];
 
+// Invalidate every squad's marked 3D target: a NEW platoon formation restarts
+// the tactical picture - squad movement menus return to their "no marked point"
+// state (point-movement orders gated disabled until a fresh target is marked).
+[] call FTCS_fnc_targetClearAllSquads;
+
 // 5. Two-tier formation geometry calculation:
-missionNamespace setVariable ["FTCS_Platoon_Formation_Type", _formationType];
+// (legacy FTCS_Platoon_Formation_Type global removed: the platoon-level formation
+// lives exclusively in the registry field "platoonFormation" per group)
 
 // Set platoon advance direction strictly to the leader's current heading at the moment the formation order is issued
 private _advanceDir = getDir _platoonLeaderUnit;

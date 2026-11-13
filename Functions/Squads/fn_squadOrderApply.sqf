@@ -92,42 +92,35 @@ switch (_order) do
         // Advance to the target and HOLD: exit formation-follow, anchor to world
         [_grpId, "movingMode", "STOP"] call FTCS_fnc_registrySet;
         [_grpId, "pinnedAnchorPos", _tPos] call FTCS_fnc_registrySet;
-        _group move _tPos;
-        { _x doMove _tPos; } forEach units _group;
+        [_group, _tPos] call FTCS_fnc_mvSquadMoveOrder;
         systemChat format ["[SQD ORDER] %1: advance & hold at %2.", _grpId, _tLabel];
         true
     };
 
     case "SQD_MOVE_ADVANCE_KEEP": {
-        // Advance to the target, then re-anchor the formation slot there and
-        // resume follow (Move & Keep semantics).
-        [_grpId, "movingMode", "STOP"] call FTCS_fnc_registrySet;
-        _group move _tPos;
-        { _x doMove _tPos; } forEach units _group;
-        // Persist the slot re-anchor; the follow loop re-anchors from this point
-        [_grpId, "pinnedAnchorPos", _tPos] call FTCS_fnc_registrySet;
-        [_grpId, "pinnedKeepFormation", true] call FTCS_fnc_registrySet;
-        systemChat format ["[SQD ORDER] %1: advance & keep formation from %2.", _grpId, _tLabel];
+        // Contextual move-to-point: the Movement dispatcher picks the primitive
+        // by the squad's active movingMode (formation shift preserves geometry
+        // in cross-country; free-move primitive when detached; road refused).
+        // (Legacy raw move/doMove + orphan pinnedAnchor removed.)
+        [_group, _tPos] call FTCS_fnc_mvSquadMoveOrder;
+        systemChat format ["[SQD ORDER] %1: move to %2.", _grpId, _tLabel];
         true
     };
 
     case "SQD_MOVE_FLANK": {
-        // Flank bound to the target, re-anchor there as well
+        // Flank bound to the target via the contextual movement dispatcher
         [_grpId, "movingMode", "STOP"] call FTCS_fnc_registrySet;
-        _group move _tPos;
-        { _x doMove _tPos; } forEach units _group;
         [_grpId, "pinnedAnchorPos", _tPos] call FTCS_fnc_registrySet;
-        [_grpId, "pinnedKeepFormation", true] call FTCS_fnc_registrySet;
+        [_group, _tPos] call FTCS_fnc_mvSquadMoveOrder;
         systemChat format ["[SQD ORDER] %1: flank to %2.", _grpId, _tLabel];
         true
     };
 
     case "SQD_MOVE_FALL_BACK": {
-        // Fall back to the target and hold
+        // Fall back to the target and hold via the contextual dispatcher
         [_grpId, "movingMode", "STOP"] call FTCS_fnc_registrySet;
         [_grpId, "pinnedAnchorPos", _tPos] call FTCS_fnc_registrySet;
-        _group move _tPos;
-        { _x doMove _tPos; } forEach units _group;
+        [_group, _tPos] call FTCS_fnc_mvSquadMoveOrder;
         systemChat format ["[SQD ORDER] %1: fall back to %2.", _grpId, _tLabel];
         true
     };

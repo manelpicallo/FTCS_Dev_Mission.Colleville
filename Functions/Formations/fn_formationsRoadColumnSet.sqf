@@ -146,9 +146,11 @@ private _registeredGroupsCount = 0;
                 _entry set ["roadTangentDir", _tangentDir];
                 _entry set ["roadOffsetDist", _currentPathDistance];
                 _entry set ["roadShoulderOffset", _shoulderOffset];
+                _entry set ["roadColumnSide", _currentSide]; // informational: current shoulder side (-1 L / +1 R / 0 C)
                 _entry set ["roadTeamIndex", _forEachIndex + 1];
                 _entry set ["allocationSlot", _slotIdx];
-                _entry set ["formationType", "COLUMN"]; // Sub-teams march in single file column along shoulder
+                // NOTE: no doctrinal formation fields (platoonFormation/squadFormation/teamFormation)
+                // are written here - road march owns its own geometry via the road* fields.
                 FTCS_Groups_Registry_Table set [_elementID, _entry];
 
                 if !(_grp in _followerList) then { _followerList pushBack _grp; };
@@ -215,8 +217,8 @@ if (count _formation_elements > 6 && {count (_formation_elements select 6) > 0})
         _entry6 set ["roadTangentDir", _leaderHeading];
         _entry6 set ["roadOffsetDist", -40];
         _entry6 set ["roadShoulderOffset", 0];
+        _entry6 set ["roadColumnSide", 0];
         _entry6 set ["allocationSlot", 6];
-        _entry6 set ["formationType", "COLUMN"];
         FTCS_Groups_Registry_Table set [_eID6, _entry6];
         if !(_grp6 in _followerList) then { _followerList pushBack _grp6; };
         Platoon_Formation_Position_List set [6, [40, 0, _grp6]];

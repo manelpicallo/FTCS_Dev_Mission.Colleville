@@ -573,6 +573,10 @@ switch (_commandCode) do {
         _pltData set ["roadAnchor", _anchor];
         _platoonsMap set [_pltKey, _pltData];
 
+        // Invalidate every squad's marked 3D target: a new movement technique
+        // restarts the tactical picture (same policy as new platoon formations).
+        [] call FTCS_fnc_targetClearAllSquads;
+
         // Calculate staggered shoulder positions along road and launch debug visualizer if active
         // Forced side injection (ROAD_COLUMN_LEFT/RIGHT fresh orders): a pending
         // value (-1/+1) makes roadColumnSet deploy single-shoulder; 0 = staggered
@@ -1029,8 +1033,9 @@ switch (_commandCode) do {
                 if (!isNull _grp) then { _squadElements pushBack _grp; };
             };
 
-            // 3. Persist manual formation choice into registry
-            [_tGrpId, "formationType", _sqdFormType] call FTCS_fnc_registrySet;
+            // 3. Persist manual formation choice into registry (squad level; the
+            // teamFormation entries per team are written by formationsTypeSquadSet)
+            [_tGrpId, "squadFormation", _sqdFormType] call FTCS_fnc_registrySet;
 
             // 4. Trigger recursive squad formation calculation
             if (count _squadElements > 1) then {
@@ -1149,7 +1154,7 @@ switch (_commandCode) do {
                 if (count _squadElements > 1) then {
                     private _leadTeamGrp = _squadElements select 0;
                     private _leadTeamLeader = leader _leadTeamGrp;
-                    private _squadFormType = [_targetSquadId, "formationType"] call FTCS_fnc_registryGet;
+                    private _squadFormType = [_targetSquadId, "squadFormation"] call FTCS_fnc_registryGet;
                     if (isNil "_squadFormType" || {!(_squadFormType isEqualType "")}) then { _squadFormType = "WEDGE"; };
 
                     // Recalculate local squad formation relative to the Squad Leader's CURRENT heading
@@ -1440,7 +1445,7 @@ switch (_commandCode) do {
 
             if (count _parentRemainingTeams > 1) then {
                 private _leadParentGrp = _parentRemainingTeams select 0;
-                private _squadFormType = [_targetSquadId, "formationType"] call FTCS_fnc_registryGet;
+                private _squadFormType = [_targetSquadId, "squadFormation"] call FTCS_fnc_registryGet;
                 if (isNil "_squadFormType" || {!(_squadFormType isEqualType "")}) then { _squadFormType = "WEDGE"; };
                 [_parentRemainingTeams, _squadFormType, 4, 0] call FTCS_fnc_formationsTypeSquadSet;
             };
@@ -1573,7 +1578,10 @@ switch (_commandCode) do {
             if (count _mvPos < 2 || { _mvPos isEqualTo [0, 0, 0] }) exitWith {
                 systemChat format ["[SQD ORDER] Squad %1 has no marked target - mark one first (option 1).", _slotIdx];
             };
-            [_targetGrp, _mvPos, _arrivalBehaviour] call FTCS_fnc_mvSquadAdvanceToPoint;
+            // Contextual movement dispatcher: picks the primitive by the squad's
+            // active movingMode (formation shift preserves geometry and keeps the
+            // follow loop alive in cross-country; free primitive when detached).
+            [_targetGrp, _mvPos] call FTCS_fnc_mvSquadMoveOrder;
         } else {
             [_targetGrp, _applyCode] call FTCS_fnc_squadOrderApply;
         };
@@ -1698,7 +1706,7 @@ switch (_commandCode) do {
 
                 if (count _squadElements > 1) then {
                     private _leadTeamLeader = leader (_squadElements select 0);
-                    private _squadFormType = [_sqdKey, "formationType"] call FTCS_fnc_registryGet;
+                    private _squadFormType = [_sqdKey, "squadFormation"] call FTCS_fnc_registryGet;
                     if (isNil "_squadFormType" || {!(_squadFormType isEqualType "")}) then { _squadFormType = "WEDGE"; };
                     [_squadElements, _squadFormType, 4, 0] call FTCS_fnc_formationsTypeSquadSet;
 

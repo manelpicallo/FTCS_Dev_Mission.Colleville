@@ -94,8 +94,14 @@ private _drawEH = addMissionEventHandler ["Draw3D", {
         ];
     } else {
         // OBJECT: cyan marker at the object's center of mass (visual space,
-        // exactly like the working camera-proximity reference example)
-        private _centerOfMass = _objectRef modelToWorldVisual (getCenterOfMass _objectRef);
+        // exactly like the working camera-proximity reference example).
+        // Defensive guard: skip the frame if the object vanished/degraded
+        // (destroyed between scan and draw, or null ref) - prevents the
+        // drawIcon3D zero-element crash seen in the RPT.
+        if (isNull _objectRef || {!alive _objectRef}) exitWith {};
+        private _com = getCenterOfMass _objectRef;
+        if (_com isEqualTo []) exitWith {};
+        private _centerOfMass = _objectRef modelToWorldVisual _com;
         drawIcon3D
         [
             "a3\ui_f\data\igui\cfg\targeting\impactpoint_ca.paa",

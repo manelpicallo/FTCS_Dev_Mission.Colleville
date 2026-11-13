@@ -1,0 +1,1 @@
+powershell.exe -ExecutionPolicy Bypass -File "%~dp0tools\LinkMission.ps1"

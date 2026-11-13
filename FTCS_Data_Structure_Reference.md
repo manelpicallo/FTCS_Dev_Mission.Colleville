@@ -183,9 +183,31 @@ FTCS_Groups_Registry_Table (HashMap)
       │     ├── "WATCHING"     -> Vigilando un sector asignado en desenfilada.
       │     └── "WAITING"      -> En espera en Assembly Area o Línea de Partida.
       │
-      ├── "formationType"     : ENUM STRING
+      ├── "platoonFormation"  : ENUM STRING (Formación macro del slot que este elemento ocupa en el despliegue del pelotón)
       │     Valores válidos:
       │     └── "COLUMN" | "LINE" | "WEDGE" | "VEE" | "ECHELON_RIGHT" | "ECHELON_LEFT" | "DIAMOND" | "FILE"
+      │     Escritor único: fn_formationsTypePlatoonSet (pipeline de formaciones de
+      │     pelotón). Sustituye al antiguo "formationType" (eliminado por ambiguo).
+      │     Default doctrinal al spawn: "COLUMN" (fn_registryInit, spawnSupportUnit).
+      │     La marcha por carretera NO escribe este campo (geometría propia vía
+      │     campos "road*").
+      │
+      ├── "squadFormation"    : ENUM STRING (Formación interna vigente del squad)
+      │     Valores válidos: idénticos a "platoonFormation".
+      │     Escritor único: fn_formationsTypeSquadSet (pipeline de formaciones de
+n      │     squad). Persistente: solo una nueva orden de formación la sobrescribe.
+      │     Default de seguridad del consumidor (Movement): "COLUMN".
+      │     Consumidores: fn_mvSquadAdvanceToPoint (marcha/llegada del squad en
+      │     su geometría) y futuras maniobras (bounding overwatch, assault...)
+      │     cuando movementType = NORMAL_MOVE.
+      │
+      ├── "teamFormation"     : ENUM STRING (Formación nativa aplicada al grupo de Arma de cada team)
+      │     Valores válidos: idénticos a "platoonFormation".
+      │     Escritor único: fn_formationsTypeSquadSet (junto a cada setFormation
+      │     del pipeline de squads, elementos 0 a 4). Refleja la geometría real
+      │     que el motor de Arma 3 aplica a cada grupo de armas, para migración
+      │     limpia a Enforce Script (Arma 4) donde las formaciones del motor
+      │     pueden diferir de las de SQF.
       │
       ├── "teamAttachment"    : ENUM STRING (Atribución del sub-equipo a su escuadra — Movement/Formations)
       │     Valores válidos:
@@ -216,6 +238,7 @@ FTCS_Groups_Registry_Table (HashMap)
       ├── "roadTangentDir"    : SCALAR           -> Rumbo/tangente de la carretera en la posición objetivo asignada.
       ├── "roadOffsetDist"    : SCALAR           -> Distancia lineal acumulada a lo largo de la carretera desde el líder guía.
       ├── "roadShoulderOffset": SCALAR           -> Desplazamiento lateral perpendicular al eje de la calzada (-1 babor / +1 estribor / 0 centro).
+      ├── "roadColumnSide"    : SCALAR           -> Lado informativo de acera en marcha por carretera (-1 babor / +1 estribor / 0 centro). Escritor único: fn_formationsRoadColumnSet.
       ├── "roadTeamIndex"     : SCALAR           -> Índice numérico ordinal del sub-equipo/fireteam dentro de la escuadra (1, 2, 3...).
       │
       └── "squadTarget"       : ARRAY (tupla target de 8 campos + opcional marca temporal)

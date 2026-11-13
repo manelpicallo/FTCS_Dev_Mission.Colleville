@@ -89,6 +89,7 @@ class CfgFunctions
             class targetMark {};
             class targetGet {};
             class targetClear {};
+            class targetClearAllSquads {};
         class targetRestore {};
         class targetPersistentMarker {};
         };
@@ -103,6 +104,8 @@ class CfgFunctions
         {
             class movementBoundTeams {};
             class mvSquadAdvanceToPoint {};
+            class mvFormationShift {};
+            class mvSquadMoveOrder {};
             class mvTeamMarchLoop {};
         };
 

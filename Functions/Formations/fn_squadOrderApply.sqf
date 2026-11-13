@@ -54,6 +54,7 @@ private _entry = FTCS_Groups_Registry_Table getOrDefault [_groupID, createHashMa
 
 // --- Movement orders: require a fresh marked commander target ------------------
 private _needsTarget = _orderCode in ["ADVANCE_KEEP", "ADVANCE_DETACH_HOLD", "ADVANCE_DETACH_DEFEND"];
+private _consumeTarget = _orderCode in ["ADVANCE_KEEP", "ADVANCE_DETACH_HOLD", "ADVANCE_DETACH_DEFEND"];
 private _target = [];
 private _approachPos = [0, 0, 0];
 private _label = "";

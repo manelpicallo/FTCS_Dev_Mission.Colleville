@@ -14,7 +14,9 @@
         * "speed"              : [String] ("FULL", "NORMAL", "LIMITED").
         * "roe"                : [String] ("HOLD_FIRE", "FIRE_AT_WILL", "FIRE_IF_FIRED_UPON").
         * "task"               : [String] ("AT_WILL", "MOVING", "SUPPRESSING", "ATTACKING", "WATCHING", "WAITING").
-        * "formationType"      : [String] Local element formation ("COLUMN", "WEDGE", "VEE", "LINE", "DIAMOND").
+        * "platoonFormation"   : [String] Macro slot formation in the platoon deployment ("COLUMN", "WEDGE", "VEE", "LINE", "DIAMOND").
+        * "squadFormation"     : [String] Squad internal formation (written solely by formationsTypeSquadSet).
+        * "teamFormation"      : [String] Team native formation as applied to the Arma group (written solely by formationsTypeSquadSet).
         * "allocationSlot"     : [Scalar] Numerical slot assignment in platoon formations (0, 1, 2, 3...).
         * "formationPosition"  : [Array]  Assigned geometric formation slot [Distance, Direction, Leader Object].
         * "relPosition"        : [Array]  Current relative position vector [Distance, Direction, Reference Leader].
@@ -182,7 +184,7 @@ private _registeredCount = 0;
                     ["speed", "NORMAL"],
                     ["roe", "FIRE_IF_FIRED_UPON"],
                     ["task", "AT_WILL"],
-                    ["formationType", "COLUMN"],
+                    ["platoonFormation", "COLUMN"],
                     ["allocationSlot", _groupSlot],
                     ["formationPosition", [-1, -1, _leaderRef]],
                     ["relPosition", [-1, -1, _leaderRef]],
@@ -214,7 +216,7 @@ private _registeredCount = 0;
                 ["speed", "NORMAL"],
                 ["roe", "FIRE_IF_FIRED_UPON"],
                 ["task", "AT_WILL"],
-                ["formationType", "COLUMN"],
+                ["platoonFormation", "COLUMN"],
                 ["allocationSlot", -1],
                 ["formationPosition", [-1, -1, FTCS_Group_Commander]],
                 ["relPosition", [-1, -1, FTCS_Group_Commander]],
@@ -235,7 +237,7 @@ private _registeredCount = 0;
             ["speed", "NORMAL"],
             ["roe", "FIRE_IF_FIRED_UPON"],
             ["task", "AT_WILL"],
-            ["formationType", "COLUMN"],
+            ["platoonFormation", "COLUMN"],
             ["allocationSlot", -1],
             ["formationPosition", [-1, -1, FTCS_Group_Commander]],
             ["relPosition", [-1, -1, FTCS_Group_Commander]],

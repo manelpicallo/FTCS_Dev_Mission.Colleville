@@ -305,7 +305,12 @@ switch (_formation_type) do {
 
 if (_num_elements > 0) then {
     if (!isNull (_formation_elements select 0)) then {
-        [groupId (_formation_elements select 0), "formationType", _formation_type] call FTCS_fnc_registrySet;
+        // squadFormation: the squad's ACTIVE INTERNAL formation (single writer:
+        // this pipeline). Written alongside teamFormation for every element:
+        // four doctrinal registry levels are companyFormation (future) /
+        // platoonFormation (platoon pipeline) / squadFormation / teamFormation.
+        [groupId (_formation_elements select 0), "squadFormation", _formation_type] call FTCS_fnc_registrySet;
+        [groupId (_formation_elements select 0), "teamFormation", _formation_0] call FTCS_fnc_registrySet;
         (_formation_elements select 0) setFormation _formation_0;
     };
 };
@@ -313,21 +318,25 @@ if (_num_elements > 0) then {
 if (_num_elements > 1 && {!isNull (_formation_elements select 1)}) then {
     [groupId (_formation_elements select 1), _separate_dis_1, _direction_1 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 1) setFormation _formation_1;
+    [groupId (_formation_elements select 1), "teamFormation", _formation_1] call FTCS_fnc_registrySet;
 };
 
 if (_num_elements > 2 && {!isNull (_formation_elements select 2)}) then {
     [groupId (_formation_elements select 2), _separate_dis_2, _direction_2 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 2) setFormation _formation_2;
+    [groupId (_formation_elements select 2), "teamFormation", _formation_2] call FTCS_fnc_registrySet;
 };
 
 if (_num_elements > 3 && {!isNull (_formation_elements select 3)}) then {
     [groupId (_formation_elements select 3), _separate_dis_3, _direction_3 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 3) setFormation _formation_3;
+    [groupId (_formation_elements select 3), "teamFormation", _formation_3] call FTCS_fnc_registrySet;
 };
 
 if (_num_elements > 4 && {!isNull (_formation_elements select 4)}) then {
     [groupId (_formation_elements select 4), _separate_dis_4, _direction_4 + _direction, _formation_elements select 0] call FTCS_fnc_registryUpdatePos;
     (_formation_elements select 4) setFormation _formation_4;
+    [groupId (_formation_elements select 4), "teamFormation", _formation_4] call FTCS_fnc_registrySet;
 };
 
 private _list = +_formation_elements;
